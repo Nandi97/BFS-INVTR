@@ -9,6 +9,15 @@ export interface QbConfig {
   notes:           string;
 }
 
+export interface QbConnectionStatus {
+  config:          QbConfig;
+  isActive:        boolean;
+  lastSyncAt:      string | null;
+  connected:       boolean;
+  realmId:         string | null;
+  tokenExpiresAt:  string | null;
+}
+
 export interface SyncLog {
   id:         string;
   provider:   string;
@@ -28,6 +37,11 @@ export interface SyncResult {
   total:    number;
 }
 
+export interface XlsImportResult extends SyncResult {
+  file: string;
+  synced: number;
+}
+
 const QB_CONFIG_KEY = ["integrations", "qb-config"];
 const SYNC_LOGS_KEY = ["integrations", "sync-logs"];
 
@@ -36,10 +50,16 @@ export function useQbConfig() {
     queryKey: QB_CONFIG_KEY,
     queryFn:  () =>
       api
-        .get<{ config: QbConfig; isActive: boolean; lastSyncAt: string | null }>(
-          "/integrations/quickbooks/config"
-        )
+        .get<QbConnectionStatus>("/integrations/quickbooks/config")
         .then((r) => r.data),
+  });
+}
+
+export function useQbDisconnect() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.post("/integrations/quickbooks/disconnect").then((r) => r.data),
+    onSuccess:  () => qc.invalidateQueries({ queryKey: QB_CONFIG_KEY }),
   });
 }
 
@@ -77,6 +97,32 @@ export function useQbSyncSales() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: SYNC_LOGS_KEY });
       qc.invalidateQueries({ queryKey: ["sales"] });
+    },
+  });
+}
+
+export function useQbXlsFile() {
+  return useQuery({
+    queryKey: ["integrations", "xls-file"],
+    queryFn:  () =>
+      api
+        .get<{ file: string | null; dir: string }>("/integrations/quickbooks/import-xls")
+        .then((r) => r.data),
+  });
+}
+
+export function useQbImportXls() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (location: string) =>
+      api
+        .post<XlsImportResult>("/integrations/quickbooks/import-xls", { location })
+        .then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: SYNC_LOGS_KEY });
+      qc.invalidateQueries({ queryKey: ["stock"] });
+      qc.invalidateQueries({ queryKey: ["reorder"] });
+      qc.invalidateQueries({ queryKey: ["integrations", "xls-file"] });
     },
   });
 }

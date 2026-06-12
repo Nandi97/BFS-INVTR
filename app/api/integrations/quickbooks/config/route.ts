@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getQboTokens } from "@/lib/qbo";
 
 export interface QbConfig {
   companyName:     string;
@@ -13,13 +14,31 @@ export async function GET() {
   const row = await prisma.integrationConfig.findUnique({
     where: { provider: "QUICKBOOKS" },
   });
-  const config: QbConfig = row ? (row.config as unknown as QbConfig) : DEFAULT;
-  return NextResponse.json({ config, isActive: row?.isActive ?? false, lastSyncAt: row?.lastSyncAt ?? null });
+  const cfg = (row?.config ?? {}) as Record<string, unknown>;
+  const { oauth, ...rest } = cfg;
+  const config: QbConfig = { ...DEFAULT, ...(rest as Partial<QbConfig>) };
+
+  const tokens = await getQboTokens();
+  const connected = !!tokens;
+  const realmId   = tokens?.realmId ?? null;
+  const tokenExpiresAt = tokens?.refreshTokenExpiresAt ?? null;
+
+  return NextResponse.json({
+    config,
+    isActive:        row?.isActive ?? false,
+    lastSyncAt:      row?.lastSyncAt ?? null,
+    connected,
+    realmId,
+    tokenExpiresAt,
+  });
 }
 
 export async function PUT(req: NextRequest) {
   const body: Partial<QbConfig> = await req.json();
-  const merged = { ...DEFAULT, ...body };
+  const existing = await prisma.integrationConfig.findUnique({ where: { provider: "QUICKBOOKS" } });
+  const existingCfg = (existing?.config ?? {}) as Record<string, unknown>;
+  // Preserve oauth tokens; only update the user-facing fields
+  const merged = { ...existingCfg, ...DEFAULT, ...body };
 
   const row = await prisma.integrationConfig.upsert({
     where:  { provider: "QUICKBOOKS" },

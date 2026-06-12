@@ -1,5 +1,9 @@
+import { Suspense } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { QbOAuthConnect } from "@/components/integrations/qb-oauth-connect";
+import { QbXlsImport }  from "@/components/integrations/qb-xls-import";
 import { QbStockImport } from "@/components/integrations/qb-stock-import";
 import { QbSalesImport } from "@/components/integrations/qb-sales-import";
 import { QbConfigForm }  from "@/components/integrations/qb-config-form";
@@ -23,10 +27,29 @@ export default function IntegrationsPage() {
           <TabsTrigger value="history">History</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="stock" className="mt-4">
+        <TabsContent value="stock" className="mt-4 space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>QB Physical Inventory Worksheet</CardTitle>
+              <CardTitle>Import from file</CardTitle>
+              <CardDescription>
+                Drop a <code>ProductServiceList__*.xls</code> export from QuickBooks into the
+                project's <code>qb-imports/</code> folder, then click Import.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <QbXlsImport />
+            </CardContent>
+          </Card>
+
+          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+            <Separator className="flex-1" />
+            or paste CSV manually
+            <Separator className="flex-1" />
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Paste CSV</CardTitle>
               <CardDescription>
                 Paste a CSV export from QuickBooks to update stock quantities.
                 Negative quantities are clamped to 0 and a reconciliation movement is recorded.
@@ -53,12 +76,26 @@ export default function IntegrationsPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="config" className="mt-4">
+        <TabsContent value="config" className="mt-4 space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>QuickBooks settings</CardTitle>
+              <CardTitle>QuickBooks Online connection</CardTitle>
               <CardDescription>
-                Configure your QuickBooks connection details and default sync options.
+                Authorise this app to access your QuickBooks data via OAuth 2.0.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Suspense fallback={null}>
+                <QbOAuthConnect />
+              </Suspense>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Settings</CardTitle>
+              <CardDescription>
+                Default options used during sync operations.
               </CardDescription>
             </CardHeader>
             <CardContent>

@@ -8,18 +8,41 @@ Run from the bfs-inventory project root with the dev server running:
     /tmp/bfs-venv/bin/python3 scripts/import_qb_data.py
 """
 
-import sys, json, math, re
+import sys, json, math, re, glob, os
 from collections import defaultdict
 import requests
 import xlrd
 import openpyxl
 
 BASE_URL   = "http://localhost:3000/api"
-INVENTORY_DIR = "/Users/alvinmaina/Library/CloudStorage/GoogleDrive-order@beautylogix.ca/My Drive/inventory"
-STOCK_FILE = f"{INVENTORY_DIR}/ProductServiceList__123145858555379_10_06_2026.xls"
-SALES_FILE = f"{INVENTORY_DIR}/Beauty Logix Inc_Sales by Product_Service Detail.xlsx"
 LOCATION   = "BF Warehouse"
 BATCH_SIZE = 200
+
+# ── File resolution ───────────────────────────────────────────────────────────
+# Stock XLS: look in qb-imports/ first (local drop folder), fall back to Drive
+_SCRIPT_DIR   = os.path.dirname(os.path.abspath(__file__))
+_PROJECT_ROOT = os.path.dirname(_SCRIPT_DIR)
+_DROP_DIR     = os.path.join(_PROJECT_ROOT, "qb-imports")
+_DRIVE_DIR    = "/Users/alvinmaina/Library/CloudStorage/GoogleDrive-order@beautylogix.ca/My Drive/inventory"
+
+def _find_latest_stock_xls():
+    candidates = sorted(
+        glob.glob(os.path.join(_DROP_DIR, "ProductServiceList*.xls")) +
+        glob.glob(os.path.join(_DROP_DIR, "ProductServiceList*.xlsx")) +
+        glob.glob(os.path.join(_DRIVE_DIR, "ProductServiceList*.xls")) +
+        glob.glob(os.path.join(_DRIVE_DIR, "ProductServiceList*.xlsx")),
+        reverse=True,
+    )
+    if not candidates:
+        raise FileNotFoundError(
+            f"No ProductServiceList*.xls found in {_DROP_DIR} or {_DRIVE_DIR}"
+        )
+    path = candidates[0]
+    print(f"  Using stock file: {path}")
+    return path
+
+SALES_FILE = os.path.join(_DRIVE_DIR, "Beauty Logix Inc_Sales by Product_Service Detail.xlsx")
+STOCK_FILE = None  # resolved lazily via _find_latest_stock_xls()
 
 MONTH_NAMES = {
     "january":1,"february":2,"march":3,"april":4,"may":5,"june":6,
@@ -30,7 +53,7 @@ MONTH_NAMES = {
 # ─── Stock ───────────────────────────────────────────────────────────────────
 
 def load_stock_rows():
-    wb   = xlrd.open_workbook(STOCK_FILE)
+    wb   = xlrd.open_workbook(_find_latest_stock_xls())
     ws   = wb.sheets()[0]
     rows = []
     skipped = 0

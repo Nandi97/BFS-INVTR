@@ -47,3 +47,7 @@ next-env.d.ts
 __pycache__/
 *.pyc
 *.pyo
+
+# QB XLS drop folder (local only — never commit customer data)
+/qb-imports/*.xls
+/qb-imports/*.xlsx
