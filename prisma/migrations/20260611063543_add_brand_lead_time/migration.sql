@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Brand" ADD COLUMN     "leadTimeDays" INTEGER NOT NULL DEFAULT 30;

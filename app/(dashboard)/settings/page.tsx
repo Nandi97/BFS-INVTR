@@ -1,0 +1,57 @@
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { StockPolicyTable } from "@/components/settings/stock-policy-table";
+import { BrandLeadTimesTable } from "@/components/settings/brand-lead-times-table";
+import { Package, Clock } from "lucide-react";
+
+export default function SettingsPage() {
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
+        <p className="text-muted-foreground text-sm mt-1">
+          Configure reorder policies, lead times, and stock targets for each brand and product.
+        </p>
+      </div>
+
+      <Tabs defaultValue="stock-policy">
+        <TabsList className="mb-6">
+          <TabsTrigger value="stock-policy" className="gap-2">
+            <Package className="size-3.5" />
+            Stock Policy
+          </TabsTrigger>
+          <TabsTrigger value="lead-times" className="gap-2">
+            <Clock className="size-3.5" />
+            Brand Lead Times
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="stock-policy" className="space-y-4 mt-0">
+          <div className="space-y-1">
+            <h2 className="text-base font-medium">Target Stock Months — per product</h2>
+            <p className="text-sm text-muted-foreground max-w-2xl">
+              How many months of stock to order at each restock. Local high-volume products typically
+              need 2 months; international non-perishables 6–12 months.
+              The <strong>Reorder Qty</strong> column is a live preview — save changes, then click
+              <strong> Recalculate</strong> to apply to the Reorder page.
+            </p>
+          </div>
+          <StockPolicyTable />
+        </TabsContent>
+
+        <TabsContent value="lead-times" className="space-y-4 mt-0">
+          <div className="space-y-1">
+            <h2 className="text-base font-medium">Brand Lead Times</h2>
+            <p className="text-sm text-muted-foreground max-w-2xl">
+              How many days it takes for an order to arrive from each brand.
+              This drives the <strong>Reorder Point</strong> — the stock level at which you should
+              place an order so it arrives before you run out.
+              Local suppliers (≤20 days) are marked <span className="text-green-700 dark:text-green-400 font-medium">Local</span>;
+              all others are <span className="text-blue-700 dark:text-blue-400 font-medium">International</span>.
+            </p>
+          </div>
+          <BrandLeadTimesTable />
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
