@@ -3,18 +3,23 @@ import { prismaAdapter } from "better-auth/adapters/prisma";
 import { prisma } from "./prisma";
 // @ts-ignore — generated after migrate
 
-
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: "postgresql",
   }),
-  emailAndPassword: {
-    enabled: true,
-    requireEmailVerification: false,
+  socialProviders: {
+    github: {
+      clientId:     process.env.GITHUB_CLIENT_ID!,
+      clientSecret: process.env.GITHUB_CLIENT_SECRET!,
+    },
+    google: {
+      clientId:     process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+    },
   },
   session: {
     expiresIn: 60 * 60 * 24 * 7, // 7 days
-    updateAge: 60 * 60 * 24,      // refresh if older than 1 day
+    updateAge: 60 * 60 * 24,
   },
   user: {
     additionalFields: {

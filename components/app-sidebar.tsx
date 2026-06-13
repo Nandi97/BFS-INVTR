@@ -20,8 +20,10 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ChevronsUpDown } from "lucide-react";
+import { useSession, signOut } from "@/lib/auth-client";
+import { useRouter } from "next/navigation";
 
 type NavItem = {
   title: string;
@@ -114,7 +116,20 @@ function NavGroup({ label, items }: { label: string; items: NavItem[] }) {
   );
 }
 
+function getInitials(name?: string | null) {
+  if (!name) return "?";
+  return name.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase();
+}
+
 export function AppSidebar() {
+  const router = useRouter();
+  const { data: session } = useSession();
+  const user = session?.user;
+
+  async function handleSignOut() {
+    await signOut({ fetchOptions: { onSuccess: () => router.push("/login") } });
+  }
+
   return (
     <Sidebar collapsible="icon">
       {/* Brand */}
@@ -155,13 +170,14 @@ export function AppSidebar() {
                   className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
                 >
                   <Avatar className="size-7 rounded-lg">
+                    <AvatarImage src={user?.image ?? undefined} alt={user?.name ?? ""} className="rounded-lg" />
                     <AvatarFallback className="rounded-lg text-xs bg-primary text-primary-foreground">
-                      BF
+                      {getInitials(user?.name)}
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex flex-col gap-0.5 text-left text-sm leading-tight min-w-0">
-                    <span className="truncate font-medium">BFS Admin</span>
-                    <span className="truncate text-xs text-muted-foreground">order@beautylogix.ca</span>
+                    <span className="truncate font-medium">{user?.name ?? "—"}</span>
+                    <span className="truncate text-xs text-muted-foreground">{user?.email ?? "—"}</span>
                   </div>
                   <ChevronsUpDown className="ml-auto size-4 shrink-0" />
                 </SidebarMenuButton>
@@ -171,7 +187,10 @@ export function AppSidebar() {
                   <Link href="/settings"><Settings className="mr-2 size-4" />Settings</Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem className="text-destructive focus:text-destructive">
+                <DropdownMenuItem
+                  className="text-destructive focus:text-destructive cursor-pointer"
+                  onClick={handleSignOut}
+                >
                   <LogOut className="mr-2 size-4" />Sign out
                 </DropdownMenuItem>
               </DropdownMenuContent>
