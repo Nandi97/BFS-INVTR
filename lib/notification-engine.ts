@@ -15,7 +15,7 @@ async function getOutOfStockItems(): Promise<StockAlertItem[]> {
     sku:          r.product.sku ?? r.product.barcode ?? undefined,
     location:     r.location.name,
     quantity:     r.quantity,
-    suggestedQty: r.reorderQty > 0 ? r.reorderQty : undefined,
+    suggestedQty: isFinite(r.reorderQty) && r.reorderQty > 0 ? r.reorderQty : undefined,
   }));
 }
 
@@ -50,7 +50,7 @@ async function getLowStockItems(): Promise<StockAlertItem[]> {
     location:     r.location,
     quantity:     Number(r.quantity),
     reorderPoint: Number(r.reorderPoint),
-    suggestedQty: r.reorderQty > 0 ? Number(r.reorderQty) : undefined,
+    suggestedQty: isFinite(Number(r.reorderQty)) && Number(r.reorderQty) > 0 ? Number(r.reorderQty) : undefined,
   }));
 }
 

@@ -43,14 +43,19 @@ export async function POST(req: NextRequest) {
     const sales = inv.product.salesRecords;
     if (sales.length === 0) { skipped++; continue; }
 
-    const avgMonthly   = sales.reduce((s, r) => s + r.quantity, 0) / sales.length;
-    if (avgMonthly <= 0) { skipped++; continue; }
+    const avgMonthly   = sales.reduce((s, r) => s + Number(r.quantity), 0) / sales.length;
+    if (!isFinite(avgMonthly) || avgMonthly <= 0) { skipped++; continue; }
 
     const leadTimeDays      = inv.product.brand?.leadTimeDays ?? 30;
-    const targetStockMonths = inv.product.targetStockMonths;
+    const targetStockMonths = inv.product.targetStockMonths ?? 6;
     const reorderPoint      = Math.ceil(avgMonthly * (leadTimeDays + SAFETY_DAYS) / 30);
     const minQuantity       = Math.ceil(avgMonthly * SAFETY_DAYS / 30);
     const reorderQty        = Math.ceil(avgMonthly * targetStockMonths);
+
+    if (!isFinite(reorderPoint) || !isFinite(minQuantity) || !isFinite(reorderQty)) {
+      skipped++;
+      continue;
+    }
 
     await prisma.inventory.update({
       where: { id: inv.id },
@@ -92,10 +97,10 @@ export async function GET(req: NextRequest) {
     .map((inv) => {
       const sales = inv.product.salesRecords;
       if (sales.length === 0) return null;
-      const avgMonthly        = sales.reduce((s, r) => s + r.quantity, 0) / sales.length;
-      if (avgMonthly <= 0) return null;
+      const avgMonthly        = sales.reduce((s, r) => s + Number(r.quantity), 0) / sales.length;
+      if (!isFinite(avgMonthly) || avgMonthly <= 0) return null;
       const leadTimeDays      = inv.product.brand?.leadTimeDays ?? 30;
-      const targetStockMonths = inv.product.targetStockMonths;
+      const targetStockMonths = inv.product.targetStockMonths ?? 6;
       return {
         product:          inv.product.name,
         brand:            inv.product.brand?.name,

@@ -4,25 +4,26 @@ import fs from "fs";
 import * as XLSX from "xlsx";
 import { prisma } from "@/lib/prisma";
 
+// ── Local drop-folder (dev only) ──────────────────────────────────────────────
 const IMPORTS_DIR = path.join(process.cwd(), "qb-imports");
 
-function findLatestFile(): string | null {
+function findLatestLocalFile(): string | null {
   if (!fs.existsSync(IMPORTS_DIR)) return null;
   const files = fs.readdirSync(IMPORTS_DIR)
     .filter((f) => f.startsWith("ProductServiceList") && (f.endsWith(".xls") || f.endsWith(".xlsx")))
-    .sort()
-    .reverse();
+    .sort().reverse();
   return files.length ? path.join(IMPORTS_DIR, files[0]) : null;
 }
 
-/** Returns the filename of the latest ProductServiceList file in qb-imports/, or null. */
 export async function GET() {
-  const filePath = findLatestFile();
+  const filePath = findLatestLocalFile();
   return NextResponse.json({
     file: filePath ? path.basename(filePath) : null,
-    dir: IMPORTS_DIR,
+    dir:  IMPORTS_DIR,
   });
 }
+
+// ── Shared helpers ────────────────────────────────────────────────────────────
 
 function stripQbHierarchy(name: string) {
   const parts = name.split(":");
@@ -35,9 +36,9 @@ async function resolveProduct(itemName: string, sku?: string) {
     where: {
       isActive: true,
       OR: [
-        ...(sku ? [{ sku: { equals: sku.trim(), mode: "insensitive" as const } }] : []),
+        ...(sku ? [{ sku:     { equals: sku.trim(), mode: "insensitive" as const } }] : []),
         ...(sku ? [{ barcode: { equals: sku.trim(), mode: "insensitive" as const } }] : []),
-        { name: { equals: stripped, mode: "insensitive" as const } },
+        { name: { equals: stripped,       mode: "insensitive" as const } },
         { name: { equals: itemName.trim(), mode: "insensitive" as const } },
       ],
     },
@@ -45,18 +46,34 @@ async function resolveProduct(itemName: string, sku?: string) {
   });
 }
 
-export async function POST(req: NextRequest) {
-  const body = await req.json().catch(() => ({}));
-  const locationName: string = body.location ?? "BF Warehouse";
+function parseWorkbook(wb: XLSX.WorkBook) {
+  const ws      = wb.Sheets[wb.SheetNames[0]];
+  const rawRows = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1 });
 
-  const filePath = findLatestFile();
-  if (!filePath) {
-    return NextResponse.json(
-      { error: `No ProductServiceList*.xls file found in ${IMPORTS_DIR}` },
-      { status: 404 }
-    );
+  const parsed: { itemName: string; sku?: string; qty: number; reorderPoint?: number }[] = [];
+  for (const r of rawRows.slice(1)) {
+    const row      = r as unknown[];
+    const itemType = String(row[3] ?? "").trim().toLowerCase();
+    if (itemType !== "inventory") continue;
+
+    const itemName = String(row[0] ?? "").trim();
+    if (!itemName) continue;
+
+    const sku         = String(row[2] ?? "").trim() || undefined;
+    const qty         = Math.max(0, parseFloat(String(row[13] ?? "0")) || 0);
+    const rpRaw       = parseFloat(String(row[14] ?? ""));
+    const reorderPoint = isNaN(rpRaw) ? undefined : Math.max(0, rpRaw);
+
+    parsed.push({ itemName, sku, qty, reorderPoint });
   }
+  return parsed;
+}
 
+async function syncParsedRows(
+  parsed:       ReturnType<typeof parseWorkbook>,
+  locationName: string,
+  fileName:     string,
+) {
   const loc = await prisma.location.findFirst({
     where: {
       isActive: true,
@@ -65,52 +82,18 @@ export async function POST(req: NextRequest) {
         { code: { equals: locationName.trim(), mode: "insensitive" } },
       ],
     },
-    select: { id: true, name: true },
+    select: { id: true },
   });
-  if (!loc) {
-    return NextResponse.json({ error: `Location "${locationName}" not found` }, { status: 422 });
-  }
-
-  // Parse XLS — columns mirror the Python script:
-  //   0: item name, 2: sku, 3: type, 13: qty on hand, 14: reorder point
-  const wb = XLSX.readFile(filePath, { type: "file" });
-  const ws = wb.Sheets[wb.SheetNames[0]];
-  const rawRows = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1 });
-
-  const parsed: { itemName: string; sku?: string; qty: number; reorderPoint?: number }[] = [];
-  for (const r of rawRows.slice(1)) {
-    const row = r as unknown[];
-    const itemType = String(row[3] ?? "").trim().toLowerCase();
-    if (itemType !== "inventory") continue;
-
-    const itemName = String(row[0] ?? "").trim();
-    if (!itemName) continue;
-
-    const sku = String(row[2] ?? "").trim() || undefined;
-    const qty = Math.max(0, parseFloat(String(row[13] ?? "0")) || 0);
-    const rpRaw = parseFloat(String(row[14] ?? ""));
-    const reorderPoint = isNaN(rpRaw) ? undefined : Math.max(0, rpRaw);
-
-    parsed.push({ itemName, sku, qty, reorderPoint });
-  }
-
-  if (parsed.length === 0) {
-    return NextResponse.json({ error: "No inventory rows found in file" }, { status: 422 });
-  }
+  if (!loc) throw new Error(`Location "${locationName}" not found`);
 
   let synced = 0, skipped = 0;
   const errors: string[] = [];
   const startedAt = new Date();
 
-  for (let i = 0; i < parsed.length; i++) {
-    const row = parsed[i];
+  for (const row of parsed) {
     try {
       const product = await resolveProduct(row.itemName, row.sku);
-      if (!product) {
-        errors.push(`Not found: "${row.itemName}"`);
-        skipped++;
-        continue;
-      }
+      if (!product) { errors.push(`Not found: "${row.itemName}"`); skipped++; continue; }
 
       await prisma.$transaction(async (tx) => {
         await tx.inventory.upsert({
@@ -118,19 +101,17 @@ export async function POST(req: NextRequest) {
           update: { quantity: row.qty, ...(row.reorderPoint != null ? { reorderPoint: row.reorderPoint } : {}) },
           create: { productId: product.id, locationId: loc.id, quantity: row.qty, reorderPoint: row.reorderPoint ?? 0, reorderQty: 0, minQuantity: 0 },
         });
-
         await tx.stockMovement.create({
           data: {
-            productId:   product.id,
-            locationId:  loc.id,
-            type:        "RECONCILIATION",
-            quantity:    row.qty,
+            productId:    product.id,
+            locationId:   loc.id,
+            type:         "RECONCILIATION",
+            quantity:     row.qty,
             balanceAfter: row.qty,
-            notes:       `QB XLS import — ${path.basename(filePath)}`,
+            notes:        `QB XLS import — ${fileName}`,
           },
         });
       });
-
       synced++;
     } catch (err: unknown) {
       errors.push(`"${row.itemName}": ${err instanceof Error ? err.message : String(err)}`);
@@ -144,7 +125,7 @@ export async function POST(req: NextRequest) {
         provider:   "QUICKBOOKS",
         type:       "STOCK_SYNC",
         status:     errors.length > 0 && synced === 0 ? "FAILED" : errors.length > 0 ? "PARTIAL" : "SUCCESS",
-        message:    `XLS import: ${synced} synced, ${skipped} skipped — ${path.basename(filePath)}`,
+        message:    `XLS import: ${synced} synced, ${skipped} skipped — ${fileName}`,
         recordsIn:  parsed.length,
         recordsOut: synced,
       },
@@ -156,11 +137,54 @@ export async function POST(req: NextRequest) {
     }),
   ]);
 
-  return NextResponse.json({
-    file:    path.basename(filePath),
-    total:   parsed.length,
-    synced,
-    skipped,
-    errors:  errors.slice(0, 30),
-  });
+  return { total: parsed.length, synced, skipped, errors: errors.slice(0, 30) };
+}
+
+// ── POST — accepts either a fileUrl (UploadThing) or falls back to local folder ─
+
+export async function POST(req: NextRequest) {
+  const body: { location?: string; fileUrl?: string; fileName?: string } =
+    await req.json().catch(() => ({}));
+
+  const locationName = body.location ?? "BF Warehouse";
+
+  let wb: XLSX.WorkBook;
+  let fileName: string;
+
+  if (body.fileUrl) {
+    // Uploaded via UploadThing — fetch the file from the CDN URL
+    const res = await fetch(body.fileUrl);
+    if (!res.ok) {
+      return NextResponse.json({ error: `Failed to fetch uploaded file: ${res.status}` }, { status: 502 });
+    }
+    const buffer = await res.arrayBuffer();
+    wb       = XLSX.read(buffer, { type: "array" });
+    fileName = body.fileName ?? "uploaded.xls";
+  } else {
+    // Fall back to local drop folder (dev convenience)
+    const filePath = findLatestLocalFile();
+    if (!filePath) {
+      return NextResponse.json(
+        { error: `No ProductServiceList*.xls in qb-imports/ and no fileUrl provided` },
+        { status: 404 }
+      );
+    }
+    wb       = XLSX.readFile(filePath, { type: "file" });
+    fileName = path.basename(filePath);
+  }
+
+  const parsed = parseWorkbook(wb);
+  if (parsed.length === 0) {
+    return NextResponse.json({ error: "No inventory rows found in file" }, { status: 422 });
+  }
+
+  try {
+    const result = await syncParsedRows(parsed, locationName, fileName);
+    return NextResponse.json({ file: fileName, ...result });
+  } catch (err: unknown) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : String(err) },
+      { status: 422 }
+    );
+  }
 }

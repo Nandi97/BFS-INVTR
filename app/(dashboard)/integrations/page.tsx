@@ -3,7 +3,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { QbOAuthConnect } from "@/components/integrations/qb-oauth-connect";
-import { QbXlsImport }  from "@/components/integrations/qb-xls-import";
+import { QbXlsUpload }  from "@/components/integrations/qb-xls-upload";
 import { QbStockImport } from "@/components/integrations/qb-stock-import";
 import { QbSalesImport } from "@/components/integrations/qb-sales-import";
 import { QbConfigForm }  from "@/components/integrations/qb-config-form";
@@ -32,12 +32,11 @@ export default function IntegrationsPage() {
             <CardHeader>
               <CardTitle>Import from file</CardTitle>
               <CardDescription>
-                Drop a <code>ProductServiceList__*.xls</code> export from QuickBooks into the
-                project's <code>qb-imports/</code> folder, then click Import.
+                Upload a <code>ProductServiceList__*.xls</code> export from QuickBooks to update stock quantities.
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <QbXlsImport />
+              <QbXlsUpload />
             </CardContent>
           </Card>
 
