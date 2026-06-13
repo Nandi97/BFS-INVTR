@@ -7,7 +7,12 @@ export const metadata: Metadata = {
   title: "Sign in — BFS Inventory",
 };
 
-export default function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
+  const { error } = await searchParams;
   return (
     <div className="relative h-screen flex-col items-center justify-center md:grid lg:max-w-none lg:grid-cols-2 lg:px-0 flex">
 
@@ -54,6 +59,13 @@ export default function LoginPage() {
               Sign in to access the inventory dashboard.
             </p>
           </div>
+
+          {/* Unauthorized error */}
+          {error === "unauthorized" && (
+            <div className="rounded-md border border-destructive/40 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+              Your account is not authorised to access BFS Inventory. Contact your administrator.
+            </div>
+          )}
 
           {/* OAuth buttons */}
           <Suspense fallback={null}>
