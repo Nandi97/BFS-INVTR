@@ -82,32 +82,23 @@ npx tsx --env-file=.env scripts/set-local-target-months.ts  # sets local brands 
 
 ## Warehouse Data Import
 
-Product catalog (919 products) and opening stock (640 records) were imported from the Excel spreadsheet:
+Product catalog (919 products) and opening stock (640 records) were imported from the Excel spreadsheet. QB is now the live source of truth — the scripts below were one-time bootstrap only.
 
 ```bash
 python3 -m venv /tmp/bfs-venv
 /tmp/bfs-venv/bin/pip install requests openpyxl xlrd
-/tmp/bfs-venv/bin/python3 scripts/import_warehouse.py     # products + opening stock from Excel
-/tmp/bfs-venv/bin/python3 scripts/import_qb_data.py all  # stock + sales from QB exports + recalculate
+/tmp/bfs-venv/bin/python3 scripts/import_warehouse.py     # products + opening stock from Excel (one-time)
+/tmp/bfs-venv/bin/python3 scripts/import_qb_data.py all  # stock + sales from QB exports (one-time bootstrap)
 ```
 
-The QB import script reads two files from Google Drive:
-- `ProductServiceList__*.xls` — current stock quantities from QB
-- `Beauty Logix Inc_Sales by Product_Service Detail.xlsx` — 12-month sales history
-
-```bash
-# Run individual steps if needed:
-/tmp/bfs-venv/bin/python3 scripts/import_qb_data.py stock     # stock quantities only
-/tmp/bfs-venv/bin/python3 scripts/import_qb_data.py sales     # sales history only
-/tmp/bfs-venv/bin/python3 scripts/import_qb_data.py minimums  # recalculate reorder points only
-```
+Stock quantities are now maintained by the **nightly QB API sync** (`/api/cron/sync`). Product names are overwritten monthly by the **name sync cron** (`/api/cron/sync-names`). Do not re-run these import scripts in production — they would overwrite live data.
 
 ---
 
 ## Current Data State (as of 2026-06-15)
 
 - **847 active products** (81 Inverness products disabled — direct supplier to stores)
-- **665 stock records** synced from QB ProductServiceList export
+- **665 stock records** — live via nightly QB Items API sync
 - **3,480 monthly sales records** from QB Sales Detail (April 2025 – March 2026)
 - **562 products** have calculated reorder points and reorder quantities
 - **Local brands** (Beauty First, Desembre, Fernanda's, Refectocil) → 2-month stock target, 14-day lead time
@@ -135,7 +126,12 @@ The QB import script reads two files from Google Drive:
 | 12 | Import / Export | `app/api/import/`, `app/api/export/`, `app/(dashboard)/import-export/` |
 | 13 | QB Integration | `app/api/integrations/quickbooks/`, `hooks/use-integrations.ts`, `components/integrations/`, `app/(dashboard)/integrations/` |
 | 15 | Settings | `app/api/settings/stock-policy/`, `components/settings/`, `app/(dashboard)/settings/` |
-| 16 | Authentication | `lib/auth.ts`, `lib/auth-client.ts`, `app/(auth)/login/`, `middleware.ts` |
+| 16 | Authentication + RBAC | `lib/auth.ts`, `lib/auth-client.ts`, `lib/require-role.ts`, `app/(auth)/login/`, `middleware.ts` |
+| 17 | User admin panel | `app/api/users/`, `hooks/use-users.ts`, `components/settings/user-table.tsx` — Team tab in Settings |
+| 18 | QB refresh token alert | `lib/qb-token-check.ts` — runs in nightly cron, emails admin if ≤7 days |
+| 19 | Empty states | `components/ui/empty-state.tsx` — used in products, stock, movements, email log, suppliers, reorder tables |
+| 20 | QB Vendor sync | `app/api/integrations/quickbooks/vendors/route.ts`, Vendors tab in Integrations |
+| 21 | QB Product name sync | `app/api/integrations/quickbooks/items/sync-names/route.ts`, monthly cron `0 7 1 * *` |
 
 ### ❌ Remaining
 
@@ -147,72 +143,100 @@ The QB import script reads two files from Google Drive:
 
 ## QuickBooks Integration — Full Picture
 
-QB is now live in production. Three sync modes exist:
+QB is the **source of truth** for stock quantities and product names. All file-upload/CSV-paste routes are kept for emergency manual correction only.
+
+### Sync modes
 
 | Mode | Route | Trigger | What it does |
 |---|---|---|---|
-| **Live stock sync** | `POST /api/integrations/quickbooks/items` | UI button / cron | Fetches `QtyOnHand` from QB Items API → upserts inventory |
-| **Live sales sync** | `POST /api/integrations/quickbooks/sync-sales-api` | UI button / cron | Fetches `SalesByProductServiceSummary` report (last 12 months) → upserts SalesRecord |
-| **XLS file import** | `POST /api/integrations/quickbooks/sync-stock` | UI file upload | Parses uploaded `ProductServiceList__*.xls` → upserts inventory |
-| **CSV paste import** | `POST /api/integrations/quickbooks/sync-stock` | UI text area | Same route, rows from CSV paste |
-| **Sales CSV import** | `POST /api/integrations/quickbooks/sync-sales` | UI text area | Parses QB Sales Detail CSV (flat or wide format) |
+| **Live stock sync** | `POST /api/integrations/quickbooks/items` | UI button / nightly cron | Fetches `QtyOnHand` from QB Items API → upserts inventory |
+| **Live sales sync** | `POST /api/integrations/quickbooks/sync-sales-api` | UI button / nightly cron | Fetches `SalesByProductServiceSummary` (last 12 months) → upserts SalesRecord |
+| **Product name sync** | `POST /api/integrations/quickbooks/items/sync-names` | UI button / monthly cron | Overwrites `product.name` from QB canonical name, matched by SKU only |
+| **Vendor sync** | `POST /api/integrations/quickbooks/vendors` | UI button (on-demand) | Imports active QB Vendors → upserts Suppliers; fills blank fields only, never overwrites manual edits |
+| **XLS file import** | `POST /api/integrations/quickbooks/sync-stock` | UI file upload | Emergency: parse `ProductServiceList__*.xls` → upsert inventory |
+| **CSV paste import** | `POST /api/integrations/quickbooks/sync-stock` | UI text area | Emergency: rows from CSV paste |
+| **Sales CSV import** | `POST /api/integrations/quickbooks/sync-sales` | UI text area | Emergency: QB Sales Detail CSV (flat or wide format) |
 
-**Nightly cron**: `GET /api/cron/sync` — runs at 06:00 UTC (02:00 EST). Protected by `CRON_SECRET` env var (`Authorization: Bearer <secret>`). Calls both live sync routes sequentially.
+### Cron jobs
 
-**OAuth token storage**: tokens live in `IntegrationConfig.config.oauth` (JSON). Access token auto-refreshes when <2 min from expiry. Refresh token expires ~Sep 2026 — if it expires, user must re-connect via `/integrations` → Settings tab.
+| Schedule | Route | What it does |
+|---|---|---|
+| `0 6 * * *` (daily 06:00 UTC) | `GET /api/cron/sync` | Stock sync + sales sync + QB token expiry check |
+| `0 7 1 * *` (monthly, 1st) | `GET /api/cron/sync-names` | Overwrites product names from QB by SKU match |
 
-**Local dev**: same Neon DB as prod. Once QB is connected on prod, local dev can make live QB API calls without re-authenticating (tokens are in shared DB). Set `QBO_ENVIRONMENT=production` in `.env`.
+Both cron routes are protected by `Authorization: Bearer <CRON_SECRET>`. Vercel sends this header automatically; set `CRON_SECRET` in both `.env` and Vercel environment variables.
 
-**QB redirect URI** (must be registered in Intuit portal):
+### Sales sync — quantity handling
+
+`SalesByProductServiceSummary` may return only revenue columns (no unit qty) depending on QB report config. The sync route detects this via `qtyColumnsDetected` in the response. When `false`, existing `SalesRecord.quantity` values (from the Excel bootstrap) are preserved — the upsert only overwrites quantity when QB actually returns a non-zero qty. Revenue is always updated.
+
+### Name sync — matching logic
+
+Only items with a QB SKU are renamed. Matching priority: `product.sku` → `product.barcode`. Items matched by barcode have `product.sku` back-filled for future runs. Items with no QB SKU are counted as `noSku` and skipped to avoid ambiguous matches. The diff (old name → new name) is returned in the response and logged to SyncLog with type `NAME_SYNC`.
+
+### Shared QB helpers in lib
+
+- `QboItem` interface — `lib/qbo.ts`
+- `fetchQboItems()` — paginated fetch of all active Inventory items — `lib/qbo.ts`
+- **Do not import types or functions from route files into other route files.** Next.js App Router bundles each route independently; cross-route imports cause 502s. Put shared QB types/helpers in `lib/qbo.ts`.
+
+### OAuth
+
+Tokens live in `IntegrationConfig.config.oauth` (JSON). Access token auto-refreshes when <2 min from expiry. Refresh token expires ~Sep 2026 — if it expires, reconnect via `/integrations` → Settings tab. The nightly cron emails the admin (`GMAIL_USER`) if fewer than 7 days remain.
+
+**QB redirect URI** (registered in Intuit portal):
 ```
 https://bfs.kigtech.digital/api/integrations/quickbooks/callback
 ```
 
-### QB API Opportunities (not yet built)
-
-| Opportunity | Value | Effort |
-|---|---|---|
-| Pull QB Vendors → auto-populate Suppliers | High — keeps vendor data in sync | Low |
-| Pull `Item.UnitCost` during stock sync | Medium — enables stock valuation without manual cost entry | Low (add to existing items sync) |
-| Push BFS Purchase Orders → QB POs | High — closes procurement loop, prevents duplicate orders | Medium |
-| Email admin if refresh token <7 days from expiry | High — prevents silent integration breakage | Low |
+**Local dev**: shared Neon DB means local dev uses the same tokens as prod once QB is connected. Set `QBO_ENVIRONMENT=production` in `.env`.
 
 ---
 
-## Authentication
+## Authentication & RBAC
 
-**Current state**: GitHub + Google OAuth working. Email/password auth not implemented.
+**Current state**: GitHub + Google OAuth. ADMIN/MANAGER/VIEWER roles enforced on all write routes.
 
-- Login page: `app/(auth)/login/page.tsx`
+- Login: `app/(auth)/login/page.tsx`
 - better-auth config: `lib/auth.ts` (socialProviders: github + google)
 - Middleware allowlist: `middleware.ts` — specific emails + `@beautylogix.ca` / `@beautyfirstspa.com` domains
 - Session: 7-day expiry, 24-hour sliding update
+- Role helper: `lib/require-role.ts` — `requireRole("ADMIN" | "MANAGER")`, returns `{ user }` or `NextResponse` 401/403
 
-**What's missing**:
-- No user role management UI — all new users default to `VIEWER`. No way for admin to promote to `MANAGER`/`ADMIN` without direct DB edit.
-- No role enforcement in API routes — middleware checks auth + email, but routes don't verify `user.role` before allowing PO creation, supplier deletion, etc.
+**Role split**:
+- `ADMIN` — settings, locations, user role management, QB connect/disconnect, product/supplier/stock imports
+- `MANAGER` — products, brands, categories, suppliers, purchase orders, stock adjustments, notifications, QB syncs
+- `VIEWER` — read-only (all GET routes are public to any authenticated session)
+
+**User admin**: Team tab in `/settings` (`components/settings/user-table.tsx`). Role selector for others, read-only badge for self. Self-demotion blocked at API level.
+
+**First admin**: must be set directly in DB (`UPDATE "user" SET role = 'ADMIN' WHERE email = '...'`). All new sign-ins default to `VIEWER`.
+
+**What's still missing**:
 - No email/password fallback — if Google/GitHub OAuth is down, no login path exists.
 
 **Legal pages** (public, no auth required):
 - `https://bfs.kigtech.digital/legal/privacy`
 - `https://bfs.kigtech.digital/legal/terms`
-- Added to `PUBLIC_PATHS` in middleware. Required by Intuit for production QB OAuth approval.
 
 ---
 
-## Settings Page — Stock Policy
+## Settings Page
 
-The `/settings` page has two tabs:
+Three tabs at `/settings`:
 
-**Stock Policy tab** (`/api/settings/stock-policy`):
+**Stock Policy** (`/api/settings/stock-policy`):
 - Per-product `targetStockMonths` (Int, default 6) — drives `reorderQty = ceil(avgMonthly × targetStockMonths)`
 - Accordion grouped by brand; quick-set buttons (1/2/3/6/9/12 mo) per brand header
-- Sticky save bar appears when there are unsaved changes
-- "Recalculate" button calls `/api/inventory/calculate-minimums` to push values to inventory
+- Sticky save bar; "Recalculate" button calls `/api/inventory/calculate-minimums`
 
-**Brand Lead Times tab**:
+**Brand Lead Times**:
 - Editable `leadTimeDays` per brand (inline edit, Enter/Escape)
 - Drives `reorderPoint = ceil(avgMonthly × (leadTimeDays + 7) / 30)`
+
+**Team**:
+- Lists all users with avatar, role selector, last seen, member since
+- ADMIN-only API (`GET/PATCH /api/users`, `PATCH /api/users/[id]`)
 
 ---
 
@@ -231,27 +255,22 @@ Products with no sales data are skipped by calculate-minimums.
 
 ## Backlog (Prioritised)
 
-### High priority
-
-| Item | Notes |
-|---|---|
-| Role-based API checks | Routes don't verify `user.role`. Any authenticated allowlisted user can create/delete POs, suppliers, etc. Add ADMIN/MANAGER check on write routes. |
-| User admin panel | No UI to view users or change roles. First admin must be set directly in DB. |
-| QB refresh token expiry alert | Email admin if `refreshTokenExpiresAt` < 7 days. Can run in the nightly cron. |
-| Empty states | Tables show blank space when empty. Add icon + message + action button (e.g. "No suppliers yet — Add one"). |
-
 ### Medium priority
 
 | Item | Notes |
 |---|---|
-| QB Vendor sync | `GET /api/integrations/quickbooks/vendors` → auto-populate Suppliers. One-time + on-demand. |
-| QB unit cost sync | Pull `Item.UnitCost` during existing items sync → populate `ProductSupplier.cost`. Enables accurate stock valuation. |
+| QB unit cost sync | Pull `Item.PurchaseCost` during existing items sync → populate `ProductSupplier.cost`. Enables accurate stock valuation. Field already on `QboItem` in `lib/qbo.ts`. |
 | Reorder bulk actions | Multi-select rows → "Create PO for selected" or "Export selected". Currently only per-row actions. |
-| PO → QB push | Create QB PurchaseOrder when a BFS PO is sent. Requires QB PO API + vendor/item ID mapping. |
 | Dashboard KPI deltas | Add ±N trend vs prior week to each KPI card. Data already exists in StockMovement + SalesRecord. |
 | Analytics date range picker | Analytics charts show fixed period. A date range selector would make it useful for ad-hoc queries. |
 | Mobile table responsiveness | Wide tables (products, stock, reorder) need `overflow-x-auto` wrapper. Currently break layout at <768px. |
 | Error boundaries | Pages use `<Suspense>` but no `error.tsx` boundaries. A single component throw crashes the whole page section. |
+
+### Skipped (no QB writes policy)
+
+| Item | Notes |
+|---|---|
+| PO → QB push | Would create QB PurchaseOrder when a BFS PO is sent. Skipped — app is read-only from QB's perspective. |
 
 ### Low priority / nice-to-have
 
@@ -286,6 +305,9 @@ Products with no sales data are skipped by calculate-minimums.
 - **TanStack Query v5 `onSuccess`** — inline callbacks need explicit type annotations: `onSuccess: (result: MyType) => { ... }`.
 - **chart.tsx** — has `// @ts-nocheck` (recharts type incompatibilities with shadcn-starter copy). Do not remove.
 - **`qty < 0` guard in adjust route** — allows correction-to-zero; `qty < 0` not `qty <= 0`.
-- **QB sales sync stores quantity: 0 when QB API returns no qty** — `SalesByProductServiceSummary` report may not include unit qty for some report configurations; revenue is stored but quantity may be 0. Reorder formulas use `SalesRecord.quantity` — verify QB report returns Qty column after first live sales sync.
+- **QB sales sync quantity** — `SalesByProductServiceSummary` may omit unit qty columns. The sync upsert only overwrites `SalesRecord.quantity` when QB returns qty > 0; otherwise existing quantity (from Excel bootstrap) is preserved. Check `qtyColumnsDetected` in sync response to confirm whether QB is returning units.
+- **Cross-route imports in App Router** — never import types or functions from `app/api/.../route.ts` files into other route files. Even `import type` can cause 502s due to bundler behaviour. Put shared QB types/helpers in `lib/qbo.ts` instead.
 - **Shared Neon DB** — local dev and prod point to the same database. Destructive scripts (seed, reimport) run against live data. Always confirm before running import scripts locally.
-- **Cron route auth** — `GET /api/cron/sync` requires `Authorization: Bearer <CRON_SECRET>`. Must be set in both `.env` (local) and Vercel environment variables (prod). Vercel native cron sends this header automatically.
+- **Cron route auth** — `GET /api/cron/sync` and `GET /api/cron/sync-names` both require `Authorization: Bearer <CRON_SECRET>`. Must be set in both `.env` (local) and Vercel environment variables (prod). Vercel native cron sends this header automatically.
+- **QB name sync — no-SKU items** — items without a QB `Sku` field are never renamed (counted as `noSku` in response). To rename those products, add SKUs to them in QB first, then re-run the sync.
+- **Vendor sync — no overwrite** — existing supplier fields are only filled if currently blank. If a supplier's email was manually edited in BFS, QB vendor data will not overwrite it.
