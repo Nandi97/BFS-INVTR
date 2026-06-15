@@ -8,6 +8,7 @@ import { QbStockImport } from "@/components/integrations/qb-stock-import";
 import { QbSalesImport } from "@/components/integrations/qb-sales-import";
 import { QbConfigForm }  from "@/components/integrations/qb-config-form";
 import { SyncLogTable }  from "@/components/integrations/sync-log-table";
+import { QbApiSync }     from "@/components/integrations/qb-api-sync";
 
 export default function IntegrationsPage() {
   return (
@@ -28,6 +29,22 @@ export default function IntegrationsPage() {
         </TabsList>
 
         <TabsContent value="stock" className="mt-4 space-y-4">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Sync from QuickBooks</CardTitle>
+                  <CardDescription className="mt-1">
+                    Pull live stock quantities directly from your QuickBooks account.
+                  </CardDescription>
+                </div>
+                <Suspense fallback={null}>
+                  <QbApiSync mode="stock" />
+                </Suspense>
+              </div>
+            </CardHeader>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle>Import from file</CardTitle>
@@ -60,7 +77,23 @@ export default function IntegrationsPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="sales" className="mt-4">
+        <TabsContent value="sales" className="mt-4 space-y-4">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Sync from QuickBooks</CardTitle>
+                  <CardDescription className="mt-1">
+                    Pull last 12 months of sales history directly from your QuickBooks account.
+                  </CardDescription>
+                </div>
+                <Suspense fallback={null}>
+                  <QbApiSync mode="sales" />
+                </Suspense>
+              </div>
+            </CardHeader>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle>QB Sales by Product/Service Summary</CardTitle>

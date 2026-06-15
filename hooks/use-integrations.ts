@@ -127,6 +127,35 @@ export function useQbImportXls() {
   });
 }
 
+export function useQbApiSyncStock() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (location?: string) =>
+      api
+        .post<SyncResult>("/integrations/quickbooks/items", { location: location ?? "BF Warehouse" })
+        .then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: SYNC_LOGS_KEY });
+      qc.invalidateQueries({ queryKey: ["stock"] });
+      qc.invalidateQueries({ queryKey: ["reorder"] });
+    },
+  });
+}
+
+export function useQbApiSyncSales() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      api
+        .post<SyncResult & { period?: { from: string; to: string } }>("/integrations/quickbooks/sync-sales-api")
+        .then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: SYNC_LOGS_KEY });
+      qc.invalidateQueries({ queryKey: ["sales"] });
+    },
+  });
+}
+
 export function useSyncLogs(provider?: string, page = 1) {
   return useQuery({
     queryKey: [...SYNC_LOGS_KEY, provider, page],

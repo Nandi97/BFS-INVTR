@@ -3,11 +3,20 @@
 
   "regions": ["iad1"],
 
+  "crons": [
+    {
+      "path":     "/api/cron/sync",
+      "schedule": "0 6 * * *"
+    }
+  ],
+
   "functions": {
-    "app/api/integrations/quickbooks/sync-stock/route.ts":   { "maxDuration": 60 },
-    "app/api/integrations/quickbooks/sync-sales/route.ts":   { "maxDuration": 60 },
-    "app/api/integrations/quickbooks/items/route.ts":        { "maxDuration": 60 },
-    "app/api/integrations/quickbooks/import-xls/route.ts":   { "maxDuration": 60 },
+    "app/api/integrations/quickbooks/sync-stock/route.ts":        { "maxDuration": 60 },
+    "app/api/integrations/quickbooks/sync-sales/route.ts":        { "maxDuration": 60 },
+    "app/api/integrations/quickbooks/sync-sales-api/route.ts":    { "maxDuration": 60 },
+    "app/api/integrations/quickbooks/items/route.ts":             { "maxDuration": 60 },
+    "app/api/integrations/quickbooks/import-xls/route.ts":        { "maxDuration": 60 },
+    "app/api/cron/sync/route.ts":                                 { "maxDuration": 60 },
     "app/api/inventory/calculate-minimums/route.ts":         { "maxDuration": 60 },
     "app/api/import/products/route.ts":                      { "maxDuration": 60 },
     "app/api/import/stock/route.ts":                         { "maxDuration": 60 },

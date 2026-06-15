@@ -10,10 +10,10 @@ import {
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const statusVariant: Record<SyncLog["status"], string> = {
-  SUCCESS: "default",
-  PARTIAL: "secondary",
-  FAILED:  "destructive",
+const statusClass: Record<SyncLog["status"], string> = {
+  SUCCESS: "bg-green-600 text-white hover:bg-green-600",
+  PARTIAL: "bg-secondary text-secondary-foreground",
+  FAILED:  "bg-destructive text-destructive-foreground hover:bg-destructive",
 };
 
 interface Props { provider?: string }
@@ -56,10 +56,7 @@ export function SyncLogTable({ provider }: Props) {
                 <TableCell className="text-xs">{log.provider}</TableCell>
                 <TableCell className="text-xs">{log.type.replace(/_/g, " ")}</TableCell>
                 <TableCell>
-                  <Badge
-                    variant={statusVariant[log.status] as "default" | "secondary" | "destructive"}
-                    className="text-xs"
-                  >
+                  <Badge className={`text-xs ${statusClass[log.status]}`}>
                     {log.status}
                   </Badge>
                 </TableCell>
