@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireRole } from "@/lib/require-role";
 
 export async function GET() {
   try {
@@ -14,6 +15,9 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const _auth = await requireRole("MANAGER");
+  if (_auth instanceof NextResponse) return _auth;
+
   try {
     const { name } = await req.json();
     if (!name?.trim()) return NextResponse.json({ error: "Name is required" }, { status: 400 });

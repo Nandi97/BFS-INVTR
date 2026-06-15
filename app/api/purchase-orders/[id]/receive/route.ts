@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireRole } from "@/lib/require-role";
 
 interface ReceiveItem {
   itemId:      string;
@@ -7,6 +8,9 @@ interface ReceiveItem {
 }
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const _auth = await requireRole("MANAGER");
+  if (_auth instanceof NextResponse) return _auth;
+
   const { id } = await params;
   const body = await req.json();
   const { items, notes }: { items: ReceiveItem[]; notes?: string } = body;

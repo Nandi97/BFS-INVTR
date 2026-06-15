@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireRole } from "@/lib/require-role";
 
 /**
  * QB Physical Inventory Worksheet import.
@@ -67,6 +68,9 @@ async function resolveLocation(name: string) {
 }
 
 export async function POST(req: NextRequest) {
+  const _auth = await requireRole("MANAGER");
+  if (_auth instanceof NextResponse) return _auth;
+
   const body = await req.json();
   const { rows, location: locationName = "BF Warehouse" }:
     { rows: QbStockRow[]; location?: string } = body;

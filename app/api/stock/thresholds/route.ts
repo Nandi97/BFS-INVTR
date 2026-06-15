@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireRole } from "@/lib/require-role";
 
 export async function PUT(req: NextRequest) {
+  const _auth = await requireRole("MANAGER");
+  if (_auth instanceof NextResponse) return _auth;
+
   const body = await req.json();
   const { productId, locationId, minQuantity, reorderPoint, reorderQty } = body;
 

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireRole } from "@/lib/require-role";
 
 async function generatePoNumber(): Promise<string> {
   const year = new Date().getFullYear();
@@ -47,6 +48,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const _auth = await requireRole("MANAGER");
+  if (_auth instanceof NextResponse) return _auth;
+
   const body = await req.json();
   const { supplierId, locationId, notes, items } = body;
 

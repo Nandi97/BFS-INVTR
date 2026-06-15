@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getQboTokens } from "@/lib/qbo";
+import { requireRole } from "@/lib/require-role";
 
 export interface QbConfig {
   companyName:     string;
@@ -34,6 +35,9 @@ export async function GET() {
 }
 
 export async function PUT(req: NextRequest) {
+  const _auth = await requireRole("ADMIN");
+  if (_auth instanceof NextResponse) return _auth;
+
   const body: Partial<QbConfig> = await req.json();
   const existing = await prisma.integrationConfig.findUnique({ where: { provider: "QUICKBOOKS" } });
   const existingCfg = (existing?.config ?? {}) as Record<string, unknown>;

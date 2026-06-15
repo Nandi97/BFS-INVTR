@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireRole } from "@/lib/require-role";
 
 export interface SupplierImportRow {
   name:          string;
@@ -12,6 +13,9 @@ export interface SupplierImportRow {
 }
 
 export async function POST(req: NextRequest) {
+  const _auth = await requireRole("ADMIN");
+  if (_auth instanceof NextResponse) return _auth;
+
   const body = await req.json();
   const { rows }: { rows: SupplierImportRow[] } = body;
 

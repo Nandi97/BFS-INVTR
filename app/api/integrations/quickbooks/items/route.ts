@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { qboFetch } from "@/lib/qbo";
 import { prisma } from "@/lib/prisma";
+import { requireRole } from "@/lib/require-role";
 
 export interface QboItem {
   Id:                   string;
@@ -135,6 +136,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const _auth = await requireRole("MANAGER");
+  if (_auth instanceof NextResponse) return _auth;
+
   const body = await req.json().catch(() => ({}));
   const locationName: string = body.location ?? "BF Warehouse";
 

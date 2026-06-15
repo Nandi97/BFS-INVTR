@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { qboFetch } from "@/lib/qbo";
 import { prisma } from "@/lib/prisma";
+import { requireRole } from "@/lib/require-role";
 
 // "Apr 2025" → { month: 4, year: 2025 }
 function parseMonthTitle(title: string): { month: number; year: number } | null {
@@ -86,6 +87,9 @@ function fmtDate(d: Date) {
 }
 
 export async function POST() {
+  const _auth = await requireRole("MANAGER");
+  if (_auth instanceof NextResponse) return _auth;
+
   // 12 complete months ending last month
   const now       = new Date();
   const endDate   = new Date(now.getFullYear(), now.getMonth(), 0);       // last day of prev month

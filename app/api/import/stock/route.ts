@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireRole } from "@/lib/require-role";
 
 export interface StockImportRow {
   identifier:   string;   // product name, barcode, or SKU
@@ -38,6 +39,9 @@ async function resolveLocation(id: string) {
 }
 
 export async function POST(req: NextRequest) {
+  const _auth = await requireRole("ADMIN");
+  if (_auth instanceof NextResponse) return _auth;
+
   const body = await req.json();
   const { rows }: { rows: StockImportRow[] } = body;
 

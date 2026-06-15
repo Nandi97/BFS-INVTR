@@ -1,7 +1,8 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StockPolicyTable } from "@/components/settings/stock-policy-table";
 import { BrandLeadTimesTable } from "@/components/settings/brand-lead-times-table";
-import { Package, Clock } from "lucide-react";
+import { UserTable } from "@/components/settings/user-table";
+import { Package, Clock, Users } from "lucide-react";
 
 export default function SettingsPage() {
   return (
@@ -22,6 +23,10 @@ export default function SettingsPage() {
           <TabsTrigger value="lead-times" className="gap-2">
             <Clock className="size-3.5" />
             Brand Lead Times
+          </TabsTrigger>
+          <TabsTrigger value="team" className="gap-2">
+            <Users className="size-3.5" />
+            Team
           </TabsTrigger>
         </TabsList>
 
@@ -50,6 +55,18 @@ export default function SettingsPage() {
             </p>
           </div>
           <BrandLeadTimesTable />
+        </TabsContent>
+
+        <TabsContent value="team" className="space-y-4 mt-0">
+          <div className="space-y-1">
+            <h2 className="text-base font-medium">Team Members</h2>
+            <p className="text-sm text-muted-foreground max-w-2xl">
+              Manage who has access to BFS Inventory and their permission level.
+              Admins can manage users and settings; Managers can create and edit records;
+              Viewers have read-only access.
+            </p>
+          </div>
+          <UserTable />
         </TabsContent>
       </Tabs>
     </div>

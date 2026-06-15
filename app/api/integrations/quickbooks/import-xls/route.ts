@@ -3,6 +3,7 @@ import path from "path";
 import fs from "fs";
 import * as XLSX from "xlsx";
 import { prisma } from "@/lib/prisma";
+import { requireRole } from "@/lib/require-role";
 
 // ── Local drop-folder (dev only) ──────────────────────────────────────────────
 const IMPORTS_DIR = path.join(process.cwd(), "qb-imports");
@@ -143,6 +144,9 @@ async function syncParsedRows(
 // ── POST — accepts either a fileUrl (UploadThing) or falls back to local folder ─
 
 export async function POST(req: NextRequest) {
+  const _auth = await requireRole("MANAGER");
+  if (_auth instanceof NextResponse) return _auth;
+
   const body: { location?: string; fileUrl?: string; fileName?: string } =
     await req.json().catch(() => ({}));
 

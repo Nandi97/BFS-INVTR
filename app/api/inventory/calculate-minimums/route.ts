@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireRole } from "@/lib/require-role";
 
 /**
  * POST /api/inventory/calculate-minimums
@@ -15,6 +16,9 @@ import { prisma } from "@/lib/prisma";
 const SAFETY_DAYS = 7;
 
 export async function POST(req: NextRequest) {
+  const _auth = await requireRole("ADMIN");
+  if (_auth instanceof NextResponse) return _auth;
+
   const body = await req.json().catch(() => ({}));
   const locationId: string | undefined = body.locationId;
 
