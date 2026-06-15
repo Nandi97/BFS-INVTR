@@ -24,7 +24,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Search, Info } from "lucide-react";
+import { Search, Info, CheckCircle2 } from "lucide-react";
 import { useReorder, type ReorderRow, type ReorderUrgency } from "@/hooks/use-reorder";
 import { useLocations } from "@/hooks/use-locations";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -209,8 +209,8 @@ export function ReorderTable({ includeInactive = false }: { includeInactive?: bo
               <TableRow>
                 <TableCell colSpan={10} className="h-40 text-center">
                   <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                    <span className="text-2xl">✓</span>
-                    <span className="font-medium">All stock levels are healthy</span>
+                    <CheckCircle2 className="size-8 text-emerald-500 mb-1" />
+                    <span className="font-medium text-sm">All stock levels are healthy</span>
                     <span className="text-xs">
                       No products are below their reorder point right now.
                     </span>

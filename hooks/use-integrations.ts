@@ -156,6 +156,43 @@ export function useQbApiSyncSales() {
   });
 }
 
+export interface NameSyncChange {
+  qboName: string; qboSku: string | null; oldName: string; newName: string; skuSet: boolean; matchMethod: string;
+}
+export interface NameSyncResult {
+  total: number; renamed: NameSyncChange[]; skuSet: number; unmatched: string[]; noSku: number;
+}
+
+export function useQbNameSync() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      api
+        .post<NameSyncResult>("/integrations/quickbooks/items/sync-names")
+        .then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: SYNC_LOGS_KEY });
+      qc.invalidateQueries({ queryKey: ["products"] });
+    },
+  });
+}
+
+export function useQbVendorSync() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      api
+        .post<{ created: number; updated: number; skipped: number; total: number }>(
+          "/integrations/quickbooks/vendors"
+        )
+        .then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: SYNC_LOGS_KEY });
+      qc.invalidateQueries({ queryKey: ["suppliers"] });
+    },
+  });
+}
+
 export function useSyncLogs(provider?: string, page = 1) {
   return useQuery({
     queryKey: [...SYNC_LOGS_KEY, provider, page],

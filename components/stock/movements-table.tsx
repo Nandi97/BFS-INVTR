@@ -19,10 +19,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, ArrowLeftRight } from "lucide-react";
 import { useStockMovements, type StockMovementType } from "@/hooks/use-stock";
 import { useLocations } from "@/hooks/use-locations";
 import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 
@@ -147,8 +148,12 @@ export function MovementsTable({ locationId: defaultLocationId }: { locationId?:
               ))
             ) : rows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="h-32 text-center text-muted-foreground">
-                  No movements found.
+                <TableCell colSpan={8} className="h-48">
+                  <EmptyState
+                    icon={ArrowLeftRight}
+                    title="No movements found"
+                    description="Stock adjustments, receipts, and sales will appear here once recorded."
+                  />
                 </TableCell>
               </TableRow>
             ) : (

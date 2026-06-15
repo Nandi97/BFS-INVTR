@@ -9,6 +9,8 @@ import { QbSalesImport } from "@/components/integrations/qb-sales-import";
 import { QbConfigForm }  from "@/components/integrations/qb-config-form";
 import { SyncLogTable }  from "@/components/integrations/sync-log-table";
 import { QbApiSync }     from "@/components/integrations/qb-api-sync";
+import { QbVendorSync }  from "@/components/integrations/qb-vendor-sync";
+import { QbNameSync }    from "@/components/integrations/qb-name-sync";
 
 export default function IntegrationsPage() {
   return (
@@ -24,6 +26,7 @@ export default function IntegrationsPage() {
         <TabsList>
           <TabsTrigger value="stock">Stock sync</TabsTrigger>
           <TabsTrigger value="sales">Sales sync</TabsTrigger>
+          <TabsTrigger value="vendors">Vendors</TabsTrigger>
           <TabsTrigger value="config">Settings</TabsTrigger>
           <TabsTrigger value="history">History</TabsTrigger>
         </TabsList>
@@ -43,6 +46,26 @@ export default function IntegrationsPage() {
                 </Suspense>
               </div>
             </CardHeader>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <CardTitle>Sync product names</CardTitle>
+                  <CardDescription className="mt-1">
+                    Overwrites product names in BFS with the canonical names from QuickBooks, matched by SKU.
+                    Runs automatically on the 1st of each month. Use the button to run on demand after QB catalogue changes.
+                    Items without a QB SKU are skipped to avoid ambiguous matches.
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <Suspense fallback={null}>
+                <QbNameSync />
+              </Suspense>
+            </CardContent>
           </Card>
 
           <Card>
@@ -105,6 +128,26 @@ export default function IntegrationsPage() {
             <CardContent>
               <QbSalesImport />
             </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="vendors" className="mt-4 space-y-4">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Sync vendors from QuickBooks</CardTitle>
+                  <CardDescription className="mt-1">
+                    Imports all active QB vendors into your Suppliers list. New vendors are created;
+                    existing suppliers are updated only if contact fields (email, phone, address) are currently blank.
+                    Manual edits are never overwritten.
+                  </CardDescription>
+                </div>
+                <Suspense fallback={null}>
+                  <QbVendorSync />
+                </Suspense>
+              </div>
+            </CardHeader>
           </Card>
         </TabsContent>
 

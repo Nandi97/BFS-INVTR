@@ -16,7 +16,8 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { MoreHorizontal, Pencil, Archive, Eye } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
+import { MoreHorizontal, Pencil, Archive, Eye, PackageSearch } from "lucide-react";
 import { useArchiveProduct } from "@/hooks/use-products";
 import { formatNumber } from "@/lib/utils";
 import { cn } from "@/lib/utils";
@@ -61,9 +62,12 @@ export function ProductsTable({ products, isLoading, onEdit }: ProductsTableProp
 
   if (!products.length) {
     return (
-      <div className="py-16 text-center text-muted-foreground">
-        No products found. Try adjusting your filters.
-      </div>
+      <EmptyState
+        icon={PackageSearch}
+        title="No products found"
+        description="Try adjusting your filters, or add a new product."
+        className="py-8"
+      />
     );
   }
 

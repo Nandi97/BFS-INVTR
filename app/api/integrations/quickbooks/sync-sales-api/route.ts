@@ -124,7 +124,7 @@ export async function POST() {
   const rawRows  = (reportData.Rows as { Row?: QbRow[] } | undefined)?.Row ?? [];
   const dataRows = extractDataRows(rawRows);
 
-  let synced = 0, skipped = 0;
+  let synced = 0, skipped = 0, qtyRecords = 0;
   const errors: string[] = [];
   const startedAt = new Date();
 
@@ -149,7 +149,7 @@ export async function POST() {
       const key = `${slot.year}-${slot.month}` as MonthKey;
       if (!monthMap.has(key)) monthMap.set(key, { qty: 0, amount: 0 });
       const entry = monthMap.get(key)!;
-      if (slot.dataType === "qty")    entry.qty    += val;
+      if (slot.dataType === "qty")    { entry.qty += val; qtyRecords++; }
       if (slot.dataType === "amount") entry.amount += val;
     }
   }
@@ -162,7 +162,15 @@ export async function POST() {
       try {
         await prisma.salesRecord.upsert({
           where:  { productId_year_month: { productId, year, month } },
-          update: { quantity: Math.round(qty), revenue: amount, source: "QB_API", updatedAt: new Date() },
+          // Only overwrite quantity if QB report actually returned one (>0).
+          // SalesByProductServiceSummary may omit qty columns — preserving the
+          // Excel-import quantity avoids silently zeroing out avgMonthly.
+          update: {
+            ...(qty > 0 ? { quantity: Math.round(qty) } : {}),
+            revenue: amount,
+            source: "QB_API",
+            updatedAt: new Date(),
+          },
           create: { productId, year, month, quantity: Math.round(qty), revenue: amount, source: "QB_API" },
         });
         synced++;
@@ -190,6 +198,7 @@ export async function POST() {
 
   return NextResponse.json({
     synced, skipped, total: dataRows.length,
+    qtyColumnsDetected: qtyRecords > 0,
     errors: errors.slice(0, 30),
     period: { from: fmtDate(startDate), to: fmtDate(endDate) },
   });

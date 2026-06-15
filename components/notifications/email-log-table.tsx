@@ -7,8 +7,9 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, CheckCircle2, XCircle, Clock } from "lucide-react";
+import { ChevronLeft, ChevronRight, CheckCircle2, XCircle, Clock, Mail } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
 import { useEmailLogs, type EmailStatus, type AlertType } from "@/hooks/use-notifications";
 import { cn } from "@/lib/utils";
 
@@ -59,8 +60,12 @@ export function EmailLogTable() {
               ))
             ) : rows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="h-24 text-center text-muted-foreground text-sm">
-                  No emails sent yet.
+                <TableCell colSpan={5} className="h-48">
+                  <EmptyState
+                    icon={Mail}
+                    title="No emails sent yet"
+                    description="Email alerts will appear here once a notification rule triggers."
+                  />
                 </TableCell>
               </TableRow>
             ) : (

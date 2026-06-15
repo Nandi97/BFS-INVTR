@@ -25,12 +25,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, Search, SlidersHorizontal } from "lucide-react";
+import { MoreHorizontal, Search, SlidersHorizontal, Warehouse } from "lucide-react";
 import { useStock, type StockStatus, type InventoryRow } from "@/hooks/use-stock";
 import { useLocations } from "@/hooks/use-locations";
 import { AdjustStockForm } from "./adjust-stock-form";
 import { SetThresholdsForm } from "./set-thresholds-form";
 import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/lib/utils";
 
 function statusOf(row: InventoryRow): "out" | "low" | "ok" {
@@ -144,8 +145,12 @@ export function StockTable({ defaultLocationId }: { defaultLocationId?: string }
               ))
             ) : rows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="h-32 text-center text-muted-foreground">
-                  No stock records found.
+                <TableCell colSpan={9} className="h-48">
+                  <EmptyState
+                    icon={Warehouse}
+                    title="No stock records found"
+                    description="Try clearing your filters or adjusting the location and status selectors."
+                  />
                 </TableCell>
               </TableRow>
             ) : (

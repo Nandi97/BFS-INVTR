@@ -15,8 +15,9 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { MoreHorizontal, Search, Clock, Mail, Phone } from "lucide-react";
+import { MoreHorizontal, Search, Clock, Mail, Phone, SearchX } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
 import { toast } from "sonner";
 import {
   useSuppliers, useUpdateSupplier, useDeleteSupplier, type Supplier,
@@ -107,8 +108,12 @@ export function SuppliersTable() {
               ))
             ) : rows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="h-32 text-center text-muted-foreground">
-                  {search ? "No suppliers match your search." : "No suppliers yet."}
+                <TableCell colSpan={8} className="h-48">
+                  <EmptyState
+                    icon={SearchX}
+                    title="No suppliers match your search"
+                    description={`No results for "${search}". Try a different name or contact.`}
+                  />
                 </TableCell>
               </TableRow>
             ) : (

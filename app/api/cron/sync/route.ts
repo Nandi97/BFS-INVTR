@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { checkQbRefreshToken } from "@/lib/qb-token-check";
 
 // Called nightly by Vercel cron (or any external cron service).
 // Vercel sends: Authorization: Bearer <CRON_SECRET>
@@ -32,6 +33,13 @@ export async function GET(req: NextRequest) {
     results.sales = await res.json();
   } catch (err) {
     results.sales = { error: err instanceof Error ? err.message : String(err) };
+  }
+
+  // 3 — Check QB refresh token expiry (emails admin if ≤7 days)
+  try {
+    results.tokenCheck = await checkQbRefreshToken();
+  } catch (err) {
+    results.tokenCheck = { error: err instanceof Error ? err.message : String(err) };
   }
 
   await prisma.integrationConfig.update({
