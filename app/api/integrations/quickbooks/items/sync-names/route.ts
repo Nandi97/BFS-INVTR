@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
-import { qboFetch } from "@/lib/qbo";
+import { fetchQboItems, type QboItem } from "@/lib/qbo";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/require-role";
-import type { QboItem } from "../route";
 
 function stripHierarchy(name: string) {
   const parts = name.split(":");
@@ -33,10 +32,8 @@ export interface NameSyncResult {
  * 2. Overwrites product.name with QB's canonical name (hierarchy-stripped).
  * 3. Back-fills product.sku if it was null (bootstraps SKU for future runs).
  *
- * Items without a QB SKU are counted but not renamed — name-only matches are
- * too ambiguous to overwrite safely.
- *
- * NOT included in the nightly cron — run monthly or on demand.
+ * Items without a QB SKU are skipped — name-only matches are too ambiguous.
+ * NOT included in the nightly cron — runs monthly (1st of each month) or on demand.
  */
 export async function POST() {
   const _auth = await requireRole("MANAGER");
@@ -44,22 +41,7 @@ export async function POST() {
 
   let qboItems: QboItem[];
   try {
-    const PAGE = 1000;
-    qboItems = [];
-    let start = 1;
-    while (true) {
-      const q = `SELECT * FROM Item WHERE Type = 'Inventory' AND Active = true STARTPOSITION ${start} MAXRESULTS ${PAGE}`;
-      const res = await qboFetch(`/query?query=${encodeURIComponent(q)}`);
-      if (!res.ok) {
-        const txt = await res.text();
-        throw new Error(`QB Items API: ${res.status} ${txt.slice(0, 300)}`);
-      }
-      const json = await res.json();
-      const page: QboItem[] = json?.QueryResponse?.Item ?? [];
-      qboItems.push(...page);
-      if (page.length < PAGE) break;
-      start += PAGE;
-    }
+    qboItems = await fetchQboItems();
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : String(err) },
@@ -76,12 +58,10 @@ export async function POST() {
     const canonical = stripHierarchy(item.FullyQualifiedName);
 
     if (!sku) {
-      // No SKU in QB — can't make a confident match; skip name overwrite
       noSku++;
       continue;
     }
 
-    // Try sku field first, then barcode
     const matchAttempts: Array<{ method: "sku" | "barcode"; where: object }> = [
       { method: "sku",     where: { sku:     { equals: sku, mode: "insensitive" as const } } },
       { method: "barcode", where: { barcode: { equals: sku, mode: "insensitive" as const } } },
@@ -100,29 +80,20 @@ export async function POST() {
       const skuWasNull  = !product.sku && method === "barcode";
 
       const patch: Record<string, unknown> = {};
-      if (nameChanged) patch.name = canonical;
-      if (skuWasNull)  { patch.sku = sku; skuSetCount++; }
+      if (nameChanged)  patch.name = canonical;
+      if (skuWasNull) { patch.sku = sku; skuSetCount++; }
 
       if (Object.keys(patch).length > 0) {
         await prisma.product.update({ where: { id: product.id }, data: patch });
       }
 
       if (nameChanged) {
-        renamed.push({
-          qboName:     item.FullyQualifiedName,
-          qboSku:      sku,
-          oldName:     product.name,
-          newName:     canonical,
-          skuSet:      skuWasNull,
-          matchMethod: method,
-        });
+        renamed.push({ qboName: item.FullyQualifiedName, qboSku: sku, oldName: product.name, newName: canonical, skuSet: skuWasNull, matchMethod: method });
       }
       break;
     }
 
-    if (!matched) {
-      unmatched.push(`${item.FullyQualifiedName} (SKU: ${sku})`);
-    }
+    if (!matched) unmatched.push(`${item.FullyQualifiedName} (SKU: ${sku})`);
   }
 
   await prisma.syncLog.create({
@@ -130,14 +101,14 @@ export async function POST() {
       provider:   "QUICKBOOKS",
       type:       "NAME_SYNC",
       status:     "SUCCESS",
-      message:    `Name sync: ${renamed.length} renamed, ${skuSetCount} SKUs set, ${unmatched.length} unmatched, ${noSku} items without QB SKU`,
+      message:    `Name sync: ${renamed.length} renamed, ${skuSetCount} SKUs set, ${unmatched.length} unmatched, ${noSku} without QB SKU`,
       recordsIn:  qboItems.length,
       recordsOut: renamed.length,
     },
   });
 
   return NextResponse.json({
-    total:     qboItems.length,
+    total: qboItems.length,
     renamed,
     skuSet:    skuSetCount,
     unmatched,

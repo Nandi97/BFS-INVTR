@@ -1,19 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { qboFetch } from "@/lib/qbo";
+import { fetchQboItems, type QboItem } from "@/lib/qbo";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/require-role";
-
-export interface QboItem {
-  Id:                   string;
-  Name:                 string;
-  FullyQualifiedName:   string;
-  Sku?:                 string;
-  Active:               boolean;
-  Type:                 string;
-  QtyOnHand?:           number;
-  ReorderPoint?:        number;
-  SalesTaxCodeRef?:     { value: string; name: string };
-}
 
 export interface ItemMatchResult {
   qboId:              string;
@@ -26,31 +14,7 @@ export interface ItemMatchResult {
   matchMethod?:       "sku" | "barcode" | "exact" | "hierarchy-stripped";
 }
 
-/** Fetch all Inventory items from QBO, paginating through all results. */
-async function fetchAllItems(): Promise<QboItem[]> {
-  const items: QboItem[] = [];
-  const PAGE = 1000;
-  let start = 1;
-
-  while (true) {
-    const query = `SELECT * FROM Item WHERE Type = 'Inventory' AND Active = true STARTPOSITION ${start} MAXRESULTS ${PAGE}`;
-    const res = await qboFetch(`/query?query=${encodeURIComponent(query)}`);
-
-    if (!res.ok) {
-      const txt = await res.text();
-      throw new Error(`QBO items query failed: ${res.status} ${txt.slice(0, 200)}`);
-    }
-
-    const data = await res.json();
-    const page: QboItem[] = data?.QueryResponse?.Item ?? [];
-    items.push(...page);
-
-    if (page.length < PAGE) break;
-    start += PAGE;
-  }
-
-  return items;
-}
+export type { QboItem };
 
 function stripHierarchy(name: string) {
   const parts = name.split(":");
@@ -88,7 +52,7 @@ export async function GET(req: NextRequest) {
 
   let qboItems: QboItem[];
   try {
-    qboItems = await fetchAllItems();
+    qboItems = await fetchQboItems();
   } catch (err: unknown) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : String(err) },
@@ -144,7 +108,7 @@ export async function POST(req: NextRequest) {
 
   let qboItems: QboItem[];
   try {
-    qboItems = await fetchAllItems();
+    qboItems = await fetchQboItems();
   } catch (err: unknown) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : String(err) },

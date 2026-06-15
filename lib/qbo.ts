@@ -12,6 +12,47 @@ export const QBO_API_BASE = IS_SANDBOX
   ? "https://sandbox-quickbooks.api.intuit.com/v3/company"
   : "https://quickbooks.api.intuit.com/v3/company";
 
+// ─── QB Item shape ────────────────────────────────────────────────────────────
+
+export interface QboItem {
+  Id:                 string;
+  Name:               string;
+  FullyQualifiedName: string;
+  Sku?:               string;
+  Active:             boolean;
+  Type:               string;
+  QtyOnHand?:         number;
+  ReorderPoint?:      number;
+  UnitPrice?:         number;
+  PurchaseCost?:      number;
+}
+
+/** Fetch every active Inventory item from QB, paging through all results. */
+export async function fetchQboItems(): Promise<QboItem[]> {
+  const items: QboItem[] = [];
+  const PAGE = 1000;
+  let start = 1;
+
+  while (true) {
+    const query = `SELECT * FROM Item WHERE Type = 'Inventory' AND Active = true STARTPOSITION ${start} MAXRESULTS ${PAGE}`;
+    const res = await qboFetch(`/query?query=${encodeURIComponent(query)}`);
+
+    if (!res.ok) {
+      const txt = await res.text();
+      throw new Error(`QBO items query failed: ${res.status} ${txt.slice(0, 300)}`);
+    }
+
+    const data = await res.json();
+    const page: QboItem[] = data?.QueryResponse?.Item ?? [];
+    items.push(...page);
+
+    if (page.length < PAGE) break;
+    start += PAGE;
+  }
+
+  return items;
+}
+
 // ─── Token shape (stored inside integrationConfig.config) ─────────────────────
 
 export interface QboTokens {
