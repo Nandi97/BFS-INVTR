@@ -19,7 +19,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { AlertRuleForm } from "./alert-rule-form";
+import { AlertRuleForm } from "@/components/notifications/create/alert-rule-form";
 import { useAlertRules, useUpdateRule, useDeleteRule, type AlertRule, type AlertType } from "@/hooks/use-notifications";
 import { cn } from "@/lib/utils";
 

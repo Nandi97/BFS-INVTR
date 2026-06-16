@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Mail, Phone, PackageCheck, Send, XCircle } from "lucide-react";
-import { POStatusBadge } from "./po-status-badge";
+import { POStatusBadge } from "@/components/purchase-orders/dashboard/po-status-badge";
 import { ReceivePOSheet } from "./receive-po-sheet";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,

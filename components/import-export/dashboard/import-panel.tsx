@@ -17,7 +17,7 @@ export interface ImportResult {
   errors: string[];
 }
 
-interface TemplateCol {
+export interface TemplateCol {
   header:   string;
   example:  string;
   required: boolean;

@@ -12,7 +12,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChevronLeft, ChevronRight, FileText } from "lucide-react";
 import { POStatusBadge } from "./po-status-badge";
-import { PODetailSheet } from "./po-detail-sheet";
+import { PODetailSheet } from "@/components/purchase-orders/view/po-detail-sheet";
 import { usePurchaseOrders, type POStatus } from "@/hooks/use-purchase-orders";
 import { useSuppliers } from "@/hooks/use-suppliers";
 import { format as fmt } from "date-fns";
