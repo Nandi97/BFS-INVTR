@@ -5,11 +5,11 @@ import { Package, AlertTriangle, PackageX, Warehouse } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { StockTable } from "@/components/stock/stock-table";
-import { MovementsTable } from "@/components/stock/movements-table";
+import { StockTable } from "./stock-table";
+import { MovementsTable } from "@/components/stock/movements/dashboard/movements-table";
 import { useStock } from "@/hooks/use-stock";
 import { useLocations } from "@/hooks/use-locations";
-import { AdjustStockForm } from "@/components/stock/adjust-stock-form";
+import { AdjustStockForm } from "./adjust-stock-form";
 import Link from "next/link";
 import { Plus } from "lucide-react";
 
@@ -40,7 +40,7 @@ function KpiCard({
   );
 }
 
-export function StockOverviewPage() {
+export function StockDashboard() {
   const [adjustOpen, setAdjustOpen] = useState(false);
 
   const { data: allStock } = useStock({ limit: 1000 });

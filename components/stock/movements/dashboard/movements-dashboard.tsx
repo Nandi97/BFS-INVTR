@@ -1,8 +1,8 @@
 "use client";
 
-import { MovementsTable } from "@/components/stock/movements-table";
+import { MovementsTable } from "./movements-table";
 
-export function MovementsPageContent() {
+export function MovementsDashboard() {
   return (
     <div className="space-y-6">
       <div>

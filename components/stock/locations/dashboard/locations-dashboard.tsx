@@ -27,7 +27,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { LocationForm } from "@/components/stock/location-form";
+import { LocationForm } from "@/components/stock/locations/create/location-form";
 import { useLocations, useUpdateLocation, useDeleteLocation, type Location } from "@/hooks/use-locations";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -116,7 +116,7 @@ function LocationCard({
   );
 }
 
-export function LocationsPageContent() {
+export function LocationsDashboard() {
   const [formOpen, setFormOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Location | null>(null);
 

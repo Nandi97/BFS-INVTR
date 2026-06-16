@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { ReorderTable } from "@/components/reorder/reorder-table";
+import { ReorderTable } from "./reorder-table";
 import { useReorder, useCalculateMinimums } from "@/hooks/use-reorder";
 import { toast } from "sonner";
 
@@ -57,7 +57,7 @@ function KpiCard({
   );
 }
 
-export function ReorderPageContent() {
+export function ReorderDashboard() {
   const [includeInactive, setIncludeInactive] = useState(false);
   const { data, isLoading } = useReorder({ urgency: "all", includeInactive });
   const { mutate: calcMinimums, isPending: isCalcPending } = useCalculateMinimums();

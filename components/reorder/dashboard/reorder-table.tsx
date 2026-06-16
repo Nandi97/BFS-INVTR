@@ -29,7 +29,7 @@ import { useReorder, type ReorderRow, type ReorderUrgency } from "@/hooks/use-re
 import { useLocations } from "@/hooks/use-locations";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import { SetThresholdsForm } from "@/components/stock/set-thresholds-form";
+import { SetThresholdsForm } from "@/components/stock/dashboard/set-thresholds-form";
 import type { InventoryRow } from "@/hooks/use-stock";
 
 const URGENCY_CONFIG: Record<ReorderUrgency, { label: string; className: string }> = {
