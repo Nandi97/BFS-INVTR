@@ -22,7 +22,7 @@ import { toast } from "sonner";
 import {
   useSuppliers, useUpdateSupplier, useDeleteSupplier, type Supplier,
 } from "@/hooks/use-suppliers";
-import { SupplierForm } from "./supplier-form";
+import { SupplierForm } from "@/components/suppliers/create/supplier-form";
 import { cn } from "@/lib/utils";
 
 export function SuppliersTable() {

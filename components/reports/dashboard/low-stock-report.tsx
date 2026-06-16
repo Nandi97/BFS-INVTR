@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge }    from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn }       from "@/lib/utils";
-import { ReportFilters }  from "@/components/reports/report-filters";
+import { ReportFilters }  from "./report-filters";
 import { useLowStockReport } from "@/hooks/use-reports";
 import { useLocations }   from "@/hooks/use-locations";
 import { useBrands }      from "@/hooks/use-brands";

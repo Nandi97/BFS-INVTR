@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge }    from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ReportFilters } from "@/components/reports/report-filters";
+import { ReportFilters } from "./report-filters";
 import { usePoReport }   from "@/hooks/use-reports";
 import { useSuppliers }  from "@/hooks/use-suppliers";
 import { exportCsv }     from "@/lib/csv-export";
