@@ -28,6 +28,7 @@ export interface ReorderRow {
   suggestedOrderQty: number | null;
   urgency: ReorderUrgency;
   salesMonths: number;
+  confident:   boolean;
 }
 
 export interface ReorderFilters {

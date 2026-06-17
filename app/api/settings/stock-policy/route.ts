@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/require-role";
+import { computeAvgMonthly } from "@/lib/sales-calc";
 
 const SAFETY_DAYS = 7;
 
@@ -16,6 +17,7 @@ export interface PolicyProduct {
   reorderPoint:      number;
   reorderQty:        number;
   hasSalesData:      boolean;
+  confident:         boolean;
 }
 
 export interface PolicyBrand {
@@ -50,9 +52,7 @@ export async function GET() {
       const brandName    = p.brand?.name ?? "No Brand";
       const leadTimeDays = p.brand?.leadTimeDays ?? 30;
 
-      const avgMonthly = p.salesRecords.length > 0
-        ? p.salesRecords.reduce((s, r) => s + r.quantity, 0) / p.salesRecords.length
-        : 0;
+      const { avgMonthly, confident } = computeAvgMonthly(p.salesRecords);
 
       const reorderPoint = avgMonthly > 0
         ? Math.ceil(avgMonthly * (leadTimeDays + SAFETY_DAYS) / 30)
@@ -73,6 +73,7 @@ export async function GET() {
         reorderPoint,
         reorderQty,
         hasSalesData:      p.salesRecords.length > 0,
+        confident,
       };
 
       if (!grouped.has(brandName)) {

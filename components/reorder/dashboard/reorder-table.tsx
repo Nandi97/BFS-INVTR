@@ -252,7 +252,22 @@ export function ReorderTable({ includeInactive = false }: { includeInactive?: bo
                     <MonthsCell months={row.monthsRemaining} />
                   </TableCell>
                   <TableCell className="text-right font-mono font-medium text-sm">
-                    {row.suggestedOrderQty ?? "—"}
+                    {row.suggestedOrderQty != null ? (
+                      row.confident ? (
+                        row.suggestedOrderQty
+                      ) : (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="text-muted-foreground cursor-help">
+                              ~{row.suggestedOrderQty}
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            Low data confidence — fewer than 3 months of sales history after excluding recent zero-sale months
+                          </TooltipContent>
+                        </Tooltip>
+                      )
+                    ) : "—"}
                   </TableCell>
                   <TableCell>
                     <UrgencyBadge urgency={row.urgency} />

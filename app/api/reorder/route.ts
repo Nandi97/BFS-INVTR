@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { computeAvgMonthly } from "@/lib/sales-calc";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -42,14 +43,9 @@ export async function GET(req: NextRequest) {
 
   const rows = inventoryItems
     .map((inv) => {
-      const sales = inv.product.salesRecords;
-      const avgMonthly =
-        sales.length > 0
-          ? sales.reduce((s, r) => s + r.quantity, 0) / sales.length
-          : 0;
+      const { avgMonthly, monthsUsed, confident } = computeAvgMonthly(inv.product.salesRecords);
 
-      const monthsRemaining =
-        avgMonthly > 0 ? inv.quantity / avgMonthly : null;
+      const monthsRemaining = avgMonthly > 0 ? inv.quantity / avgMonthly : null;
 
       const targetMonths = inv.product.targetStockMonths ?? 6;
 
@@ -90,7 +86,8 @@ export async function GET(req: NextRequest) {
         monthsRemaining: monthsRemaining !== null ? Math.round(monthsRemaining * 10) / 10 : null,
         suggestedOrderQty,
         urgency,
-        salesMonths: sales.length,
+        salesMonths: monthsUsed,
+        confident,
       };
     })
     .filter((r) => {

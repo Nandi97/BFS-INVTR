@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/require-role";
+import { computeAvgMonthly } from "@/lib/sales-calc";
 
 /**
  * POST /api/inventory/calculate-minimums
@@ -47,7 +48,7 @@ export async function POST(req: NextRequest) {
     const sales = inv.product.salesRecords;
     if (sales.length === 0) { skipped++; continue; }
 
-    const avgMonthly   = sales.reduce((s, r) => s + Number(r.quantity), 0) / sales.length;
+    const { avgMonthly } = computeAvgMonthly(sales);
     if (!isFinite(avgMonthly) || avgMonthly <= 0) { skipped++; continue; }
 
     const leadTimeDays      = inv.product.brand?.leadTimeDays ?? 30;
@@ -101,7 +102,7 @@ export async function GET(req: NextRequest) {
     .map((inv) => {
       const sales = inv.product.salesRecords;
       if (sales.length === 0) return null;
-      const avgMonthly        = sales.reduce((s, r) => s + Number(r.quantity), 0) / sales.length;
+      const { avgMonthly } = computeAvgMonthly(sales);
       if (!isFinite(avgMonthly) || avgMonthly <= 0) return null;
       const leadTimeDays      = inv.product.brand?.leadTimeDays ?? 30;
       const targetStockMonths = inv.product.targetStockMonths ?? 6;
