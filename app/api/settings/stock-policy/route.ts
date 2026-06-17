@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/require-role";
-import { computeAvgMonthly } from "@/lib/sales-calc";
-
-const SAFETY_DAYS = 7;
+import { computeAvgMonthly, SAFETY_DAYS } from "@/lib/sales-calc";
 
 export interface PolicyProduct {
   id:                string;

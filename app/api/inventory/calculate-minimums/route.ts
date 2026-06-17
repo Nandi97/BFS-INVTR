@@ -1,20 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/require-role";
-import { computeAvgMonthly } from "@/lib/sales-calc";
+import { computeAvgMonthly, SAFETY_DAYS } from "@/lib/sales-calc";
 
 /**
  * POST /api/inventory/calculate-minimums
  *
- *   reorderPoint = ceil(avgMonthly × (leadTimeDays + safetyDays) / 30)
- *   minQuantity  = ceil(avgMonthly × safetyDays / 30)
+ *   reorderPoint = ceil(avgMonthly × (leadTimeDays + SAFETY_DAYS) / 30)
+ *   minQuantity  = ceil(avgMonthly × SAFETY_DAYS / 30)
  *   reorderQty   = ceil(avgMonthly × product.targetStockMonths)
  *
  * leadTimeDays from brand; targetStockMonths from product (default 6).
  * Products with no sales data are skipped.
  */
-
-const SAFETY_DAYS = 7;
 
 export async function POST(req: NextRequest) {
   const _auth = await requireRole("ADMIN");

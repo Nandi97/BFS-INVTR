@@ -67,8 +67,8 @@ export function SetThresholdsForm({ open, onOpenChange, row }: SetThresholdsForm
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-md">
-        <SheetHeader>
+      <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+        <SheetHeader className="px-6 pt-6 pb-2">
           <SheetTitle>Set Thresholds</SheetTitle>
           <SheetDescription>
             {row ? `${row.product.name} · ${row.location.name}` : "Set stock thresholds"}
@@ -76,7 +76,7 @@ export function SetThresholdsForm({ open, onOpenChange, row }: SetThresholdsForm
         </SheetHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="mt-6 space-y-5">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="px-6 pb-6 space-y-5">
             <FormField
               control={form.control}
               name="minQuantity"
@@ -122,7 +122,7 @@ export function SetThresholdsForm({ open, onOpenChange, row }: SetThresholdsForm
               )}
             />
 
-            <div className="flex justify-end gap-2 pt-2">
+            <div className="flex justify-end gap-3 pt-5 border-t">
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                 Cancel
               </Button>

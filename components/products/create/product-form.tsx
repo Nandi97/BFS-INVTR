@@ -109,12 +109,12 @@ export function ProductForm({ open, onClose, product }: ProductFormProps) {
 
   return (
     <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
-      <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
-        <SheetHeader>
+      <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
+        <SheetHeader className="px-6 pt-6 pb-2">
           <SheetTitle>{isEdit ? "Edit Product" : "Add Product"}</SheetTitle>
         </SheetHeader>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 py-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="px-6 pb-6 space-y-5">
           {/* Image */}
           <div className="space-y-2">
             <Label>Product Image</Label>
@@ -261,7 +261,7 @@ export function ProductForm({ open, onClose, product }: ProductFormProps) {
             <Textarea id="description" {...register("description")} placeholder="Optional notes…" rows={3} />
           </div>
 
-          <SheetFooter className="pt-2">
+          <SheetFooter className="pt-5 border-t">
             <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
             <Button type="submit" disabled={isPending || uploading}>
               {isPending ? "Saving…" : isEdit ? "Save Changes" : "Add Product"}

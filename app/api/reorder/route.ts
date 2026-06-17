@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { computeAvgMonthly } from "@/lib/sales-calc";
+import { computeAvgMonthly, SAFETY_DAYS } from "@/lib/sales-calc";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -46,13 +46,20 @@ export async function GET(req: NextRequest) {
       const { avgMonthly, monthsUsed, confident } = computeAvgMonthly(inv.product.salesRecords);
 
       const monthsRemaining = avgMonthly > 0 ? inv.quantity / avgMonthly : null;
+      const targetMonths    = inv.product.targetStockMonths ?? 6;
+      const leadTimeDays    = inv.product.brand?.leadTimeDays ?? 30;
 
-      const targetMonths = inv.product.targetStockMonths ?? 6;
+      // Live reorderPoint — always reflects current lead time settings without
+      // needing a manual Recalculate. Falls back to stored value only when
+      // there is no sales data to compute from.
+      const reorderPoint = avgMonthly > 0
+        ? Math.ceil(avgMonthly * (leadTimeDays + SAFETY_DAYS) / 30)
+        : inv.reorderPoint;
 
       const urgency: "out" | "urgent" | "low" | "ok" =
         inv.quantity <= 0
           ? "out"
-          : inv.reorderPoint > 0 && inv.quantity <= inv.reorderPoint
+          : reorderPoint > 0 && inv.quantity <= reorderPoint
           ? "urgent"
           : monthsRemaining !== null && monthsRemaining <= targetMonths
           ? "low"
@@ -80,7 +87,7 @@ export async function GET(req: NextRequest) {
         location: inv.location,
         quantity: inv.quantity,
         minQuantity: inv.minQuantity,
-        reorderPoint: inv.reorderPoint,
+        reorderPoint,
         reorderQty: inv.reorderQty,
         avgMonthly: Math.round(avgMonthly * 10) / 10,
         monthsRemaining: monthsRemaining !== null ? Math.round(monthsRemaining * 10) / 10 : null,

@@ -81,7 +81,7 @@ export function PODetailSheet({ open, onOpenChange, poId, onDeleted }: PODetailS
             </div>
           ) : (
             <>
-              <SheetHeader>
+              <SheetHeader className="px-6 pt-6 pb-2">
                 <div className="flex items-center gap-2">
                   <SheetTitle>{po.poNumber}</SheetTitle>
                   <POStatusBadge status={po.status} />
@@ -93,7 +93,7 @@ export function PODetailSheet({ open, onOpenChange, poId, onDeleted }: PODetailS
                 </SheetDescription>
               </SheetHeader>
 
-              <div className="mt-6 space-y-5">
+              <div className="px-6 pb-6 space-y-5">
                 {/* Supplier + Location */}
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">

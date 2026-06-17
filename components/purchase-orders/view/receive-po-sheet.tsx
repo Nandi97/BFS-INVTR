@@ -68,14 +68,14 @@ export function ReceivePOSheet({ open, onOpenChange, po }: ReceivePOSheetProps) 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full sm:max-w-2xl overflow-y-auto">
-        <SheetHeader>
+        <SheetHeader className="px-6 pt-6 pb-2">
           <SheetTitle>Receive Items — {po.poNumber}</SheetTitle>
           <SheetDescription>
             {po.supplier.name} → {po.location.name}
           </SheetDescription>
         </SheetHeader>
 
-        <div className="mt-6 space-y-5">
+        <div className="px-6 pb-6 space-y-5">
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted-foreground">Enter quantities received for each line item.</p>
             <Button type="button" variant="outline" size="sm" onClick={fillAll}>
@@ -148,7 +148,7 @@ export function ReceivePOSheet({ open, onOpenChange, po }: ReceivePOSheetProps) 
             />
           </div>
 
-          <div className="flex justify-end gap-2 pt-2">
+          <div className="flex justify-end gap-3 pt-5 border-t">
             <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
             <Button onClick={handleSubmit} disabled={receivePO.isPending}>
               {receivePO.isPending ? "Saving…" : "Record Receipt"}
