@@ -38,25 +38,14 @@ export async function GET(req: NextRequest) {
     console.error("[cron/sync] step 1 failed:", results.stock);
   }
 
-  // 2 — Sales sync via QB Reports API
+  // 2 — Check QB refresh token expiry (emails admin if ≤7 days)
   try {
-    console.log("[cron/sync] step 2: sales sync");
-    const res  = await fetch(`${base}/api/integrations/quickbooks/sync-sales-api`, { method: "POST", headers });
-    results.sales = await res.json();
-    console.log("[cron/sync] step 2 done:", JSON.stringify(results.sales).slice(0, 200));
-  } catch (err) {
-    results.sales = { error: err instanceof Error ? err.message : String(err) };
-    console.error("[cron/sync] step 2 failed:", results.sales);
-  }
-
-  // 3 — Check QB refresh token expiry (emails admin if ≤7 days)
-  try {
-    console.log("[cron/sync] step 3: token check");
+    console.log("[cron/sync] step 2: token check");
     results.tokenCheck = await checkQbRefreshToken();
-    console.log("[cron/sync] step 3 done:", JSON.stringify(results.tokenCheck).slice(0, 200));
+    console.log("[cron/sync] step 2 done:", JSON.stringify(results.tokenCheck).slice(0, 200));
   } catch (err) {
     results.tokenCheck = { error: err instanceof Error ? err.message : String(err) };
-    console.error("[cron/sync] step 3 failed:", results.tokenCheck);
+    console.error("[cron/sync] step 2 failed:", results.tokenCheck);
   }
 
   await prisma.integrationConfig.update({
