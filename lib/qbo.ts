@@ -27,14 +27,15 @@ export interface QboItem {
   PurchaseCost?:      number;
 }
 
-/** Fetch every active Inventory item from QB, paging through all results. */
-export async function fetchQboItems(): Promise<QboItem[]> {
+/** Fetch Inventory items from QB, paging through all results. Pass activeOnly=false to fetch inactive items instead. */
+export async function fetchQboItems(activeOnly = true): Promise<QboItem[]> {
   const items: QboItem[] = [];
   const PAGE = 1000;
   let start = 1;
 
   while (true) {
-    const query = `SELECT * FROM Item WHERE Type = 'Inventory' AND Active = true STARTPOSITION ${start} MAXRESULTS ${PAGE}`;
+    const activeClause = activeOnly ? "AND Active = true" : "AND Active = false";
+    const query = `SELECT * FROM Item WHERE Type = 'Inventory' ${activeClause} STARTPOSITION ${start} MAXRESULTS ${PAGE}`;
     const res = await qboFetch(`/query?query=${encodeURIComponent(query)}`);
 
     if (!res.ok) {

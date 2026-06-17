@@ -130,7 +130,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `Location "${locationName}" not found` }, { status: 422 });
   }
 
-  let synced = 0, skipped = 0;
+  let synced = 0, skipped = 0, deactivated = 0;
   const errors: string[] = [];
   const startedAt = new Date();
 
@@ -168,12 +168,40 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // ── Deactivate BFS products whose QB item is now inactive ──────────────────
+  // Only match by SKU/barcode (strict) to avoid false positives from name matches.
+  // Products manually deactivated in BFS for other reasons (e.g. Inverness direct-supply)
+  // are already isActive=false and therefore skipped by the findFirst below.
+  try {
+    const inactiveQboItems = await fetchQboItems(false);
+    for (const item of inactiveQboItems) {
+      if (!item.Sku) continue;
+      const sku = item.Sku.trim();
+      const hit = await prisma.product.findFirst({
+        where: {
+          isActive: true,
+          OR: [
+            { sku:     { equals: sku, mode: "insensitive" } },
+            { barcode: { equals: sku, mode: "insensitive" } },
+          ],
+        },
+        select: { id: true },
+      });
+      if (hit) {
+        await prisma.product.update({ where: { id: hit.id }, data: { isActive: false } });
+        deactivated++;
+      }
+    }
+  } catch (err: unknown) {
+    errors.push(`Deactivation pass failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
+
   await prisma.syncLog.create({
     data: {
       provider:   "QUICKBOOKS",
       type:       "STOCK_SYNC",
       status:     errors.length > 0 && synced === 0 ? "FAILED" : errors.length > 0 ? "PARTIAL" : "SUCCESS",
-      message:    `QBO API sync: ${synced} synced, ${skipped} skipped`,
+      message:    `QBO API sync: ${synced} synced, ${skipped} skipped, ${deactivated} deactivated`,
       recordsIn:  qboItems.length,
       recordsOut: synced,
     },
@@ -185,6 +213,6 @@ export async function POST(req: NextRequest) {
   });
 
   return NextResponse.json({
-    total: qboItems.length, synced, skipped, errors: errors.slice(0, 30),
+    total: qboItems.length, synced, skipped, deactivated, errors: errors.slice(0, 30),
   });
 }
