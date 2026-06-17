@@ -2,7 +2,7 @@ import { betterFetch } from "@better-fetch/fetch";
 import { NextRequest, NextResponse } from "next/server";
 import type { Session } from "@/lib/auth";
 
-const PUBLIC_PATHS = ["/login", "/api/auth", "/api/uploadthing", "/legal"];
+const PUBLIC_PATHS = ["/login", "/api/auth", "/api/uploadthing", "/legal", "/api/cron"];
 
 // Allowlist: specific emails OR whole domains (e.g. "@beautylogix.ca")
 const ALLOWED_EMAILS = [

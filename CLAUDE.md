@@ -71,6 +71,29 @@ Each page uses `<div className="space-y-6">` — no extra padding wrapper needed
 
 ---
 
+## Component Structure Convention
+
+All page routes under `app/(dashboard)` and `app/(auth)` are **thin entry points** (5–15 lines: route params, metadata, one component render). All UI logic lives in `components/<module>/`:
+
+```
+components/<module>/
+  dashboard/   ← list/overview page component (e.g. products-dashboard.tsx)
+  create/      ← shared add-or-edit form (e.g. product-form.tsx)
+  view/        ← detail page component (e.g. product-view.tsx, po-detail-sheet.tsx)
+```
+
+Not every module uses all three subdirs — only what the feature requires.
+
+Examples:
+- `components/products/dashboard/products-dashboard.tsx` → rendered by `app/(dashboard)/products/page.tsx`
+- `components/products/create/product-form.tsx` → shared add/edit form
+- `components/products/view/product-view.tsx` → rendered by `app/(dashboard)/products/[id]/page.tsx`
+- `components/auth/login-view.tsx` → rendered by `app/(auth)/login/page.tsx`
+
+**Do not add logic back into `page.tsx` files** — they stay thin wrappers.
+
+---
+
 ## Database Seed & Setup
 
 ```bash
@@ -115,19 +138,19 @@ Stock quantities are now maintained by the **nightly QB API sync** (`/api/cron/s
 | # | Feature | Key files |
 |---|---|---|
 | — | UI Shell | `components/app-header.tsx`, `components/app-sidebar.tsx`, `app/(dashboard)/layout.tsx`, `lib/font.ts` |
-| 1–4 | Products, Brands, Categories, Dashboard | `app/(dashboard)/products/`, `app/(dashboard)/dashboard/` |
-| 5 | Stock & Locations | `app/api/stock/`, `app/api/locations/`, `app/(dashboard)/stock/` |
-| 6 | Reorder Management | `app/api/reorder/`, `app/(dashboard)/reorder/` |
-| 7 | Supplier Management | `app/api/suppliers/`, `app/(dashboard)/suppliers/` |
-| 8 | Purchase Orders | `app/api/purchase-orders/`, `app/(dashboard)/purchase-orders/` |
-| 9 | Email Notifications | `app/api/notifications/`, `lib/mailer.ts`, `lib/notification-engine.ts` |
-| 10 | Sales History / Analytics | `app/api/sales/`, `app/(dashboard)/analytics/` |
-| 11 | Reports | `app/api/reports/`, `app/(dashboard)/reports/` |
-| 12 | Import / Export | `app/api/import/`, `app/api/export/`, `app/(dashboard)/import-export/` |
-| 13 | QB Integration | `app/api/integrations/quickbooks/`, `hooks/use-integrations.ts`, `components/integrations/`, `app/(dashboard)/integrations/` |
-| 15 | Settings | `app/api/settings/stock-policy/`, `components/settings/`, `app/(dashboard)/settings/` |
-| 16 | Authentication + RBAC | `lib/auth.ts`, `lib/auth-client.ts`, `lib/require-role.ts`, `app/(auth)/login/`, `middleware.ts` |
-| 17 | User admin panel | `app/api/users/`, `hooks/use-users.ts`, `components/settings/user-table.tsx` — Team tab in Settings |
+| 1–4 | Products, Brands, Categories, Dashboard | `components/products/`, `components/dashboard/`, `app/api/products/` |
+| 5 | Stock & Locations | `app/api/stock/`, `app/api/locations/`, `components/stock/` |
+| 6 | Reorder Management | `app/api/reorder/`, `components/reorder/` |
+| 7 | Supplier Management | `app/api/suppliers/`, `components/suppliers/` |
+| 8 | Purchase Orders | `app/api/purchase-orders/`, `components/purchase-orders/` |
+| 9 | Email Notifications | `app/api/notifications/`, `lib/mailer.ts`, `lib/notification-engine.ts`, `components/notifications/` |
+| 10 | Sales History / Analytics | `app/api/sales/`, `components/analytics/` |
+| 11 | Reports | `app/api/reports/`, `components/reports/` |
+| 12 | Import / Export | `app/api/import/`, `app/api/export/`, `components/import-export/` |
+| 13 | QB Integration | `app/api/integrations/quickbooks/`, `hooks/use-integrations.ts`, `components/integrations/` |
+| 15 | Settings | `app/api/settings/stock-policy/`, `components/settings/` |
+| 16 | Authentication + RBAC | `lib/auth.ts`, `lib/auth-client.ts`, `lib/require-role.ts`, `components/auth/login-view.tsx`, `middleware.ts` |
+| 17 | User admin panel | `app/api/users/`, `hooks/use-users.ts`, `components/settings/dashboard/user-table.tsx` — Team tab in Settings |
 | 18 | QB refresh token alert | `lib/qb-token-check.ts` — runs in nightly cron, emails admin if ≤7 days |
 | 19 | Empty states | `components/ui/empty-state.tsx` — used in products, stock, movements, email log, suppliers, reorder tables |
 | 20 | QB Vendor sync | `app/api/integrations/quickbooks/vendors/route.ts`, Vendors tab in Integrations |
@@ -137,7 +160,7 @@ Stock quantities are now maintained by the **nightly QB API sync** (`/api/cron/s
 
 | # | Feature | Notes |
 |---|---|---|
-| 14 | Shopify Integration | Sync sales from Shopify. `IntegrationProvider.SHOPIFY` exists in schema. No routes, no UI, no sync logic. |
+| 14 | Zenoti Fulfillment | Service locations raise POs in Zenoti → BFS pulls them via API → inventory associate fulfills → posts QB Invoice. Replaces planned Shopify integration. See "Zenoti Integration" section below. |
 
 ---
 
@@ -208,7 +231,7 @@ https://bfs.kigtech.digital/api/integrations/quickbooks/callback
 - `MANAGER` — products, brands, categories, suppliers, purchase orders, stock adjustments, notifications, QB syncs
 - `VIEWER` — read-only (all GET routes are public to any authenticated session)
 
-**User admin**: Team tab in `/settings` (`components/settings/user-table.tsx`). Role selector for others, read-only badge for self. Self-demotion blocked at API level.
+**User admin**: Team tab in `/settings` (`components/settings/dashboard/user-table.tsx`). Role selector for others, read-only badge for self. Self-demotion blocked at API level.
 
 **First admin**: must be set directly in DB (`UPDATE "user" SET role = 'ADMIN' WHERE email = '...'`). All new sign-ins default to `VIEWER`.
 
@@ -276,7 +299,6 @@ Products with no sales data are skipped by calculate-minimums.
 
 | Item | Notes |
 |---|---|
-| Shopify integration | Sync Shopify sales → SalesRecord (complements QB). `IntegrationProvider.SHOPIFY` already in schema. |
 | Product image gallery | `Product.imageUrl` field exists, UploadThing wired. Just needs upload UI in product form + thumbnail in table. |
 | PO status timeline | Show DRAFT → SENT → RECEIVED steps with timestamps on PO detail. |
 | Email/password auth | Fallback login if OAuth providers are down. better-auth supports it natively. |
@@ -284,6 +306,86 @@ Products with no sales data are skipped by calculate-minimums.
 | AppSetting usage | Schema has `AppSetting` model but nothing uses it. Move hardcoded constants (SAFETY_DAYS=7, default location name) there. |
 | Observability | No error tracking. Add Sentry or Axiom for production error monitoring. |
 | Rate limiting on sync routes | QB sync routes can be called without throttle. Could exhaust Intuit API quota. |
+
+---
+
+## Zenoti Integration
+
+Zenoti is the inventory/POS system used at all service locations (Square One, Burlington Mall, Limeridge Mall, Oakville Place). The warehouse (Beauty Logix Inc) is set up as a vendor in Zenoti. Service locations raise Purchase Orders in Zenoti directed at the warehouse. BFS pulls those POs and automates the fulfillment → QuickBooks invoice loop.
+
+**Zenoti cannot be updated from BFS** — the Zenoti API has no write endpoint for stock quantities. Zenoti's warehouse stock levels are therefore permanently outdated; service locations may request products the warehouse doesn't have. BFS cross-references its own live stock levels to flag these at fulfillment time.
+
+### Fulfillment flow
+
+```
+1. Service location raises PO in Zenoti (status: RAISED)
+2. BFS sync pulls RAISED POs from all configured centers via Zenoti API
+3. Inventory associate opens the order in BFS:
+   - sees each line item with requested qty (retail + consumable)
+   - sees current BFS stock level per product (matched by barcode)
+   - items where stock < requested qty are flagged
+   - adjusts "fulfil qty" per line (defaults to min(requested, stock))
+4. Associate clicks "Create Invoice" → BFS Invoice created (DRAFT)
+5. Accounts person reviews and clicks "Post to QuickBooks"
+   → QB Invoice created (warehouse → service location as QB Customer)
+   → BfsInvoice status → POSTED, QB invoice number stored
+```
+
+### Two Zenoti instances
+
+| Domain | Warehouse name in Zenoti | Env var |
+|---|---|---|
+| `beautyfirstspa.zenoti.com` | Beauty First Spa | `ZENOTI_BFS_API_KEY` |
+| `beautylogix.zenoti.com` | Beauty Logix | `ZENOTI_BL_API_KEY` |
+
+Both use the same API base URL (`https://api.zenoti.com`). The API key implicitly scopes all requests to that organization's data.
+
+**beautyfirstspa.zenoti.com — service locations:**
+- Corp-Owned: Burlington Mall, Limeridge Mall, Oakville Place, Square One
+- Franchise: Dixie Outlet Mall, Hillcrest Mall, Upper Canada Mall, Yonge-Eglinton
+- Excluded: Call Center (not a store)
+
+**beautylogix.zenoti.com — service locations:**
+- Franchise: Bolton, Burlington, Milton, Oakville, Ottawa-Kanata, Rymal
+
+### Zenoti API
+
+- **Auth**: `Authorization: apikey {key}` on every request — no OAuth, no token refresh
+- **API key setup**: Zenoti Admin → Setup → Apps → create backend app → copy key
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /v1/inventory/purchase_orders?center_id=&start_date=&end_date=&status=2` | List RAISED POs for one center |
+| `GET /v1/inventory/purchase_orders/{order_id}` | Full PO with line items |
+| `GET /v1/inventory/transfer_orders?center_id=&start_date=&end_date=&status=2` | List RAISED transfer orders |
+
+`status=2` = RAISED. No org-wide "all centers" endpoint — BFS fans out one request per `center_id` across both Zenoti instances and merges results.
+
+### Product matching
+
+Zenoti line items include `product_code` (barcode) and `product_name`. Match to BFS via `product.barcode`. No barcode match → flag for manual review; do not auto-skip.
+
+### Planned DB additions
+
+| Model | Purpose |
+|---|---|
+| `ZenotiOrg` | One row per Zenoti instance — stores domain label, API key reference, list of center objects `{centerId, name, qbCustomerName}` as JSON |
+| `ZenotiOrder` | Cached PO header (order_id, order_number, center_name, org, raised_date, status) |
+| `ZenotiOrderItem` | Line items (product_code, product_name, barcode, retail_qty, consumable_qty, unit_price) |
+| `BfsInvoice` | Internal invoice linking ZenotiOrder → QB (status: DRAFT/POSTED, qb_invoice_id, qb_invoice_number) |
+| `BfsInvoiceItem` | Fulfilled quantities (fulfilled_retail_qty, fulfilled_consumable_qty, unit_price) |
+
+### Pending before build can start
+
+- [ ] `ZENOTI_BFS_API_KEY` — from beautyfirstspa.zenoti.com Admin → Setup → Apps
+- [ ] `ZENOTI_BL_API_KEY` — from beautylogix.zenoti.com Admin → Setup → Apps
+- [ ] Zenoti `center_id` values for all ~14 service locations across both instances
+- [ ] Confirm all service locations exist as QB Customers (needed for QB Invoice `CustomerRef`)
+- [ ] Confirm QB transaction type: **Invoice** (AR) vs Sales Receipt
+
+### Shopify
+
+Shopify integration is **cancelled** — no longer needed. `IntegrationProvider.SHOPIFY` remains in the schema but is unused; ignore it.
 
 ---
 

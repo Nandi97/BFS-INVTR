@@ -8,10 +8,18 @@ import { checkQbRefreshToken } from "@/lib/qb-token-check";
 export async function GET(req: NextRequest) {
   const auth = req.headers.get("authorization");
   if (!process.env.CRON_SECRET || auth !== `Bearer ${process.env.CRON_SECRET}`) {
+    console.warn("[cron/sync] unauthorized — check CRON_SECRET env var");
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const base    = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const base = process.env.NEXT_PUBLIC_APP_URL;
+  if (!base || base.includes("localhost")) {
+    console.error("[cron/sync] NEXT_PUBLIC_APP_URL is not set to a production URL:", base);
+    return NextResponse.json({ error: "NEXT_PUBLIC_APP_URL misconfigured" }, { status: 500 });
+  }
+
+  console.log(`[cron/sync] starting — ${new Date().toISOString()} — base: ${base}`);
+
   const headers = {
     "Content-Type":  "application/json",
     "authorization": `Bearer ${process.env.CRON_SECRET}`,
@@ -21,25 +29,34 @@ export async function GET(req: NextRequest) {
 
   // 1 — Stock sync via QB Items API
   try {
+    console.log("[cron/sync] step 1: stock sync");
     const res  = await fetch(`${base}/api/integrations/quickbooks/items`, { method: "POST", headers, body: JSON.stringify({ location: "BF Warehouse" }) });
     results.stock = await res.json();
+    console.log("[cron/sync] step 1 done:", JSON.stringify(results.stock).slice(0, 200));
   } catch (err) {
     results.stock = { error: err instanceof Error ? err.message : String(err) };
+    console.error("[cron/sync] step 1 failed:", results.stock);
   }
 
   // 2 — Sales sync via QB Reports API
   try {
+    console.log("[cron/sync] step 2: sales sync");
     const res  = await fetch(`${base}/api/integrations/quickbooks/sync-sales-api`, { method: "POST", headers });
     results.sales = await res.json();
+    console.log("[cron/sync] step 2 done:", JSON.stringify(results.sales).slice(0, 200));
   } catch (err) {
     results.sales = { error: err instanceof Error ? err.message : String(err) };
+    console.error("[cron/sync] step 2 failed:", results.sales);
   }
 
   // 3 — Check QB refresh token expiry (emails admin if ≤7 days)
   try {
+    console.log("[cron/sync] step 3: token check");
     results.tokenCheck = await checkQbRefreshToken();
+    console.log("[cron/sync] step 3 done:", JSON.stringify(results.tokenCheck).slice(0, 200));
   } catch (err) {
     results.tokenCheck = { error: err instanceof Error ? err.message : String(err) };
+    console.error("[cron/sync] step 3 failed:", results.tokenCheck);
   }
 
   await prisma.integrationConfig.update({
@@ -47,5 +64,6 @@ export async function GET(req: NextRequest) {
     data:  { lastSyncAt: new Date() },
   }).catch(() => null);
 
+  console.log(`[cron/sync] complete — ${new Date().toISOString()}`);
   return NextResponse.json({ ok: true, ran: new Date().toISOString(), results });
 }
