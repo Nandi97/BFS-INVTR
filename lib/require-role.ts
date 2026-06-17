@@ -24,7 +24,15 @@ type RequireRoleResult = { user: AuthedUser } | NextResponse;
  *   const { user } = result;
  */
 export async function requireRole(minRole: Role): Promise<RequireRoleResult> {
-  const session = await auth.api.getSession({ headers: await headers() });
+  const h = await headers();
+
+  // Allow server-to-server calls (e.g. cron → internal API) authenticated by CRON_SECRET
+  const authHeader = h.get("authorization");
+  if (process.env.CRON_SECRET && authHeader === `Bearer ${process.env.CRON_SECRET}`) {
+    return { user: { id: "cron", email: "cron@system", role: "ADMIN" } };
+  }
+
+  const session = await auth.api.getSession({ headers: h });
 
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
