@@ -35,7 +35,7 @@ A Next.js 16 web app replacing the Excel-based inventory workflow for **Beauty F
 - **Client generates to** `../generated/prisma/client.ts`
 - **Adapter required** — uses `PrismaPg` with `pg.Pool`
 - **Import path**: `import { prisma } from "@/lib/prisma"`
-- **After schema changes**: run `npx prisma migrate deploy` then **restart the dev server** — the running server caches the old compiled Prisma client and won't see new fields until restart
+- **After schema changes**: run `npx prisma migrate dev --name <name>` then `npx prisma generate` then **restart the dev server** — the running server caches the old compiled Prisma client and won't see new fields until restart
 
 ## Critical Zod 4 Rules
 
@@ -88,6 +88,8 @@ Examples:
 - `components/products/dashboard/products-dashboard.tsx` → rendered by `app/(dashboard)/products/page.tsx`
 - `components/products/create/product-form.tsx` → shared add/edit form
 - `components/products/view/product-view.tsx` → rendered by `app/(dashboard)/products/[id]/page.tsx`
+- `components/zenoti/dashboard/zenoti-orders-table.tsx` → rendered by `app/(dashboard)/zenoti/page.tsx`
+- `components/zenoti/view/fulfillment-view.tsx` → rendered by `app/(dashboard)/zenoti/[id]/page.tsx`
 - `components/auth/login-view.tsx` → rendered by `app/(auth)/login/page.tsx`
 
 **Do not add logic back into `page.tsx` files** — they stay thin wrappers.
@@ -118,7 +120,7 @@ Stock quantities are now maintained by the **nightly QB API sync** (`/api/cron/s
 
 ---
 
-## Current Data State (as of 2026-06-15)
+## Current Data State (as of 2026-06-17)
 
 - **847 active products** (81 Inverness products disabled — direct supplier to stores)
 - **665 stock records** — live via nightly QB Items API sync
@@ -148,6 +150,7 @@ Stock quantities are now maintained by the **nightly QB API sync** (`/api/cron/s
 | 11 | Reports | `app/api/reports/`, `components/reports/` |
 | 12 | Import / Export | `app/api/import/`, `app/api/export/`, `components/import-export/` |
 | 13 | QB Integration | `app/api/integrations/quickbooks/`, `hooks/use-integrations.ts`, `components/integrations/` |
+| 14 | Zenoti Fulfillment (Phase 1) | `app/api/zenoti/`, `hooks/use-zenoti.ts`, `components/zenoti/` — see section below |
 | 15 | Settings | `app/api/settings/stock-policy/`, `components/settings/` |
 | 16 | Authentication + RBAC | `lib/auth.ts`, `lib/auth-client.ts`, `lib/require-role.ts`, `components/auth/login-view.tsx`, `middleware.ts` |
 | 17 | User admin panel | `app/api/users/`, `hooks/use-users.ts`, `components/settings/dashboard/user-table.tsx` — Team tab in Settings |
@@ -155,12 +158,16 @@ Stock quantities are now maintained by the **nightly QB API sync** (`/api/cron/s
 | 19 | Empty states | `components/ui/empty-state.tsx` — used in products, stock, movements, email log, suppliers, reorder tables |
 | 20 | QB Vendor sync | `app/api/integrations/quickbooks/vendors/route.ts`, Vendors tab in Integrations |
 | 21 | QB Product name sync | `app/api/integrations/quickbooks/items/sync-names/route.ts`, monthly cron `0 7 1 * *` |
+| 22 | Product detail page | `components/products/view/product-view.tsx` — image, sales bar chart, stock balance line chart, recent movements table |
+| 23 | Product image upload | UploadThing endpoint `productImage` in `app/api/uploadthing/core.ts`; CDN at `utfs.io` (added to `next.config.ts` remotePatterns) |
 
-### ❌ Remaining
+### ⏳ Zenoti Phase 2 (post-meeting)
 
-| # | Feature | Notes |
+| Item | Blocker | Notes |
 |---|---|---|
-| 14 | Zenoti Fulfillment | Service locations raise POs in Zenoti → BFS pulls them via API → inventory associate fulfills → posts QB Invoice. Replaces planned Shopify integration. See "Zenoti Integration" section below. |
+| Live sync active | Need `ZENOTI_BFS_API_KEY` + `ZENOTI_BL_API_KEY` | Add to `.env` + Vercel, then hit `GET /api/zenoti/centers` to discover center IDs |
+| QB Invoice posting | Confirm accounting team amicable + QB customer names per store | `POST /api/zenoti/fulfillments/[id]/submit` currently emails only; QB posting is the next step |
+| Confirm PO endpoint path | Need to verify with real API key | Current assumption: `GET /v1/procurement/purchase_orders?center_id=&statuses=Raised,Updated` |
 
 ---
 
@@ -184,14 +191,18 @@ QB is the **source of truth** for stock quantities and product names. All file-u
 
 | Schedule | Route | What it does |
 |---|---|---|
-| `0 6 * * *` (daily 06:00 UTC) | `GET /api/cron/sync` | Stock sync + sales sync + QB token expiry check |
+| `0 6 * * *` (daily 06:00 UTC) | `GET /api/cron/sync` | Stock sync + QB token expiry check (sales sync removed — QB Reports API returns 403) |
 | `0 7 1 * *` (monthly, 1st) | `GET /api/cron/sync-names` | Overwrites product names from QB by SKU match |
 
 Both cron routes are protected by `Authorization: Bearer <CRON_SECRET>`. Vercel sends this header automatically; set `CRON_SECRET` in both `.env` and Vercel environment variables.
 
+The middleware and `requireRole` both accept the `Bearer <CRON_SECRET>` header so cron sub-fetches bypass session auth cleanly.
+
 ### Sales sync — quantity handling
 
 `SalesByProductServiceSummary` may return only revenue columns (no unit qty) depending on QB report config. The sync route detects this via `qtyColumnsDetected` in the response. When `false`, existing `SalesRecord.quantity` values (from the Excel bootstrap) are preserved — the upsert only overwrites quantity when QB actually returns a non-zero qty. Revenue is always updated.
+
+**Sales sync is not in the cron** — QB OAuth user lacks Reports permission (403). The bootstrapped 12 months of data is sufficient for reorder calculations.
 
 ### Name sync — matching logic
 
@@ -228,7 +239,7 @@ https://bfs.kigtech.digital/api/integrations/quickbooks/callback
 
 **Role split**:
 - `ADMIN` — settings, locations, user role management, QB connect/disconnect, product/supplier/stock imports
-- `MANAGER` — products, brands, categories, suppliers, purchase orders, stock adjustments, notifications, QB syncs
+- `MANAGER` — products, brands, categories, suppliers, purchase orders, stock adjustments, notifications, QB syncs, Zenoti fulfillment
 - `VIEWER` — read-only (all GET routes are public to any authenticated session)
 
 **User admin**: Team tab in `/settings` (`components/settings/dashboard/user-table.tsx`). Role selector for others, read-only badge for self. Self-demotion blocked at API level.
@@ -276,7 +287,134 @@ Products with no sales data are skipped by calculate-minimums.
 
 ---
 
+## Zenoti Integration
+
+Zenoti is the inventory/POS system used at all service locations. Service locations raise Purchase Orders in Zenoti directed at the warehouse. BFS pulls those POs and the inventory associate fulfills them on an iPad, then emails a packing list to accounting.
+
+**Zenoti cannot be updated from BFS** — the Zenoti API has no write endpoint for stock quantities. BFS cross-references its own live stock levels (from QB sync) to flag shortfalls at fulfillment time.
+
+### Two Zenoti instances
+
+| Domain | Label | Env var |
+|---|---|---|
+| `beautyfirstspa.zenoti.com` | Beauty First Spa | `ZENOTI_BFS_API_KEY` |
+| `beautylogix.zenoti.com` | Beauty Logix | `ZENOTI_BL_API_KEY` |
+
+Both use base URL `https://api.zenoti.com`. Auth: `Authorization: apikey {key}` header on every request. No OAuth, no token refresh.
+
+**beautyfirstspa.zenoti.com — service locations:**
+- Corp-Owned: Burlington Mall, Limeridge Mall, Oakville Place, Square One
+- Franchise: Dixie Outlet Mall, Hillcrest Mall, Upper Canada Mall, Yonge-Eglinton
+- Excluded: Call Center (not a store)
+
+**beautylogix.zenoti.com — service locations:**
+- Franchise: Bolton, Burlington, Milton, Oakville, Ottawa-Kanata, Rymal
+
+### Fulfillment flow (as built)
+
+```
+1. Service location raises PO in Zenoti (RAISED or UPDATED status)
+2. Inventory associate clicks "Sync from Zenoti" on /zenoti dashboard
+   → POST /api/zenoti/sync pulls RAISED+UPDATED POs from all centers across both orgs
+3. Associate clicks an order → /zenoti/[id]
+   → "Start Packing" calls POST /api/zenoti/orders/[id]/fulfillment
+   → Creates BfsFulfillment (status: IN_PROGRESS) with items pre-loaded from Zenoti,
+     quantities defaulted to requested, products matched by barcode to BFS Product
+4. Associate packs each item:
+   - Adjusts fulfilled retail qty and consumable qty (pre-loaded, editable)
+   - Checks the checkbox when physically packed
+   - Adds walk-in items via "Add Walk-in Item" dialog (POST /api/zenoti/fulfillments/[id]/items)
+   - Stock-on-hand shown per item; shortfalls highlighted amber/red
+5. Associate clicks "Submit & Email"
+   → POST /api/zenoti/fulfillments/[id]/submit
+   → Sends XLSX packing list to accounting@beautyfirstspa.com (CC: order@beautylogix.ca)
+   → BfsFulfillment status → SUBMITTED
+```
+
+### Phase 2 (post-meeting, pending accounting team approval)
+
+```
+6. Accounts person reviews email → clicks "Post to QuickBooks" (not yet built)
+   → QB Invoice created (warehouse as vendor → service location as QB Customer)
+   → BfsFulfillment status → INVOICED, QB invoice number stored
+```
+
+### Zenoti API endpoints (assumed — verify with real keys)
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /v1/centers` | List all centers for the org (used to discover center IDs) |
+| `GET /v1/procurement/purchase_orders?center_id=&statuses=Raised,Updated` | List RAISED+UPDATED POs for one center |
+
+No org-wide "all centers" endpoint — BFS fans out one request per `center_id` and merges results.
+
+The actual endpoint path was assumed based on Zenoti API patterns. **Verify once API keys are obtained** — it may differ (e.g. `/v1/inventory/purchase_orders`). The helper is in `lib/zenoti.ts` → `fetchZenotiPOs()`.
+
+### Product matching
+
+Zenoti line items include `product_code` (barcode) and `product_name`. BFS matches by `product.barcode`. Unmatched items are still fulfilable (fulfillment item has `productId: null`, stock-on-hand shows as null rather than crashing).
+
+### Key files
+
+```
+lib/zenoti.ts                                      ← API helper (fetchZenotiCenters, fetchZenotiPOs, mapZenotiStatus)
+app/api/zenoti/sync/route.ts                       ← POST — pull RAISED+UPDATED from both orgs
+app/api/zenoti/centers/route.ts                    ← GET — discover center IDs (run once after getting keys)
+app/api/zenoti/orders/route.ts                     ← GET — list orders with fulfillment status
+app/api/zenoti/orders/[id]/route.ts                ← GET — order detail + live stock per item
+app/api/zenoti/orders/[id]/fulfillment/route.ts    ← POST — create fulfillment from Zenoti order
+app/api/zenoti/fulfillments/[id]/route.ts          ← PATCH — update fulfillment status
+app/api/zenoti/fulfillments/[id]/items/route.ts    ← POST — add walk-in item
+app/api/zenoti/fulfillments/[id]/items/[itemId]/route.ts  ← PATCH/DELETE — update/remove item
+app/api/zenoti/fulfillments/[id]/submit/route.ts   ← POST — email packing list, mark SUBMITTED
+hooks/use-zenoti.ts                                ← TanStack Query hooks
+components/zenoti/dashboard/zenoti-orders-table.tsx ← orders list with sync button + stat cards
+components/zenoti/view/fulfillment-view.tsx         ← iPad packing UI
+app/(dashboard)/zenoti/page.tsx                    ← thin wrapper
+app/(dashboard)/zenoti/[id]/page.tsx               ← thin wrapper
+```
+
+### DB models added (migration: `20260617033633_add_zenoti_fulfillment`)
+
+```
+ZenotiOrder       — cached PO header (zenotiOrderId unique, org "bfs"|"bl", zenotiStatus enum)
+ZenotiOrderItem   — line items (productCode=barcode, retailRaised, consumableRaised, unitPrice)
+BfsFulfillment    — fulfillment per order (status: PENDING|IN_PROGRESS|SUBMITTED|INVOICED)
+BfsFulfillmentItem — packed quantities, isPacked checkbox, isWalkIn flag
+```
+
+Enums added: `ZenotiOrderStatus`, `FulfillmentStatus`. `IntegrationProvider` enum extended with `ZENOTI`.
+
+### Getting started after the meeting
+
+1. Get API keys: Zenoti Admin → Setup → Apps → create backend app → copy key
+   - `ZENOTI_BFS_API_KEY` from beautyfirstspa.zenoti.com
+   - `ZENOTI_BL_API_KEY` from beautylogix.zenoti.com
+2. Add both to `.env` and Vercel environment variables
+3. Hit `GET /api/zenoti/centers` (authenticated) — returns center IDs for both orgs
+4. Test sync: "Sync from Zenoti" button on `/zenoti` dashboard
+5. If the sync endpoint path is wrong (lib/zenoti.ts `fetchZenotiPOs`), adjust the path there
+6. Once sync works: confirm with accounting team whether QB invoice auto-posting is wanted
+7. If yes: build `POST /api/zenoti/fulfillments/[id]/post-to-qb` — creates QB Invoice using existing QB OAuth tokens
+
+### Pricing note
+
+BeautyLogix Zenoti has unit prices on POs; BeautyFirstSpa Zenoti doesn't. QB is the authoritative source for pricing. Phase 1 packing list email contains quantities only (no prices). Phase 2 QB Invoice should pull prices from QB Product `PurchaseCost`.
+
+### Shopify
+
+Shopify integration is **cancelled** — replaced by Zenoti. `IntegrationProvider.SHOPIFY` remains in the schema but is unused; ignore it.
+
+---
+
 ## Backlog (Prioritised)
+
+### High priority (Zenoti Phase 2)
+
+| Item | Notes |
+|---|---|
+| QB Invoice posting | Build `POST /api/zenoti/fulfillments/[id]/post-to-qb`. Needs QB customer names per store + accounting team sign-off. Uses existing QB OAuth. |
+| Zenoti PO endpoint verification | Confirm actual endpoint path once API keys arrive. Update `lib/zenoti.ts` `fetchZenotiPOs` if needed. |
 
 ### Medium priority
 
@@ -287,19 +425,19 @@ Products with no sales data are skipped by calculate-minimums.
 | Dashboard KPI deltas | Add ±N trend vs prior week to each KPI card. Data already exists in StockMovement + SalesRecord. |
 | Analytics date range picker | Analytics charts show fixed period. A date range selector would make it useful for ad-hoc queries. |
 | Mobile table responsiveness | Wide tables (products, stock, reorder) need `overflow-x-auto` wrapper. Currently break layout at <768px. |
-| Error boundaries | Pages use `<Suspense>` but no `error.tsx` boundaries. A single component throw crashes the whole page section. |
+| Error boundaries | Pages use `<Suspense>` but no `error.tsx` boundaries. A single component throw crashes the whole page section. `app/(dashboard)/products/error.tsx` exists as example. |
 
 ### Skipped (no QB writes policy)
 
 | Item | Notes |
 |---|---|
-| PO → QB push | Would create QB PurchaseOrder when a BFS PO is sent. Skipped — app is read-only from QB's perspective. |
+| PO → QB push | Would create QB PurchaseOrder when a BFS PO is sent. Skipped — app is read-only from QB's perspective (except Zenoti invoices which are AR, not AP). |
 
 ### Low priority / nice-to-have
 
 | Item | Notes |
 |---|---|
-| Product image gallery | `Product.imageUrl` field exists, UploadThing wired. Just needs upload UI in product form + thumbnail in table. |
+| Product image gallery | `Product.imageUrl` field exists, UploadThing wired, upload UI in product form works. Still missing: thumbnail column in products table. |
 | PO status timeline | Show DRAFT → SENT → RECEIVED steps with timestamps on PO detail. |
 | Email/password auth | Fallback login if OAuth providers are down. better-auth supports it natively. |
 | Test alert button per rule | "Send test email" on each alert rule in notifications page. |
@@ -309,91 +447,11 @@ Products with no sales data are skipped by calculate-minimums.
 
 ---
 
-## Zenoti Integration
-
-Zenoti is the inventory/POS system used at all service locations (Square One, Burlington Mall, Limeridge Mall, Oakville Place). The warehouse (Beauty Logix Inc) is set up as a vendor in Zenoti. Service locations raise Purchase Orders in Zenoti directed at the warehouse. BFS pulls those POs and automates the fulfillment → QuickBooks invoice loop.
-
-**Zenoti cannot be updated from BFS** — the Zenoti API has no write endpoint for stock quantities. Zenoti's warehouse stock levels are therefore permanently outdated; service locations may request products the warehouse doesn't have. BFS cross-references its own live stock levels to flag these at fulfillment time.
-
-### Fulfillment flow
-
-```
-1. Service location raises PO in Zenoti (status: RAISED)
-2. BFS sync pulls RAISED POs from all configured centers via Zenoti API
-3. Inventory associate opens the order in BFS:
-   - sees each line item with requested qty (retail + consumable)
-   - sees current BFS stock level per product (matched by barcode)
-   - items where stock < requested qty are flagged
-   - adjusts "fulfil qty" per line (defaults to min(requested, stock))
-4. Associate clicks "Create Invoice" → BFS Invoice created (DRAFT)
-5. Accounts person reviews and clicks "Post to QuickBooks"
-   → QB Invoice created (warehouse → service location as QB Customer)
-   → BfsInvoice status → POSTED, QB invoice number stored
-```
-
-### Two Zenoti instances
-
-| Domain | Warehouse name in Zenoti | Env var |
-|---|---|---|
-| `beautyfirstspa.zenoti.com` | Beauty First Spa | `ZENOTI_BFS_API_KEY` |
-| `beautylogix.zenoti.com` | Beauty Logix | `ZENOTI_BL_API_KEY` |
-
-Both use the same API base URL (`https://api.zenoti.com`). The API key implicitly scopes all requests to that organization's data.
-
-**beautyfirstspa.zenoti.com — service locations:**
-- Corp-Owned: Burlington Mall, Limeridge Mall, Oakville Place, Square One
-- Franchise: Dixie Outlet Mall, Hillcrest Mall, Upper Canada Mall, Yonge-Eglinton
-- Excluded: Call Center (not a store)
-
-**beautylogix.zenoti.com — service locations:**
-- Franchise: Bolton, Burlington, Milton, Oakville, Ottawa-Kanata, Rymal
-
-### Zenoti API
-
-- **Auth**: `Authorization: apikey {key}` on every request — no OAuth, no token refresh
-- **API key setup**: Zenoti Admin → Setup → Apps → create backend app → copy key
-
-| Endpoint | Purpose |
-|---|---|
-| `GET /v1/inventory/purchase_orders?center_id=&start_date=&end_date=&status=2` | List RAISED POs for one center |
-| `GET /v1/inventory/purchase_orders/{order_id}` | Full PO with line items |
-| `GET /v1/inventory/transfer_orders?center_id=&start_date=&end_date=&status=2` | List RAISED transfer orders |
-
-`status=2` = RAISED. No org-wide "all centers" endpoint — BFS fans out one request per `center_id` across both Zenoti instances and merges results.
-
-### Product matching
-
-Zenoti line items include `product_code` (barcode) and `product_name`. Match to BFS via `product.barcode`. No barcode match → flag for manual review; do not auto-skip.
-
-### Planned DB additions
-
-| Model | Purpose |
-|---|---|
-| `ZenotiOrg` | One row per Zenoti instance — stores domain label, API key reference, list of center objects `{centerId, name, qbCustomerName}` as JSON |
-| `ZenotiOrder` | Cached PO header (order_id, order_number, center_name, org, raised_date, status) |
-| `ZenotiOrderItem` | Line items (product_code, product_name, barcode, retail_qty, consumable_qty, unit_price) |
-| `BfsInvoice` | Internal invoice linking ZenotiOrder → QB (status: DRAFT/POSTED, qb_invoice_id, qb_invoice_number) |
-| `BfsInvoiceItem` | Fulfilled quantities (fulfilled_retail_qty, fulfilled_consumable_qty, unit_price) |
-
-### Pending before build can start
-
-- [ ] `ZENOTI_BFS_API_KEY` — from beautyfirstspa.zenoti.com Admin → Setup → Apps
-- [ ] `ZENOTI_BL_API_KEY` — from beautylogix.zenoti.com Admin → Setup → Apps
-- [ ] Zenoti `center_id` values for all ~14 service locations across both instances
-- [ ] Confirm all service locations exist as QB Customers (needed for QB Invoice `CustomerRef`)
-- [ ] Confirm QB transaction type: **Invoice** (AR) vs Sales Receipt
-
-### Shopify
-
-Shopify integration is **cancelled** — no longer needed. `IntegrationProvider.SHOPIFY` remains in the schema but is unused; ignore it.
-
----
-
 ## Known Issues / Gotchas
 
 - **axios baseURL is `/api`** — all hook paths must NOT include `/api/` prefix (e.g. `/stock` not `/api/stock`). Double prefix causes 404s.
 - **Font variable** — `lib/font.ts` sets `variable: "--font-sans"` directly on `<body>`. Never add an intermediate CSS variable; `:root` (`<html>`) cannot see variables set on its children.
-- **Prisma client cache** — after any `prisma generate` / schema change, the dev server must be restarted. New fields return as `undefined` until restart even though the DB column exists.
+- **Prisma client cache** — after any `prisma generate` / schema change, the dev server must be restarted. New fields return as `undefined` until restart even though the DB column exists. This will cause API routes using new models to throw 500 and return HTML, which axios stores as `data` (not an array) — guard with `Array.isArray()` in hooks if needed.
 - **Low stock filter (notification engine)** — uses `prisma.$queryRaw` for DB-level filtering. Do not revert to in-memory — it loads the entire table.
 - **Low stock filter (stock page)** — Prisma ORM can't compare two columns. Fetch all, filter in JS. Fine for warehouse scale.
 - **PO number generation** — queries last PO `startsWith` current year, increments + zero-pads to 3 digits (`PO-2026-001`).
@@ -408,8 +466,14 @@ Shopify integration is **cancelled** — no longer needed. `IntegrationProvider.
 - **chart.tsx** — has `// @ts-nocheck` (recharts type incompatibilities with shadcn-starter copy). Do not remove.
 - **`qty < 0` guard in adjust route** — allows correction-to-zero; `qty < 0` not `qty <= 0`.
 - **QB sales sync quantity** — `SalesByProductServiceSummary` may omit unit qty columns. The sync upsert only overwrites `SalesRecord.quantity` when QB returns qty > 0; otherwise existing quantity (from Excel bootstrap) is preserved. Check `qtyColumnsDetected` in sync response to confirm whether QB is returning units.
-- **Cross-route imports in App Router** — never import types or functions from `app/api/.../route.ts` files into other route files. Even `import type` can cause 502s due to bundler behaviour. Put shared QB types/helpers in `lib/qbo.ts` instead.
+- **QB sales sync removed from cron** — QB OAuth user lacks Reports permission (403). Sales sync can still be triggered manually from the Integrations UI.
+- **Cross-route imports in App Router** — never import types or functions from `app/api/.../route.ts` files into other route files. Even `import type` can cause 502s due to bundler behaviour. Put shared helpers in `lib/` instead (e.g. `lib/qbo.ts`, `lib/zenoti.ts`).
 - **Shared Neon DB** — local dev and prod point to the same database. Destructive scripts (seed, reimport) run against live data. Always confirm before running import scripts locally.
 - **Cron route auth** — `GET /api/cron/sync` and `GET /api/cron/sync-names` both require `Authorization: Bearer <CRON_SECRET>`. Must be set in both `.env` (local) and Vercel environment variables (prod). Vercel native cron sends this header automatically.
 - **QB name sync — no-SKU items** — items without a QB `Sku` field are never renamed (counted as `noSku` in response). To rename those products, add SKUs to them in QB first, then re-run the sync.
 - **Vendor sync — no overwrite** — existing supplier fields are only filled if currently blank. If a supplier's email was manually edited in BFS, QB vendor data will not overwrite it.
+- **Zenoti sync endpoint path** — `lib/zenoti.ts` assumes `/v1/procurement/purchase_orders`. This is unverified — confirm with real API keys and adjust if the actual path differs.
+- **Zenoti BfsFulfillmentItem.zenotiItemId** — stores the BFS-internal cuid of the `ZenotiOrderItem` record (not Zenoti's native item ID). Naming is slightly misleading but consistent internally.
+- **recharts width(-1) warning** — pre-existing, appears when charts are in hidden/collapsed containers. `// @ts-nocheck` already on chart.tsx; ignore this warning.
+- **next/image `sizes` prop** — required for `fill` images. Product view uses `sizes="(max-width: 1024px) 100vw, 33vw"`, product form uses `sizes="(max-width: 640px) 100vw, 512px"`. Always include `sizes` when using `fill`.
+- **`NEXT_PUBLIC_APP_URL` must be set in Vercel** — cron routes validate this isn't localhost before making sub-fetches. Set to `https://bfs.kigtech.digital`.

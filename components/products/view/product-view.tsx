@@ -116,7 +116,7 @@ export function ProductView({ productId }: { productId: string }) {
           <CardContent className="space-y-3 text-sm">
             {product.imageUrl ? (
               <div className="relative w-full h-40 rounded-md overflow-hidden border bg-muted mb-4">
-                <Image src={product.imageUrl} alt={product.name} fill className="object-contain" />
+                <Image src={product.imageUrl} alt={product.name} fill sizes="(max-width: 1024px) 100vw, 33vw" className="object-contain" />
               </div>
             ) : (
               <div className="flex items-center justify-center w-full h-28 rounded-md border bg-muted/30 mb-4">

@@ -120,7 +120,7 @@ export function ProductForm({ open, onClose, product }: ProductFormProps) {
             <Label>Product Image</Label>
             {imageUrl ? (
               <div className="relative w-full h-40 rounded-lg overflow-hidden border bg-muted">
-                <Image src={imageUrl} alt="Product" fill className="object-contain" />
+                <Image src={imageUrl} alt="Product" fill sizes="(max-width: 640px) 100vw, 512px" className="object-contain" />
                 <Button
                   type="button"
                   variant="secondary"

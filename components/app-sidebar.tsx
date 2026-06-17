@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, Package, Layers, RefreshCcw, Truck,
   ShoppingCart, Bell, BarChart2, FileDown, Settings, Plug,
-  ChevronRight, LogOut, ArrowLeftRight, MapPin, ClipboardList,
+  ChevronRight, LogOut, ArrowLeftRight, MapPin, ClipboardList, Store,
 } from "lucide-react";
 import {
   Collapsible, CollapsibleContent, CollapsibleTrigger,
@@ -49,9 +49,10 @@ const navInventory: NavItem[] = [
 ];
 
 const navOperations: NavItem[] = [
-  { title: "Suppliers",       href: "/suppliers",       icon: Truck },
-  { title: "Purchase Orders", href: "/purchase-orders", icon: ShoppingCart },
-  { title: "Notifications",   href: "/notifications",   icon: Bell },
+  { title: "Zenoti Fulfillment", href: "/zenoti",          icon: Store },
+  { title: "Suppliers",          href: "/suppliers",        icon: Truck },
+  { title: "Purchase Orders",    href: "/purchase-orders",  icon: ShoppingCart },
+  { title: "Notifications",      href: "/notifications",    icon: Bell },
 ];
 
 const navInsights: NavItem[] = [

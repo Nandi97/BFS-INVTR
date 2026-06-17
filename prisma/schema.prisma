@@ -110,6 +110,7 @@ model Product {
   productSuppliers ProductSupplier[]
   purchaseOrderItems PurchaseOrderItem[]
   salesRecords     SalesRecord[]
+  fulfillmentItems BfsFulfillmentItem[]
 }
 
 model Location {
@@ -270,6 +271,76 @@ model EmailLog {
   createdAt DateTime        @default(now())
 }
 
+// ─── Zenoti Fulfillment ───────────────────────────────────────────────────────
+
+model ZenotiOrder {
+  id            String            @id @default(cuid())
+  zenotiOrderId String            @unique
+  orderNumber   String
+  org           String            // "bfs" | "bl"
+  centerName    String
+  centerId      String
+  zenotiStatus  ZenotiOrderStatus
+  raisedAt      DateTime?
+  deliverBy     DateTime?
+  notes         String?
+  lastSyncedAt  DateTime
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  items       ZenotiOrderItem[]
+  fulfillment BfsFulfillment?
+}
+
+model ZenotiOrderItem {
+  id               String  @id @default(cuid())
+  orderId          String
+  zenotiItemId     String?
+  productCode      String
+  productName      String
+  retailRaised     Float   @default(0)
+  consumableRaised Float   @default(0)
+  unitPrice        Float?
+
+  order ZenotiOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}
+
+model BfsFulfillment {
+  id          String            @id @default(cuid())
+  orderId     String            @unique
+  status      FulfillmentStatus @default(PENDING)
+  submittedAt DateTime?
+  submittedBy String?
+  qbInvoiceId String?
+  qbInvoiceNo String?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  order ZenotiOrder          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  items BfsFulfillmentItem[]
+}
+
+model BfsFulfillmentItem {
+  id                     String  @id @default(cuid())
+  fulfillmentId          String
+  zenotiItemId           String?
+  productId              String?
+  productCode            String?
+  productName            String
+  requestedRetailQty     Float   @default(0)
+  requestedConsumableQty Float   @default(0)
+  fulfilledRetailQty     Float   @default(0)
+  fulfilledConsumableQty Float   @default(0)
+  isPacked               Boolean @default(false)
+  isWalkIn               Boolean @default(false)
+  notes                  String?
+  unitPrice              Float?
+  sortOrder              Int     @default(0)
+
+  fulfillment BfsFulfillment @relation(fields: [fulfillmentId], references: [id], onDelete: Cascade)
+  product     Product?       @relation(fields: [productId], references: [id])
+}
+
 // ─── Integrations ─────────────────────────────────────────────────────────────
 
 model IntegrationConfig {
@@ -358,6 +429,21 @@ enum EmailStatus {
 enum IntegrationProvider {
   QUICKBOOKS
   SHOPIFY
+  ZENOTI
+}
+
+enum ZenotiOrderStatus {
+  RAISED
+  UPDATED
+  DELIVERED
+  CANCELLED
+}
+
+enum FulfillmentStatus {
+  PENDING
+  IN_PROGRESS
+  SUBMITTED
+  INVOICED
 }
 
 enum SyncStatus {
