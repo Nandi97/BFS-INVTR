@@ -213,9 +213,17 @@ export function ProductView({ productId }: { productId: string }) {
                   <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
                   <Tooltip
                     formatter={(v: number) => [v, "Units sold"]}
-                    contentStyle={{ fontSize: 12, borderRadius: 8 }}
+                    contentStyle={{
+                      background:   "hsl(var(--card))",
+                      border:       "1px solid hsl(var(--border))",
+                      borderRadius: 8,
+                      fontSize:     12,
+                      color:        "hsl(var(--card-foreground))",
+                    }}
+                    labelStyle={{ color: "hsl(var(--card-foreground))" }}
+                    itemStyle={{ color: "hsl(var(--card-foreground))" }}
                   />
-                  <Bar dataKey="qty" fill="hsl(var(--primary))" radius={[3, 3, 0, 0]} />
+                  <Bar dataKey="qty" fill="hsl(var(--chart-1))" radius={[3, 3, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
@@ -240,12 +248,20 @@ export function ProductView({ productId }: { productId: string }) {
                   <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
                   <Tooltip
                     formatter={(v: number) => [v, "Balance after"]}
-                    contentStyle={{ fontSize: 12, borderRadius: 8 }}
+                    contentStyle={{
+                      background:   "hsl(var(--card))",
+                      border:       "1px solid hsl(var(--border))",
+                      borderRadius: 8,
+                      fontSize:     12,
+                      color:        "hsl(var(--card-foreground))",
+                    }}
+                    labelStyle={{ color: "hsl(var(--card-foreground))" }}
+                    itemStyle={{ color: "hsl(var(--card-foreground))" }}
                   />
                   <Line
                     type="monotone"
                     dataKey="balance"
-                    stroke="hsl(var(--primary))"
+                    stroke="hsl(var(--chart-2))"
                     strokeWidth={2}
                     dot={false}
                   />

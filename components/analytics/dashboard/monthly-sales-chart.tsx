@@ -44,13 +44,21 @@ export function MonthlySalesChart({ data, mode = "quantity" }: Props) {
         />
         <Tooltip
           formatter={(v: unknown) => formatter(v as number)}
-          contentStyle={{ borderRadius: 8, fontSize: 13 }}
+          contentStyle={{
+            background:   "hsl(var(--card))",
+            border:       "1px solid hsl(var(--border))",
+            borderRadius: 8,
+            fontSize:     13,
+            color:        "hsl(var(--card-foreground))",
+          }}
+          labelStyle={{ color: "hsl(var(--card-foreground))" }}
+          itemStyle={{ color: "hsl(var(--card-foreground))" }}
         />
         <Legend wrapperStyle={{ fontSize: 13 }} />
         {mode === "revenue" ? (
-          <Bar dataKey="revenue" name="Revenue" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+          <Bar dataKey="revenue" name="Revenue" fill="hsl(var(--chart-1))" radius={[4, 4, 0, 0]} />
         ) : (
-          <Bar dataKey="quantity" name="Units Sold" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+          <Bar dataKey="quantity" name="Units Sold" fill="hsl(var(--chart-1))" radius={[4, 4, 0, 0]} />
         )}
       </BarChart>
     </ResponsiveContainer>
