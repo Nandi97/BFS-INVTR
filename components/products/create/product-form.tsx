@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
+import Image from "next/image";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,7 +13,8 @@ import { Separator } from "@/components/ui/separator";
 import { useBrands, useCreateBrand } from "@/hooks/use-brands";
 import { useCategories, useCreateCategory } from "@/hooks/use-categories";
 import { useCreateProduct, useUpdateProduct } from "@/hooks/use-products";
-import { Plus } from "lucide-react";
+import { UploadButton } from "@/lib/uploadthing";
+import { ImagePlus, X, Plus } from "lucide-react";
 
 interface ProductFormValues {
   name:        string;
@@ -23,6 +25,7 @@ interface ProductFormValues {
   productType: string;
   unit:        string;
   description: string;
+  imageUrl:    string;
 }
 
 interface ProductFormProps {
@@ -37,15 +40,16 @@ export function ProductForm({ open, onClose, product }: ProductFormProps) {
 
   const { data: brands = [] }     = useBrands();
   const { data: categories = [] } = useCategories();
-  const createProduct = useCreateProduct();
-  const updateProduct = useUpdateProduct();
-  const createBrand   = useCreateBrand();
+  const createProduct  = useCreateProduct();
+  const updateProduct  = useUpdateProduct();
+  const createBrand    = useCreateBrand();
   const createCategory = useCreateCategory();
 
   const [newBrandName, setNewBrandName]       = useState("");
   const [newCategoryName, setNewCategoryName] = useState("");
   const [showNewBrand, setShowNewBrand]       = useState(false);
   const [showNewCategory, setShowNewCategory] = useState(false);
+  const [uploading, setUploading]             = useState(false);
 
   useEffect(() => {
     if (product) {
@@ -53,25 +57,27 @@ export function ProductForm({ open, onClose, product }: ProductFormProps) {
         name:        product.name         ?? "",
         sku:         product.sku          ?? "",
         barcode:     product.barcode      ?? "",
-        brandId:     product.brandId      ?? "",
-        categoryId:  product.categoryId   ?? "",
+        brandId:     product.brandId      ?? "__none__",
+        categoryId:  product.categoryId   ?? "__none__",
         productType: product.productType  ?? "BOTH",
         unit:        product.unit         ?? "each",
         description: product.description  ?? "",
+        imageUrl:    product.imageUrl     ?? "",
       });
     } else {
-      reset({ name: "", sku: "", barcode: "", brandId: "", categoryId: "", productType: "BOTH", unit: "each", description: "" });
+      reset({ name: "", sku: "", barcode: "", brandId: "__none__", categoryId: "__none__", productType: "BOTH", unit: "each", description: "", imageUrl: "" });
     }
   }, [product, reset]);
 
   async function onSubmit(values: ProductFormValues) {
     const payload = {
       ...values,
-      sku:         values.sku       || null,
-      barcode:     values.barcode   || null,
-      brandId:     values.brandId   || null,
-      categoryId:  values.categoryId || null,
+      sku:         values.sku        || null,
+      barcode:     values.barcode    || null,
+      brandId:     values.brandId    === "__none__" ? null : values.brandId    || null,
+      categoryId:  values.categoryId === "__none__" ? null : values.categoryId || null,
       description: values.description || null,
+      imageUrl:    values.imageUrl   || null,
     };
 
     if (isEdit) {
@@ -98,7 +104,8 @@ export function ProductForm({ open, onClose, product }: ProductFormProps) {
     setShowNewCategory(false);
   }
 
-  const isPending = createProduct.isPending || updateProduct.isPending;
+  const imageUrl   = watch("imageUrl");
+  const isPending  = createProduct.isPending || updateProduct.isPending;
 
   return (
     <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
@@ -108,6 +115,50 @@ export function ProductForm({ open, onClose, product }: ProductFormProps) {
         </SheetHeader>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 py-4">
+          {/* Image */}
+          <div className="space-y-2">
+            <Label>Product Image</Label>
+            {imageUrl ? (
+              <div className="relative w-full h-40 rounded-lg overflow-hidden border bg-muted">
+                <Image src={imageUrl} alt="Product" fill className="object-contain" />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="icon-sm"
+                  className="absolute top-2 right-2"
+                  onClick={() => setValue("imageUrl", "")}
+                >
+                  <X className="size-3.5" />
+                </Button>
+              </div>
+            ) : (
+              <div className="flex items-center justify-center w-full h-28 rounded-lg border-2 border-dashed border-muted-foreground/25 bg-muted/30">
+                <UploadButton
+                  endpoint="productImage"
+                  onUploadBegin={() => setUploading(true)}
+                  onClientUploadComplete={(res) => {
+                    setUploading(false);
+                    if (res?.[0]?.url) setValue("imageUrl", res[0].url);
+                  }}
+                  onUploadError={() => setUploading(false)}
+                  appearance={{
+                    button: "bg-transparent border border-input text-foreground text-xs px-3 py-1.5 rounded-md hover:bg-muted h-auto ut-uploading:opacity-50",
+                    allowedContent: "hidden",
+                  }}
+                  content={{
+                    button: uploading ? "Uploading…" : (
+                      <span className="flex items-center gap-1.5">
+                        <ImagePlus className="size-3.5" /> Upload image
+                      </span>
+                    ),
+                  }}
+                />
+              </div>
+            )}
+          </div>
+
+          <Separator />
+
           {/* Name */}
           <div className="space-y-1">
             <Label htmlFor="name">Product Name <span className="text-destructive">*</span></Label>
@@ -138,8 +189,8 @@ export function ProductForm({ open, onClose, product }: ProductFormProps) {
                   <SelectValue placeholder="Select brand" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">— None —</SelectItem>
-                  {brands.map((b: any) => (
+                  <SelectItem value="__none__">— None —</SelectItem>
+                  {(brands as any[]).map((b) => (
                     <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
                   ))}
                 </SelectContent>
@@ -165,8 +216,8 @@ export function ProductForm({ open, onClose, product }: ProductFormProps) {
                   <SelectValue placeholder="Select category" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">— None —</SelectItem>
-                  {categories.map((c: any) => (
+                  <SelectItem value="__none__">— None —</SelectItem>
+                  {(categories as any[]).map((c) => (
                     <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                   ))}
                 </SelectContent>
@@ -190,9 +241,7 @@ export function ProductForm({ open, onClose, product }: ProductFormProps) {
             <div className="space-y-1">
               <Label>Type</Label>
               <Select value={watch("productType")} onValueChange={(v) => setValue("productType", v)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
+                <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="PROFESSIONAL">Professional</SelectItem>
                   <SelectItem value="RETAIL">Retail</SelectItem>
@@ -209,12 +258,12 @@ export function ProductForm({ open, onClose, product }: ProductFormProps) {
           {/* Description */}
           <div className="space-y-1">
             <Label htmlFor="description">Description</Label>
-            <Textarea id="description" {...register("description")} placeholder="Optional notes..." rows={3} />
+            <Textarea id="description" {...register("description")} placeholder="Optional notes…" rows={3} />
           </div>
 
           <SheetFooter className="pt-2">
             <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-            <Button type="submit" disabled={isPending}>
+            <Button type="submit" disabled={isPending || uploading}>
               {isPending ? "Saving…" : isEdit ? "Save Changes" : "Add Product"}
             </Button>
           </SheetFooter>

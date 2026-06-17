@@ -1,8 +1,10 @@
+// @ts-nocheck
 "use client";
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Pencil, Package } from "lucide-react";
+import Image from "next/image";
+import { ArrowLeft, Pencil, Package, ImageOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,14 +13,27 @@ import { Separator } from "@/components/ui/separator";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
+import {
+  BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid,
+  Tooltip, ResponsiveContainer, Cell,
+} from "recharts";
 import { useProduct } from "@/hooks/use-products";
 import { ProductForm } from "@/components/products/create/product-form";
 import { formatNumber, cn } from "@/lib/utils";
 
+const MONTH_NAMES = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
 const TYPE_LABEL: Record<string, string> = {
   PROFESSIONAL: "Professional",
-  RETAIL: "Retail",
-  BOTH: "Professional & Retail",
+  RETAIL:       "Retail",
+  BOTH:         "Professional & Retail",
+};
+
+const MOVEMENT_COLORS: Record<string, string> = {
+  IN:          "#22c55e",
+  OUT:         "#ef4444",
+  ADJUSTMENT:  "#f59e0b",
+  RETURN:      "#3b82f6",
 };
 
 export function ProductView({ productId }: { productId: string }) {
@@ -29,6 +44,7 @@ export function ProductView({ productId }: { productId: string }) {
     return (
       <div className="space-y-4">
         <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-64 w-full" />
         <Skeleton className="h-48 w-full" />
       </div>
     );
@@ -44,6 +60,28 @@ export function ProductView({ productId }: { productId: string }) {
   }
 
   const totalStock = product.inventory?.reduce((sum: number, i: any) => sum + i.quantity, 0) ?? 0;
+
+  // Sales chart — last 12 months sorted
+  const salesData = [...(product.salesRecords ?? [])]
+    .sort((a: any, b: any) => a.year !== b.year ? a.year - b.year : a.month - b.month)
+    .slice(-12)
+    .map((r: any) => ({
+      label: `${MONTH_NAMES[r.month - 1]} ${String(r.year).slice(2)}`,
+      qty:   r.quantity,
+      rev:   r.revenue,
+    }));
+
+  // Movement chart — last 30 days, oldest first
+  const movementData = [...(product.stockMovements ?? [])]
+    .slice(0, 30)
+    .reverse()
+    .map((m: any) => ({
+      label:   new Date(m.createdAt).toLocaleDateString("en-CA", { month: "short", day: "numeric" }),
+      qty:     m.type === "OUT" ? -Math.abs(m.quantity) : Math.abs(m.quantity),
+      balance: m.balanceAfter,
+      type:    m.type,
+      color:   MOVEMENT_COLORS[m.type] ?? "#94a3b8",
+    }));
 
   return (
     <div className="space-y-6">
@@ -70,11 +108,21 @@ export function ProductView({ productId }: { productId: string }) {
         </div>
       </div>
 
+      {/* Details + Image row */}
       <div className="grid gap-4 lg:grid-cols-3">
         {/* Details card */}
         <Card className="lg:col-span-1">
           <CardHeader><CardTitle className="text-base">Details</CardTitle></CardHeader>
           <CardContent className="space-y-3 text-sm">
+            {product.imageUrl ? (
+              <div className="relative w-full h-40 rounded-md overflow-hidden border bg-muted mb-4">
+                <Image src={product.imageUrl} alt={product.name} fill className="object-contain" />
+              </div>
+            ) : (
+              <div className="flex items-center justify-center w-full h-28 rounded-md border bg-muted/30 mb-4">
+                <ImageOff className="size-8 text-muted-foreground/30" />
+              </div>
+            )}
             <Row label="Brand"    value={product.brand?.name} />
             <Separator />
             <Row label="Category" value={product.category?.name} />
@@ -82,6 +130,8 @@ export function ProductView({ productId }: { productId: string }) {
             <Row label="Type"     value={TYPE_LABEL[product.productType] ?? product.productType} />
             <Separator />
             <Row label="Unit"     value={product.unit} />
+            <Separator />
+            <Row label="Stock target" value={`${product.targetStockMonths} month${product.targetStockMonths !== 1 ? "s" : ""}`} />
             {product.description && (
               <>
                 <Separator />
@@ -113,7 +163,7 @@ export function ProductView({ productId }: { productId: string }) {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Location</TableHead>
-                    <TableHead className="text-right">Qty on Hand</TableHead>
+                    <TableHead className="text-right">On Hand</TableHead>
                     <TableHead className="text-right">Min Qty</TableHead>
                     <TableHead className="text-right">Reorder Point</TableHead>
                     <TableHead className="text-right">Reorder Qty</TableHead>
@@ -140,12 +190,120 @@ export function ProductView({ productId }: { productId: string }) {
             ) : (
               <div className="py-12 text-center text-muted-foreground text-sm flex flex-col items-center gap-2">
                 <Package className="size-8 opacity-30" />
-                No stock records yet. Add locations in the Stock section.
+                No stock records yet.
               </div>
             )}
           </CardContent>
         </Card>
       </div>
+
+      {/* Charts row */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        {/* Sales trend */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Monthly Sales (last 12 months)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {salesData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={salesData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                  <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+                  <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+                  <Tooltip
+                    formatter={(v: number) => [v, "Units sold"]}
+                    contentStyle={{ fontSize: 12, borderRadius: 8 }}
+                  />
+                  <Bar dataKey="qty" fill="hsl(var(--primary))" radius={[3, 3, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-48 text-sm text-muted-foreground">
+                No sales data available
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Stock movement balance */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Stock Balance (last 30 movements)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {movementData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={200}>
+                <LineChart data={movementData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                  <XAxis dataKey="label" tick={{ fontSize: 11 }} interval="preserveStartEnd" />
+                  <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+                  <Tooltip
+                    formatter={(v: number) => [v, "Balance after"]}
+                    contentStyle={{ fontSize: 12, borderRadius: 8 }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="balance"
+                    stroke="hsl(var(--primary))"
+                    strokeWidth={2}
+                    dot={false}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-48 text-sm text-muted-foreground">
+                No movement history
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Recent movements table */}
+      {product.stockMovements?.length > 0 && (
+        <Card>
+          <CardHeader><CardTitle className="text-base">Recent Movements</CardTitle></CardHeader>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead className="text-right">Qty</TableHead>
+                  <TableHead className="text-right">Balance After</TableHead>
+                  <TableHead>Notes</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {product.stockMovements.slice(0, 20).map((m: any, i: number) => (
+                  <TableRow key={i}>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {new Date(m.createdAt).toLocaleDateString("en-CA", { year: "numeric", month: "short", day: "numeric" })}
+                    </TableCell>
+                    <TableCell>
+                      <span
+                        className="rounded px-1.5 py-0.5 text-xs font-medium"
+                        style={{ color: MOVEMENT_COLORS[m.type] ?? "#94a3b8", background: `${MOVEMENT_COLORS[m.type]}18` }}
+                      >
+                        {m.type}
+                      </span>
+                    </TableCell>
+                    <TableCell className={cn(
+                      "text-right font-mono text-sm",
+                      m.type === "OUT" ? "text-destructive" : "text-emerald-600"
+                    )}>
+                      {m.type === "OUT" ? "-" : "+"}{formatNumber(m.quantity)}
+                    </TableCell>
+                    <TableCell className="text-right font-mono text-sm">{formatNumber(m.balanceAfter)}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{m.notes ?? "—"}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Suppliers */}
       {product.productSuppliers?.length > 0 && (

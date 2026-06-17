@@ -6,7 +6,12 @@ export const ourFileRouter = {
   xlsUploader: f({
     blob: { maxFileSize: "16MB", maxFileCount: 1 },
   }).onUploadComplete(async ({ file }) => {
-    // Nothing to do server-side after upload — the client POSTs the URL to import-xls
+    return { url: file.ufsUrl };
+  }),
+
+  productImage: f({
+    image: { maxFileSize: "4MB", maxFileCount: 1 },
+  }).onUploadComplete(async ({ file }) => {
     return { url: file.ufsUrl };
   }),
 } satisfies FileRouter;

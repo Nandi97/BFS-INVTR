@@ -16,6 +16,15 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
         productSuppliers: {
           include: { supplier: { select: { id: true, name: true } } },
         },
+        salesRecords: {
+          select: { year: true, month: true, quantity: true, revenue: true },
+          orderBy: [{ year: "asc" }, { month: "asc" }],
+        },
+        stockMovements: {
+          select: { createdAt: true, quantity: true, type: true, balanceAfter: true, notes: true },
+          orderBy: { createdAt: "desc" },
+          take: 60,
+        },
       },
     });
 
