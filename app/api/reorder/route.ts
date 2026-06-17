@@ -51,21 +51,22 @@ export async function GET(req: NextRequest) {
       const monthsRemaining =
         avgMonthly > 0 ? inv.quantity / avgMonthly : null;
 
+      const targetMonths = inv.product.targetStockMonths ?? 6;
+
       const urgency: "out" | "urgent" | "low" | "ok" =
         inv.quantity <= 0
           ? "out"
           : inv.reorderPoint > 0 && inv.quantity <= inv.reorderPoint
           ? "urgent"
-          : monthsRemaining !== null && monthsRemaining <= 2
+          : monthsRemaining !== null && monthsRemaining <= targetMonths
           ? "low"
           : "ok";
 
-      const suggestedOrderQty =
-        inv.reorderQty > 0
-          ? inv.reorderQty
-          : avgMonthly > 0
-          ? Math.ceil(avgMonthly * 3)
-          : null;
+      const suggestedOrderQty = avgMonthly > 0
+        ? Math.ceil(avgMonthly * targetMonths)
+        : inv.reorderQty > 0
+        ? inv.reorderQty
+        : null;
 
       return {
         inventoryId: inv.id,
