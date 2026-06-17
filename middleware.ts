@@ -2,7 +2,7 @@ import { betterFetch } from "@better-fetch/fetch";
 import { NextRequest, NextResponse } from "next/server";
 import type { Session } from "@/lib/auth";
 
-const PUBLIC_PATHS = ["/login", "/api/auth", "/api/uploadthing", "/legal", "/api/cron"];
+const PUBLIC_PATHS = ["/login", "/api/auth", "/api/uploadthing", "/legal"];
 
 // Allowlist: specific emails OR whole domains (e.g. "@beautylogix.ca")
 const ALLOWED_EMAILS = [
@@ -23,6 +23,12 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) {
+    return NextResponse.next();
+  }
+
+  // Allow server-to-server calls (cron → internal API routes) authenticated by CRON_SECRET
+  const authHeader = request.headers.get("authorization");
+  if (process.env.CRON_SECRET && authHeader === `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.next();
   }
 
