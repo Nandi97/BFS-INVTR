@@ -96,6 +96,34 @@ Examples:
 
 ---
 
+## Sheet Form UI Convention
+
+All `<Sheet>` slide-over forms follow this pattern:
+
+```tsx
+<SheetContent className="w-full sm:max-w-{size} overflow-y-auto">
+  <SheetHeader className="px-6 pt-6 pb-2">
+    <SheetTitle>…</SheetTitle>
+    <SheetDescription>…</SheetDescription>
+  </SheetHeader>
+
+  <form className="px-6 pb-6 space-y-5">
+    {/* fields */}
+    <div className="flex justify-end gap-3 pt-5 border-t">
+      <Button variant="outline">Cancel</Button>
+      <Button type="submit">Save</Button>
+    </div>
+  </form>
+</SheetContent>
+```
+
+**Width guide:**
+- `sm:max-w-lg` — simple forms with 3–4 fields (Set Thresholds, Add Location)
+- `sm:max-w-xl` — standard forms with 5+ fields (Alert Rule, Product, Adjust Stock, Supplier)
+- `sm:max-w-2xl` — complex / table-heavy sheets (New PO, PO Detail, Receive PO)
+
+---
+
 ## Database Seed & Setup
 
 ```bash
@@ -160,6 +188,9 @@ Stock quantities are now maintained by the **nightly QB API sync** (`/api/cron/s
 | 21 | QB Product name sync | `app/api/integrations/quickbooks/items/sync-names/route.ts`, monthly cron `0 7 1 * *` |
 | 22 | Product detail page | `components/products/view/product-view.tsx` — image, sales bar chart, stock balance line chart, recent movements table |
 | 23 | Product image upload | UploadThing endpoint `productImage` in `app/api/uploadthing/core.ts`; CDN at `utfs.io` (added to `next.config.ts` remotePatterns) |
+| 24 | QB inactive product deactivation | Stock sync (`POST /api/integrations/quickbooks/items`) now runs a second pass fetching inactive QB items and setting matching BFS products `isActive = false`. Matches by SKU/barcode only. |
+| 25 | Sales calc shared helper | `lib/sales-calc.ts` — `computeAvgMonthly()` with trailing-zero trimming + linear recency weighting + `confident` flag. Imported by reorder route, calculate-minimums route, and stock-policy route. |
+| 26 | Email XLSX brand-per-sheet | `lib/email-xlsx.ts` rewritten — one sheet per brand (alphabetical), both Out-of-Stock and Low-Stock items together per sheet, Status column with red/amber coloring, Summary sheet with brand breakdown. |
 
 ### ⏳ Zenoti Phase 2 (post-meeting)
 
@@ -211,7 +242,7 @@ Only items with a QB SKU are renamed. Matching priority: `product.sku` → `prod
 ### Shared QB helpers in lib
 
 - `QboItem` interface — `lib/qbo.ts`
-- `fetchQboItems()` — paginated fetch of all active Inventory items — `lib/qbo.ts`
+- `fetchQboItems(activeOnly = true)` — paginated fetch of QB Inventory items — `lib/qbo.ts`. Pass `false` to fetch inactive items (used by the deactivation pass in the stock sync route).
 - **Do not import types or functions from route files into other route files.** Next.js App Router bundles each route independently; cross-route imports cause 502s. Put shared QB types/helpers in `lib/qbo.ts`.
 
 ### OAuth
@@ -263,6 +294,7 @@ Three tabs at `/settings`:
 - Per-product `targetStockMonths` (Int, default 6) — drives `reorderQty = ceil(avgMonthly × targetStockMonths)`
 - Accordion grouped by brand; quick-set buttons (1/2/3/6/9/12 mo) per brand header
 - Sticky save bar; "Recalculate" button calls `/api/inventory/calculate-minimums`
+- Note: `reorderPoint` on the reorder page is now computed live — "Recalculate" is only needed to refresh stored `inventory.reorderPoint`/`reorderQty` values used elsewhere (e.g. stock page thresholds)
 
 **Brand Lead Times**:
 - Editable `leadTimeDays` per brand (inline edit, Enter/Escape)
@@ -277,13 +309,26 @@ Three tabs at `/settings`:
 ## Reorder / Minimums Formulas
 
 ```
-reorderPoint  = ceil(avgMonthly × (leadTimeDays + 7) / 30)   ← when to trigger an order
-minQuantity   = ceil(avgMonthly × 7 / 30)                    ← 1-week safety buffer
-reorderQty    = ceil(avgMonthly × targetStockMonths)          ← how much to order
+reorderPoint  = ceil(avgMonthly × (leadTimeDays + SAFETY_DAYS) / 30)   ← when to trigger an order
+minQuantity   = ceil(avgMonthly × SAFETY_DAYS / 30)                    ← 1-week safety buffer
+reorderQty    = ceil(avgMonthly × targetStockMonths)                    ← how much to order
 ```
 
-`avgMonthly` = average of last 12 months of `SalesRecord.quantity`.
-Products with no sales data are skipped by calculate-minimums.
+`SAFETY_DAYS = 7` — defined in `lib/sales-calc.ts`.
+
+### avgMonthly calculation — `computeAvgMonthly()` in `lib/sales-calc.ts`
+
+Sales records are ordered DESC (most recent first). The function:
+
+1. **Trims trailing zeros** — strips leading zero-quantity months before computing. These represent products on legal/distribution hold or extended zero-demand periods. The trim starts from index 0 (most recent) until a non-zero month is found.
+2. **Linear recency weighting** — weight[i] = (n − i), so index 0 (most recent non-zero month) carries the highest weight. Trending-up products score higher than flat; trending-down score lower.
+3. **`confident` flag** — `true` if ≥ 3 non-zero months remain after trimming. Reorder table shows `~{qty}` (greyed, with tooltip) when `!confident`.
+
+Products with no non-zero sales after trimming return `{ avgMonthly: 0, monthsUsed: 0, confident: false }` and are skipped by calculate-minimums.
+
+### Live vs stored reorderPoint
+
+The reorder route (`GET /api/reorder`) computes `reorderPoint` live from `avgMonthly` and the brand's current `leadTimeDays`. The stored `inventory.reorderPoint` (set by Recalculate) is used as fallback only when `avgMonthly = 0`. This means changing a brand's lead time or a product's `targetStockMonths` is reflected immediately on the reorder page without running Recalculate.
 
 ---
 
@@ -441,7 +486,7 @@ Shopify integration is **cancelled** — replaced by Zenoti. `IntegrationProvide
 | PO status timeline | Show DRAFT → SENT → RECEIVED steps with timestamps on PO detail. |
 | Email/password auth | Fallback login if OAuth providers are down. better-auth supports it natively. |
 | Test alert button per rule | "Send test email" on each alert rule in notifications page. |
-| AppSetting usage | Schema has `AppSetting` model but nothing uses it. Move hardcoded constants (SAFETY_DAYS=7, default location name) there. |
+| AppSetting usage | Schema has `AppSetting` model but nothing uses it. `SAFETY_DAYS` is now centralised in `lib/sales-calc.ts`; remaining candidates: default location name, email recipients fallback. |
 | Observability | No error tracking. Add Sentry or Axiom for production error monitoring. |
 | Rate limiting on sync routes | QB sync routes can be called without throttle. Could exhaust Intuit API quota. |
 
@@ -461,7 +506,7 @@ Shopify integration is **cancelled** — replaced by Zenoti. `IntegrationProvide
 - **Inverness products (81)** — `isActive = false`. Piercing/jewellery items delivered direct to stores; not warehoused.
 - **Brand lead times** — local brands (Beauty First, Desembre, Fernanda's, Refectocil) = 14 days; all others = 45 days. Set via `scripts/seed-lead-times.ts`.
 - **targetStockMonths** — per-product field (not brand). Local brands set to 2 via `scripts/set-local-target-months.ts`. International default = 6.
-- **Email notifications** — alerts attach a styled XLSX (ExcelJS) instead of inline product tables. `lib/email-xlsx.ts` → `lib/mailer.ts` (`attachments?: MailAttachment[]`).
+- **Email notifications** — alerts attach a styled XLSX (ExcelJS) instead of inline product tables. `lib/email-xlsx.ts` → `lib/mailer.ts` (`attachments?: MailAttachment[]`). XLSX is structured as one sheet per brand (alphabetical) + a Summary sheet; both Out-of-Stock and Low-Stock items appear together per brand sheet.
 - **TanStack Query v5 `onSuccess`** — inline callbacks need explicit type annotations: `onSuccess: (result: MyType) => { ... }`.
 - **chart.tsx** — has `// @ts-nocheck` (recharts type incompatibilities with shadcn-starter copy). Do not remove.
 - **`qty < 0` guard in adjust route** — allows correction-to-zero; `qty < 0` not `qty <= 0`.
@@ -477,3 +522,5 @@ Shopify integration is **cancelled** — replaced by Zenoti. `IntegrationProvide
 - **recharts width(-1) warning** — pre-existing, appears when charts are in hidden/collapsed containers. `// @ts-nocheck` already on chart.tsx; ignore this warning.
 - **next/image `sizes` prop** — required for `fill` images. Product view uses `sizes="(max-width: 1024px) 100vw, 33vw"`, product form uses `sizes="(max-width: 640px) 100vw, 512px"`. Always include `sizes` when using `fill`.
 - **`NEXT_PUBLIC_APP_URL` must be set in Vercel** — cron routes validate this isn't localhost before making sub-fetches. Set to `https://bfs.kigtech.digital`.
+- **`lib/sales-calc.ts` is the single source for avgMonthly** — `computeAvgMonthly()` and `SAFETY_DAYS` are imported by `app/api/reorder/route.ts`, `app/api/inventory/calculate-minimums/route.ts`, and `app/api/settings/stock-policy/route.ts`. Do not redefine SAFETY_DAYS or an inline average calculation in those routes; change it in `lib/sales-calc.ts` only.
+- **QB inactive deactivation is SKU/barcode-only** — the deactivation pass in the stock sync matches by `product.sku` or `product.barcode` against the QB item's `Sku` field. Items with no QB SKU are skipped. Already-inactive BFS products (e.g. Inverness) are not touched (query filters `isActive: true`).
