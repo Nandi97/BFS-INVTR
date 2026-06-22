@@ -193,28 +193,6 @@ export function useQbVendorSync() {
   });
 }
 
-export interface BackfillResult {
-  fromDate:          string;
-  invoicesProcessed: number;
-  productsMatched:   number;
-  movements:         { written: number; skipped: number; noMatch: number };
-  errors:            string[];
-  note:              string;
-}
-
-export function useQbBackfillMovements() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (fromDate?: string) =>
-      api
-        .post<BackfillResult>("/integrations/quickbooks/backfill-movements", fromDate ? { fromDate } : {})
-        .then((r) => r.data),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: SYNC_LOGS_KEY });
-      qc.invalidateQueries({ queryKey: ["stock", "movements"] });
-    },
-  });
-}
 
 export function useSyncLogs(provider?: string, page = 1) {
   return useQuery({

@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { Suspense } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -15,77 +14,6 @@ import { SyncLogTable }  from "./sync-log-table";
 import { QbApiSync }     from "./qb-api-sync";
 import { QbVendorSync }  from "./qb-vendor-sync";
 import { QbNameSync }    from "./qb-name-sync";
-import { useQbBackfillMovements, type BackfillResult } from "@/hooks/use-integrations";
-import { toast } from "sonner";
-import { History } from "lucide-react";
-
-function QbBackfillCard() {
-  const backfill = useQbBackfillMovements();
-  const [result, setResult] = useState<BackfillResult | null>(null);
-  const done = result !== null;
-
-  function run() {
-    backfill.mutate(undefined, {
-      onSuccess: (r) => {
-        setResult(r);
-        toast.success(
-          `Backfill complete — ${r.movements.written} movements written, ${r.movements.skipped} already existed`
-        );
-      },
-      onError: (e) => toast.error(`Backfill failed: ${e.message}`),
-    });
-  }
-
-  return (
-    <Card className="border-amber-200 dark:border-amber-900">
-      <CardHeader>
-        <div className="flex items-start justify-between gap-4">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <History className="size-4 text-amber-600 dark:text-amber-400" />
-              <CardTitle className="text-base">Backfill historical dispatch movements</CardTitle>
-              <span className="text-xs font-medium px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400">
-                One-time
-              </span>
-            </div>
-            <CardDescription>
-              Reads QB Invoices from the last 2 years and writes dispatch (out) movement records into
-              the Movements Log. Read-only against QuickBooks — nothing is written to QB.
-              Safe to re-run; duplicate records are automatically skipped.
-            </CardDescription>
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            className="shrink-0 border-amber-300 dark:border-amber-800"
-            disabled={backfill.isPending || done}
-            onClick={run}
-          >
-            <History className={`size-3.5 mr-1.5 ${backfill.isPending ? "animate-spin" : ""}`} />
-            {backfill.isPending ? "Running…" : done ? "Done" : "Run backfill"}
-          </Button>
-        </div>
-      </CardHeader>
-      {result && (
-        <CardContent className="pt-0">
-          <div className="rounded-md bg-muted/50 p-3 text-sm space-y-1">
-            <p><span className="font-medium">{result.invoicesProcessed}</span> invoices scanned · <span className="font-medium">{result.productsMatched}</span> products matched in QB</p>
-            <p className="text-emerald-700 dark:text-emerald-400"><span className="font-medium">{result.movements.written}</span> movements written</p>
-            {result.movements.skipped > 0 && (
-              <p className="text-muted-foreground"><span className="font-medium">{result.movements.skipped}</span> already existed (skipped)</p>
-            )}
-            {result.movements.noMatch > 0 && (
-              <p className="text-muted-foreground"><span className="font-medium">{result.movements.noMatch}</span> invoice lines had no matching BFS product</p>
-            )}
-            {result.errors.length > 0 && (
-              <p className="text-destructive"><span className="font-medium">{result.errors.length}</span> errors — check sync history for details</p>
-            )}
-          </div>
-        </CardContent>
-      )}
-    </Card>
-  );
-}
 
 export function IntegrationsDashboard() {
   return (
@@ -174,7 +102,6 @@ export function IntegrationsDashboard() {
             </CardContent>
           </Card>
 
-          <QbBackfillCard />
         </TabsContent>
 
         <TabsContent value="sales" className="mt-4 space-y-4">
