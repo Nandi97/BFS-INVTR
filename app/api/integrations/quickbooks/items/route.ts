@@ -130,9 +130,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `Location "${locationName}" not found` }, { status: 422 });
   }
 
-  let synced = 0, skipped = 0, deactivated = 0;
+  let synced = 0, skipped = 0, deactivated = 0, dispatched = 0, restocked = 0, unchanged = 0;
   const errors: string[] = [];
   const startedAt = new Date();
+
+  // TODO (Phase 2): before the loop, fetch QB invoices since lastSyncAt and build
+  //   invoiceMap: Map<qboItemId, { docNumber: string; customerRef: string }[]>
+  // Then pass the matching invoice numbers as `reference` on ADJUSTMENT_OUT records.
+  // QB endpoint: GET /v3/company/{realmId}/query
+  //   ?query=SELECT * FROM Invoice WHERE MetaData.LastUpdatedTime > '{lastSyncAt}'
+  // Each Invoice.Line[] has ItemRef.value (QB item ID) and Qty.
 
   for (const item of qboItems) {
     const hit = await resolveProduct(item.FullyQualifiedName, item.Sku);
@@ -145,21 +152,62 @@ export async function POST(req: NextRequest) {
     const qty = Math.max(0, item.QtyOnHand ?? 0);
     try {
       await prisma.$transaction(async (tx) => {
+        const existing = await tx.inventory.findUnique({
+          where:  { productId_locationId: { productId: hit.id, locationId: loc.id } },
+          select: { quantity: true },
+        });
+
         await tx.inventory.upsert({
           where:  { productId_locationId: { productId: hit.id, locationId: loc.id } },
           update: { quantity: qty, ...(item.ReorderPoint != null ? { reorderPoint: item.ReorderPoint } : {}) },
           create: { productId: hit.id, locationId: loc.id, quantity: qty, reorderPoint: item.ReorderPoint ?? 0, reorderQty: 0, minQuantity: 0 },
         });
-        await tx.stockMovement.create({
-          data: {
-            productId:    hit.id,
-            locationId:   loc.id,
-            type:         "RECONCILIATION",
-            quantity:     qty,
-            balanceAfter: qty,
-            notes:        "QBO API live sync",
-          },
-        });
+
+        if (existing === null) {
+          // First-ever sync for this product — record opening snapshot
+          await tx.stockMovement.create({
+            data: {
+              productId:    hit.id,
+              locationId:   loc.id,
+              type:         "RECONCILIATION",
+              quantity:     qty,
+              balanceAfter: qty,
+              notes:        "QBO initial sync",
+            },
+          });
+        } else {
+          const delta = qty - existing.quantity;
+          if (delta < 0) {
+            // QB qty dropped — items were dispatched / invoiced out
+            // TODO (Phase 2): set reference = QB invoice number from invoiceMap
+            await tx.stockMovement.create({
+              data: {
+                productId:    hit.id,
+                locationId:   loc.id,
+                type:         "ADJUSTMENT_OUT",
+                quantity:     Math.abs(delta),
+                balanceAfter: qty,
+                notes:        "QBO sync: dispatched",
+              },
+            });
+            dispatched++;
+          } else if (delta > 0) {
+            // QB qty rose — items were received / restocked
+            await tx.stockMovement.create({
+              data: {
+                productId:    hit.id,
+                locationId:   loc.id,
+                type:         "ADJUSTMENT_IN",
+                quantity:     delta,
+                balanceAfter: qty,
+                notes:        "QBO sync: restocked",
+              },
+            });
+            restocked++;
+          } else {
+            unchanged++;
+          }
+        }
       });
       synced++;
     } catch (err: unknown) {
@@ -201,7 +249,7 @@ export async function POST(req: NextRequest) {
       provider:   "QUICKBOOKS",
       type:       "STOCK_SYNC",
       status:     errors.length > 0 && synced === 0 ? "FAILED" : errors.length > 0 ? "PARTIAL" : "SUCCESS",
-      message:    `QBO API sync: ${synced} synced, ${skipped} skipped, ${deactivated} deactivated`,
+      message:    `QBO API sync: ${synced} synced (${dispatched} dispatched, ${restocked} restocked, ${unchanged} unchanged), ${skipped} skipped, ${deactivated} deactivated`,
       recordsIn:  qboItems.length,
       recordsOut: synced,
     },
@@ -213,6 +261,8 @@ export async function POST(req: NextRequest) {
   });
 
   return NextResponse.json({
-    total: qboItems.length, synced, skipped, deactivated, errors: errors.slice(0, 30),
+    total: qboItems.length, synced, skipped, deactivated,
+    movements: { dispatched, restocked, unchanged },
+    errors: errors.slice(0, 30),
   });
 }

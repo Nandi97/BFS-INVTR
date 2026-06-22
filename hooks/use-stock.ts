@@ -61,14 +61,20 @@ export interface StockFilters {
   limit?: number;
 }
 
+export interface MovementsSummary {
+  totalIn:  number;
+  totalOut: number;
+}
+
 export interface MovementsFilters {
   locationId?: string;
-  productId?: string;
-  type?: StockMovementType;
-  dateFrom?: string;
-  dateTo?: string;
-  page?: number;
-  limit?: number;
+  productId?:  string;
+  brandId?:    string;
+  type?:       StockMovementType;
+  dateFrom?:   string;
+  dateTo?:     string;
+  page?:       number;
+  limit?:      number;
 }
 
 export interface AdjustStockInput {
@@ -115,15 +121,20 @@ export function useStockMovements(filters: MovementsFilters = {}) {
     queryFn: async () => {
       const p = new URLSearchParams();
       if (filters.locationId) p.set("locationId", filters.locationId);
-      if (filters.productId) p.set("productId", filters.productId);
-      if (filters.type) p.set("type", filters.type);
-      if (filters.dateFrom) p.set("dateFrom", filters.dateFrom);
-      if (filters.dateTo) p.set("dateTo", filters.dateTo);
-      if (filters.page) p.set("page", String(filters.page));
-      if (filters.limit) p.set("limit", String(filters.limit));
-      const { data } = await api.get<{ data: StockMovement[]; total: number; page: number; limit: number }>(
-        `/stock/movements?${p}`
-      );
+      if (filters.productId)  p.set("productId",  filters.productId);
+      if (filters.brandId)    p.set("brandId",    filters.brandId);
+      if (filters.type)       p.set("type",       filters.type);
+      if (filters.dateFrom)   p.set("dateFrom",   filters.dateFrom);
+      if (filters.dateTo)     p.set("dateTo",     filters.dateTo);
+      if (filters.page)       p.set("page",       String(filters.page));
+      if (filters.limit)      p.set("limit",      String(filters.limit));
+      const { data } = await api.get<{
+        data: StockMovement[];
+        total: number;
+        page: number;
+        limit: number;
+        summary: MovementsSummary;
+      }>(`/stock/movements?${p}`);
       return data;
     },
   });

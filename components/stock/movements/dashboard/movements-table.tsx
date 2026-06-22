@@ -9,8 +9,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
+import { Badge }   from "@/components/ui/badge";
+import { Input }   from "@/components/ui/input";
+import { Button }  from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -18,24 +19,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, ArrowLeftRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, ArrowLeftRight, TrendingDown, TrendingUp } from "lucide-react";
 import { useStockMovements, type StockMovementType } from "@/hooks/use-stock";
 import { useLocations } from "@/hooks/use-locations";
-import { Skeleton } from "@/components/ui/skeleton";
-import { EmptyState } from "@/components/ui/empty-state";
-import { cn } from "@/lib/utils";
-import { format } from "date-fns";
+import { useBrands }    from "@/hooks/use-brands";
+import { Skeleton }     from "@/components/ui/skeleton";
+import { EmptyState }   from "@/components/ui/empty-state";
+import { cn }           from "@/lib/utils";
+import { format }       from "date-fns";
 
 const MOVEMENT_COLORS: Record<StockMovementType, string> = {
-  PURCHASE_RECEIPT:  "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
-  ADJUSTMENT_IN:     "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
-  ADJUSTMENT_OUT:    "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
-  OPENING_STOCK:     "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400",
-  RECONCILIATION:    "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
-  SALE:              "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
-  TRANSFER_IN:       "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400",
-  TRANSFER_OUT:      "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400",
+  PURCHASE_RECEIPT: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
+  ADJUSTMENT_IN:    "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+  ADJUSTMENT_OUT:   "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
+  OPENING_STOCK:    "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400",
+  RECONCILIATION:   "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
+  SALE:             "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+  TRANSFER_IN:      "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400",
+  TRANSFER_OUT:     "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400",
 };
 
 const MOVEMENT_LABEL: Record<StockMovementType, string> = {
@@ -49,57 +50,71 @@ const MOVEMENT_LABEL: Record<StockMovementType, string> = {
   TRANSFER_OUT:     "Transfer Out",
 };
 
-const SUBTRACT_TYPES: StockMovementType[] = ["SALE", "ADJUSTMENT_OUT", "TRANSFER_OUT"];
+const OUT_TYPES: StockMovementType[] = ["SALE", "ADJUSTMENT_OUT", "TRANSFER_OUT"];
 
 export function MovementsTable({ locationId: defaultLocationId }: { locationId?: string }) {
   const [locationId, setLocationId] = useState(defaultLocationId ?? "all");
-  const [type, setType] = useState<"all" | StockMovementType>("all");
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
-  const [page, setPage] = useState(1);
+  const [brandId,    setBrandId]    = useState("all");
+  const [type,       setType]       = useState<"all" | StockMovementType>("all");
+  const [dateFrom,   setDateFrom]   = useState("");
+  const [dateTo,     setDateTo]     = useState("");
+  const [page,       setPage]       = useState(1);
   const limit = 30;
 
   const { data, isLoading } = useStockMovements({
     locationId: locationId === "all" ? undefined : locationId,
-    type: type === "all" ? undefined : type,
-    dateFrom: dateFrom || undefined,
-    dateTo: dateTo || undefined,
+    brandId:    brandId    === "all" ? undefined : brandId,
+    type:       type       === "all" ? undefined : type,
+    dateFrom:   dateFrom   || undefined,
+    dateTo:     dateTo     || undefined,
     page,
     limit,
   });
 
   const { data: locations } = useLocations({ active: true });
-  const rows = data?.data ?? [];
+  const { data: brands }    = useBrands();
+
+  const rows       = data?.data    ?? [];
+  const summary    = data?.summary;
   const totalPages = data ? Math.ceil(data.total / limit) : 1;
+  const showSummary = !!(dateFrom || dateTo) && summary;
 
   return (
     <div className="space-y-4">
       {/* Filters */}
       <div className="flex flex-wrap gap-2">
-        <Select value={locationId} onValueChange={setLocationId}>
+        <Select value={locationId} onValueChange={(v) => { setLocationId(v); setPage(1); }}>
           <SelectTrigger className="w-44">
             <SelectValue placeholder="Location" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Locations</SelectItem>
             {locations?.map((loc) => (
-              <SelectItem key={loc.id} value={loc.id}>
-                {loc.name}
-              </SelectItem>
+              <SelectItem key={loc.id} value={loc.id}>{loc.name}</SelectItem>
             ))}
           </SelectContent>
         </Select>
 
-        <Select value={type} onValueChange={(v) => setType(v as typeof type)}>
+        <Select value={brandId} onValueChange={(v) => { setBrandId(v); setPage(1); }}>
+          <SelectTrigger className="w-44">
+            <SelectValue placeholder="Brand" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Brands</SelectItem>
+            {brands?.map((b) => (
+              <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={type} onValueChange={(v) => { setType(v as typeof type); setPage(1); }}>
           <SelectTrigger className="w-40">
             <SelectValue placeholder="Type" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Types</SelectItem>
             {Object.entries(MOVEMENT_LABEL).map(([value, label]) => (
-              <SelectItem key={value} value={value}>
-                {label}
-              </SelectItem>
+              <SelectItem key={value} value={value}>{label}</SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -107,18 +122,57 @@ export function MovementsTable({ locationId: defaultLocationId }: { locationId?:
         <Input
           type="date"
           value={dateFrom}
-          onChange={(e) => setDateFrom(e.target.value)}
+          onChange={(e) => { setDateFrom(e.target.value); setPage(1); }}
           className="w-36"
           placeholder="From"
         />
         <Input
           type="date"
           value={dateTo}
-          onChange={(e) => setDateTo(e.target.value)}
+          onChange={(e) => { setDateTo(e.target.value); setPage(1); }}
           className="w-36"
           placeholder="To"
         />
       </div>
+
+      {/* Period summary — only when a date range is active */}
+      {showSummary && (
+        <div className="grid grid-cols-3 gap-3">
+          <div className="rounded-lg border bg-emerald-50 dark:bg-emerald-950/20 p-4 flex items-center gap-3">
+            <TrendingUp className="size-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+            <div>
+              <p className="text-xs text-muted-foreground">Received in period</p>
+              <p className="text-2xl font-semibold text-emerald-700 dark:text-emerald-400">
+                +{summary.totalIn}
+              </p>
+            </div>
+          </div>
+          <div className="rounded-lg border bg-red-50 dark:bg-red-950/20 p-4 flex items-center gap-3">
+            <TrendingDown className="size-5 text-red-600 dark:text-red-400 shrink-0" />
+            <div>
+              <p className="text-xs text-muted-foreground">Dispatched in period</p>
+              <p className="text-2xl font-semibold text-red-700 dark:text-red-400">
+                −{summary.totalOut}
+              </p>
+            </div>
+          </div>
+          <div className="rounded-lg border bg-muted/40 p-4 flex items-center gap-3">
+            <ArrowLeftRight className="size-5 text-muted-foreground shrink-0" />
+            <div>
+              <p className="text-xs text-muted-foreground">Net change</p>
+              <p className={cn(
+                "text-2xl font-semibold",
+                summary.totalIn - summary.totalOut >= 0
+                  ? "text-foreground"
+                  : "text-red-700 dark:text-red-400"
+              )}>
+                {summary.totalIn - summary.totalOut >= 0 ? "+" : ""}
+                {summary.totalIn - summary.totalOut}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Table */}
       <div className="rounded-md border">
@@ -130,7 +184,7 @@ export function MovementsTable({ locationId: defaultLocationId }: { locationId?:
               <TableHead>Location</TableHead>
               <TableHead>Type</TableHead>
               <TableHead className="text-right">Change</TableHead>
-              <TableHead className="text-right">Balance After</TableHead>
+              <TableHead className="text-right">Stock on Hand After</TableHead>
               <TableHead>Reference</TableHead>
               <TableHead>User</TableHead>
             </TableRow>
@@ -140,9 +194,7 @@ export function MovementsTable({ locationId: defaultLocationId }: { locationId?:
               Array.from({ length: 10 }).map((_, i) => (
                 <TableRow key={i}>
                   {Array.from({ length: 8 }).map((_, j) => (
-                    <TableCell key={j}>
-                      <Skeleton className="h-4 w-full" />
-                    </TableCell>
+                    <TableCell key={j}><Skeleton className="h-4 w-full" /></TableCell>
                   ))}
                 </TableRow>
               ))
@@ -158,7 +210,7 @@ export function MovementsTable({ locationId: defaultLocationId }: { locationId?:
               </TableRow>
             ) : (
               rows.map((m) => {
-                const isSubtract = SUBTRACT_TYPES.includes(m.type);
+                const isOut = OUT_TYPES.includes(m.type);
                 return (
                   <TableRow key={m.id}>
                     <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
@@ -182,12 +234,14 @@ export function MovementsTable({ locationId: defaultLocationId }: { locationId?:
                     <TableCell
                       className={cn(
                         "text-right font-mono font-medium",
-                        isSubtract ? "text-destructive" : "text-emerald-600 dark:text-emerald-400"
+                        isOut
+                          ? "text-destructive"
+                          : "text-emerald-600 dark:text-emerald-400"
                       )}
                     >
-                      {isSubtract ? "−" : "+"}{m.quantity}
+                      {isOut ? "−" : "+"}{m.quantity}
                     </TableCell>
-                    <TableCell className="text-right font-mono text-sm">
+                    <TableCell className="text-right font-mono text-sm font-medium">
                       {m.balanceAfter}
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
