@@ -75,6 +75,7 @@ export interface ProductMovementSummary {
   netChange:     number;
   movementCount: number;
   lastMovement:  string;
+  currentStock:  number;
 }
 
 export interface MovementsFilters {

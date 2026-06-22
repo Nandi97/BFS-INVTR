@@ -11,6 +11,7 @@ export interface ProductMovementSummary {
   netChange:     number;
   movementCount: number;
   lastMovement:  string;
+  currentStock:  number;
 }
 
 export async function GET(req: NextRequest) {
@@ -30,6 +31,8 @@ export async function GET(req: NextRequest) {
     ? Prisma.sql`WHERE ${Prisma.join(conditions, " AND ")}`
     : Prisma.empty;
 
+  // RECONCILIATION excluded from both sides — it is a balance snapshot, not real
+  // stock in or out. Including it inflates totalIn by (balance × number of syncs).
   const rows = await prisma.$queryRaw<Array<{
     productId:     string;
     productName:   string;
@@ -47,7 +50,7 @@ export async function GET(req: NextRequest) {
         'ADJUSTMENT_OUT','SALE','TRANSFER_OUT'
       ) THEN sm.quantity ELSE 0 END), 0)::float                      AS "totalOut",
       COALESCE(SUM(CASE WHEN sm.type IN (
-        'PURCHASE_RECEIPT','ADJUSTMENT_IN','OPENING_STOCK','TRANSFER_IN','RECONCILIATION'
+        'PURCHASE_RECEIPT','ADJUSTMENT_IN','OPENING_STOCK','TRANSFER_IN'
       ) THEN sm.quantity ELSE 0 END), 0)::float                      AS "totalIn",
       COUNT(*)                                                        AS "movementCount",
       MAX(sm."createdAt")                                             AS "lastMovement"
@@ -59,6 +62,24 @@ export async function GET(req: NextRequest) {
     ORDER BY "totalOut" DESC
   `;
 
+  // Fetch current stock from Inventory (same source as Products page)
+  const productIds = rows.map((r) => r.productId);
+  const stockRows = productIds.length > 0
+    ? await prisma.inventory.groupBy({
+        by: ["productId"],
+        where: {
+          productId: { in: productIds },
+          ...(locationId ? { locationId } : {}),
+          location: { isActive: true },
+        },
+        _sum: { quantity: true },
+      })
+    : [];
+
+  const stockByProduct = new Map(
+    stockRows.map((s) => [s.productId, s._sum.quantity ?? 0])
+  );
+
   const data: ProductMovementSummary[] = rows.map((r) => ({
     productId:     r.productId,
     productName:   r.productName,
@@ -68,6 +89,7 @@ export async function GET(req: NextRequest) {
     netChange:     r.totalIn - r.totalOut,
     movementCount: Number(r.movementCount),
     lastMovement:  r.lastMovement.toISOString(),
+    currentStock:  stockByProduct.get(r.productId) ?? 0,
   }));
 
   return NextResponse.json({ data, total: data.length });

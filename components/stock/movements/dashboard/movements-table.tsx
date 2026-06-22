@@ -77,6 +77,7 @@ function ProductSummaryTable({ rows, isLoading }: { rows: ProductMovementSummary
             <TableHead className="text-right text-emerald-700 dark:text-emerald-400">Total In</TableHead>
             <TableHead className="text-right text-red-700 dark:text-red-400">Total Out</TableHead>
             <TableHead className="text-right">Net Change</TableHead>
+            <TableHead className="text-right">Current Stock</TableHead>
             <TableHead className="text-right text-muted-foreground">Movements</TableHead>
             <TableHead>Last Movement</TableHead>
           </TableRow>
@@ -85,14 +86,14 @@ function ProductSummaryTable({ rows, isLoading }: { rows: ProductMovementSummary
           {isLoading ? (
             Array.from({ length: 12 }).map((_, i) => (
               <TableRow key={i}>
-                {Array.from({ length: 6 }).map((_, j) => (
+                {Array.from({ length: 7 }).map((_, j) => (
                   <TableCell key={j}><Skeleton className="h-4 w-full" /></TableCell>
                 ))}
               </TableRow>
             ))
           ) : rows.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={6} className="h-48">
+              <TableCell colSpan={7} className="h-48">
                 <EmptyState
                   icon={ArrowLeftRight}
                   title="No movements found"
@@ -124,6 +125,9 @@ function ProductSummaryTable({ rows, isLoading }: { rows: ProductMovementSummary
                   )}
                 >
                   {r.netChange > 0 ? "+" : ""}{r.netChange}
+                </TableCell>
+                <TableCell className="text-right font-mono text-sm font-semibold">
+                  {r.currentStock}
                 </TableCell>
                 <TableCell className="text-right text-sm text-muted-foreground">
                   {r.movementCount}

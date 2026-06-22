@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-const IN_TYPES  = ["PURCHASE_RECEIPT", "ADJUSTMENT_IN", "OPENING_STOCK", "TRANSFER_IN", "RECONCILIATION"] as const;
+// RECONCILIATION excluded — it is a balance snapshot (balance × n syncs inflates totalIn)
+const IN_TYPES  = ["PURCHASE_RECEIPT", "ADJUSTMENT_IN", "OPENING_STOCK", "TRANSFER_IN"] as const;
 const OUT_TYPES = ["SALE", "ADJUSTMENT_OUT", "TRANSFER_OUT"] as const;
 
 export async function GET(req: NextRequest) {
