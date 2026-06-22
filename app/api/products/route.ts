@@ -11,11 +11,13 @@ export async function GET(req: NextRequest) {
     const categoryId = searchParams.get("categoryId");
     const isActive   = searchParams.get("isActive");
     const productType = searchParams.get("productType");
+    const minimal    = searchParams.get("minimal") === "true";
     const page       = Math.max(1, Number(searchParams.get("page") ?? 1));
     const limit      = Math.min(100, Math.max(1, Number(searchParams.get("limit") ?? 50)));
     const skip       = (page - 1) * limit;
 
     const where: Prisma.ProductWhereInput = {
+      ...(minimal && { isActive: true }),
       ...(search && {
         OR: [
           { name:    { contains: search, mode: "insensitive" } },
@@ -28,6 +30,23 @@ export async function GET(req: NextRequest) {
       ...(isActive !== null && isActive !== undefined && { isActive: isActive === "true" }),
       ...(productType && { productType: productType as Prisma.EnumProductTypeFilter["equals"] }),
     };
+
+    // minimal=true: return all active products with only the fields the combobox needs
+    if (minimal) {
+      const products = await prisma.product.findMany({
+        where,
+        select: {
+          id:    true,
+          name:  true,
+          sku:   true,
+          brand: { select: { name: true } },
+        },
+        orderBy: { name: "asc" },
+      });
+      return NextResponse.json(
+        products.map((p) => ({ id: p.id, name: p.name, sku: p.sku, brandName: p.brand?.name ?? null }))
+      );
+    }
 
     const [products, total] = await Promise.all([
       prisma.product.findMany({

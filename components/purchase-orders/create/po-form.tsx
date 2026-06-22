@@ -21,7 +21,7 @@ import { Separator } from "@/components/ui/separator";
 import { useCreatePO } from "@/hooks/use-purchase-orders";
 import { useSuppliers } from "@/hooks/use-suppliers";
 import { useLocations } from "@/hooks/use-locations";
-import { useProducts }  from "@/hooks/use-products";
+import { useProductsMinimal } from "@/hooks/use-products";
 import { ProductCombobox } from "@/components/ui/product-combobox";
 
 const itemSchema = z.object({
@@ -49,7 +49,7 @@ export function POForm({ open, onOpenChange }: POFormProps) {
   const create = useCreatePO();
   const { data: suppliersData } = useSuppliers({ active: true, limit: 100 });
   const { data: locationsData  } = useLocations({ active: true });
-  const { data: productsData   } = useProducts({ limit: 1000, isActive: true });
+  const { data: productsData } = useProductsMinimal();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -65,14 +65,7 @@ export function POForm({ open, onOpenChange }: POFormProps) {
 
   const suppliers = suppliersData?.data ?? [];
   const locations = locationsData ?? [];
-  const products  = (productsData?.products ?? []).map(
-    (p: { id: string; name: string; sku?: string | null; brand?: { name: string } | null }) => ({
-      id:        p.id,
-      name:      p.name,
-      sku:       p.sku,
-      brandName: p.brand?.name ?? null,
-    })
-  );
+  const products = productsData ?? [];
 
   async function onSubmit(values: FormValues) {
     try {

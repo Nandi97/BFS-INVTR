@@ -30,6 +30,21 @@ export function useProducts(filters: ProductFilters = {}) {
   });
 }
 
+export interface MinimalProduct {
+  id:        string;
+  name:      string;
+  sku:       string | null;
+  brandName: string | null;
+}
+
+export function useProductsMinimal() {
+  return useQuery<MinimalProduct[]>({
+    queryKey: ["products", "minimal"],
+    queryFn:  () => api.get("/products?minimal=true").then((r) => r.data),
+    staleTime: 5 * 60 * 1000, // 5 min — product list changes infrequently
+  });
+}
+
 export function useProduct(id: string) {
   return useQuery({
     queryKey: ["products", id],

@@ -75,7 +75,7 @@ import {
 } from "@/hooks/use-stock";
 import { useLocations }     from "@/hooks/use-locations";
 import { useBrands }        from "@/hooks/use-brands";
-import { useProducts }      from "@/hooks/use-products";
+import { useProductsMinimal } from "@/hooks/use-products";
 import { ProductCombobox }  from "@/components/ui/product-combobox";
 import { Skeleton }      from "@/components/ui/skeleton";
 import { EmptyState }    from "@/components/ui/empty-state";
@@ -145,7 +145,7 @@ function LogInternalUseSheet({
 }) {
   const logUse    = useLogInternalUse();
   const { data: locations } = useLocations({ active: true });
-  const { data: products }  = useProducts({ isActive: true, limit: 1000 });
+  const { data: products }  = useProductsMinimal();
 
   const form = useForm<InternalUseForm>({
     resolver: zodResolver(internalUseSchema),
@@ -169,14 +169,7 @@ function LogInternalUseSheet({
     }
   }
 
-  type RawProduct = { id: string; name: string; sku?: string | null; brand?: { name: string } | null };
-  const productList =
-    ((products as { products?: RawProduct[] } | undefined)?.products ?? []).map((p) => ({
-      id:        p.id,
-      name:      p.name,
-      sku:       p.sku,
-      brandName: p.brand?.name ?? null,
-    }));
+  const productList = products ?? [];
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
