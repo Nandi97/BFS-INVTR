@@ -27,6 +27,7 @@ import {
   TrendingUp,
   List,
   LayoutList,
+  Download,
 } from "lucide-react";
 import {
   useStockMovements,
@@ -302,10 +303,30 @@ export function MovementsTable({ locationId: defaultLocationId }: { locationId?:
 
       {/* By-product summary */}
       {view === "by-product" && (
-        <ProductSummaryTable
-          rows={summaryData?.data ?? []}
-          isLoading={summaryLoading}
-        />
+        <div className="space-y-3">
+          <div className="flex justify-end">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={!summaryData?.data?.length}
+              onClick={() => {
+                const p = new URLSearchParams();
+                if (sharedFilters.locationId) p.set("locationId", sharedFilters.locationId);
+                if (sharedFilters.brandId)    p.set("brandId",    sharedFilters.brandId);
+                if (sharedFilters.dateFrom)   p.set("dateFrom",   sharedFilters.dateFrom);
+                if (sharedFilters.dateTo)     p.set("dateTo",     sharedFilters.dateTo);
+                window.open(`/api/stock/movements/summary/export?${p}`, "_blank");
+              }}
+            >
+              <Download className="size-3.5 mr-1.5" />
+              Export Excel
+            </Button>
+          </div>
+          <ProductSummaryTable
+            rows={summaryData?.data ?? []}
+            isLoading={summaryLoading}
+          />
+        </div>
       )}
 
       {/* Individual movements table */}
