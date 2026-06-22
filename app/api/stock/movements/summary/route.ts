@@ -31,8 +31,8 @@ export async function GET(req: NextRequest) {
     ? Prisma.sql`WHERE ${Prisma.join(conditions, " AND ")}`
     : Prisma.empty;
 
-  // RECONCILIATION excluded from both sides — it is a balance snapshot, not real
-  // stock in or out. Including it inflates totalIn by (balance × number of syncs).
+  // RECONCILIATION and OPENING_STOCK excluded from both sides — both are balance
+  // snapshots/bootstrap entries, not real receipts. Including them inflates totalIn.
   const rows = await prisma.$queryRaw<Array<{
     productId:     string;
     productName:   string;
@@ -50,7 +50,7 @@ export async function GET(req: NextRequest) {
         'ADJUSTMENT_OUT','SALE','TRANSFER_OUT'
       ) THEN sm.quantity ELSE 0 END), 0)::float                      AS "totalOut",
       COALESCE(SUM(CASE WHEN sm.type IN (
-        'PURCHASE_RECEIPT','ADJUSTMENT_IN','OPENING_STOCK','TRANSFER_IN'
+        'PURCHASE_RECEIPT','ADJUSTMENT_IN','TRANSFER_IN'
       ) THEN sm.quantity ELSE 0 END), 0)::float                      AS "totalIn",
       COUNT(*)                                                        AS "movementCount",
       MAX(sm."createdAt")                                             AS "lastMovement"
