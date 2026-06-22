@@ -42,6 +42,7 @@ const schema = z.object({
     "SALE",
     "TRANSFER_IN",
     "TRANSFER_OUT",
+    "INTERNAL_USE",
   ]),
   quantity: z.number({ error: "Must be a positive number" }).positive(),
   reference: z.string().optional(),
@@ -52,13 +53,14 @@ type FormValues = z.infer<typeof schema>;
 
 const MOVEMENT_LABELS: Record<StockMovementType, string> = {
   PURCHASE_RECEIPT: "Purchase Receipt (Add)",
-  ADJUSTMENT_IN: "Adjustment — Add Stock",
-  ADJUSTMENT_OUT: "Adjustment — Remove Stock",
-  OPENING_STOCK: "Opening / Set Stock",
-  RECONCILIATION: "Reconciliation",
-  SALE: "Sale (Remove)",
-  TRANSFER_IN: "Transfer In",
-  TRANSFER_OUT: "Transfer Out",
+  ADJUSTMENT_IN:    "Adjustment — Add Stock",
+  ADJUSTMENT_OUT:   "Adjustment — Remove Stock",
+  OPENING_STOCK:    "Opening / Set Stock",
+  RECONCILIATION:   "Reconciliation",
+  SALE:             "Sale (Remove)",
+  TRANSFER_IN:      "Transfer In",
+  TRANSFER_OUT:     "Transfer Out",
+  INTERNAL_USE:     "Internal Use (Training / Management)",
 };
 
 interface AdjustStockFormProps {

@@ -145,16 +145,19 @@ model Inventory {
 }
 
 model StockMovement {
-  id          String            @id @default(cuid())
-  productId   String
-  locationId  String
-  type        StockMovementType
-  quantity    Float
+  id           String            @id @default(cuid())
+  productId    String
+  locationId   String
+  type         StockMovementType
+  quantity     Float
   balanceAfter Float
-  reference   String?
-  notes       String?
-  userId      String?
-  createdAt   DateTime          @default(now())
+  reference    String?
+  notes        String?
+  userId       String?
+  isReviewed   Boolean           @default(false)
+  reviewNote   String?
+  reviewedAt   DateTime?
+  createdAt    DateTime          @default(now())
 
   product  Product  @relation(fields: [productId], references: [id])
   location Location @relation(fields: [locationId], references: [id])
@@ -417,6 +420,7 @@ enum StockMovementType {
   TRANSFER_OUT
   OPENING_STOCK
   RECONCILIATION
+  INTERNAL_USE
 }
 
 enum PurchaseOrderStatus {

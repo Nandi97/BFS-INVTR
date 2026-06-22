@@ -12,7 +12,8 @@ export type StockMovementType =
   | "TRANSFER_IN"
   | "TRANSFER_OUT"
   | "OPENING_STOCK"
-  | "RECONCILIATION";
+  | "RECONCILIATION"
+  | "INTERNAL_USE";
 
 export interface InventoryRow {
   id: string;
@@ -43,6 +44,9 @@ export interface StockMovement {
   balanceAfter: number;
   reference: string | null;
   notes: string | null;
+  isReviewed: boolean;
+  reviewNote: string | null;
+  reviewedAt: string | null;
   createdAt: string;
   product: {
     name: string;
@@ -85,6 +89,7 @@ export interface MovementsFilters {
   type?:       StockMovementType;
   dateFrom?:   string;
   dateTo?:     string;
+  shrinkage?:  boolean;
   page?:       number;
   limit?:      number;
 }
@@ -138,6 +143,7 @@ export function useStockMovements(filters: MovementsFilters = {}) {
       if (filters.type)       p.set("type",       filters.type);
       if (filters.dateFrom)   p.set("dateFrom",   filters.dateFrom);
       if (filters.dateTo)     p.set("dateTo",     filters.dateTo);
+      if (filters.shrinkage)  p.set("shrinkage",  "true");
       if (filters.page)       p.set("page",       String(filters.page));
       if (filters.limit)      p.set("limit",      String(filters.limit));
       const { data } = await api.get<{
@@ -190,5 +196,40 @@ export function useSetThresholds() {
     mutationFn: (input: SetThresholdsInput) =>
       api.put("/stock/thresholds", input).then((r) => r.data),
     onSuccess: () => qc.invalidateQueries({ queryKey: STOCK_KEY }),
+  });
+}
+
+export interface InternalUseInput {
+  productId:  string;
+  locationId: string;
+  quantity:   number;
+  reason:     string;
+  notes?:     string;
+}
+
+export function useLogInternalUse() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: InternalUseInput) =>
+      api.post("/stock/adjust", {
+        productId:  input.productId,
+        locationId: input.locationId,
+        type:       "INTERNAL_USE",
+        quantity:   input.quantity,
+        notes:      `${input.reason}${input.notes ? ` — ${input.notes}` : ""}`,
+      }).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: STOCK_KEY });
+      qc.invalidateQueries({ queryKey: MOVEMENTS_KEY });
+    },
+  });
+}
+
+export function useReviewMovement() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, reviewNote }: { id: string; reviewNote?: string }) =>
+      api.patch(`/stock/movements/${id}/review`, { reviewNote }).then((r) => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: MOVEMENTS_KEY }),
   });
 }

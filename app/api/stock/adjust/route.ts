@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "quantity must be a non-negative number" }, { status: 400 });
   }
 
-  const SUBTRACT_TYPES = ["SALE", "ADJUSTMENT_OUT", "TRANSFER_OUT"];
+  const SUBTRACT_TYPES = ["SALE", "ADJUSTMENT_OUT", "TRANSFER_OUT", "INTERNAL_USE"];
   const delta = SUBTRACT_TYPES.includes(type) ? -qty : qty;
 
   const result = await prisma.$transaction(async (tx) => {

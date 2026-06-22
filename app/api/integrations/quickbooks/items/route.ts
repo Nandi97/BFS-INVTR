@@ -137,13 +137,16 @@ export async function POST(req: NextRequest) {
   // Fetch QB invoices since last sync to attribute dispatch movements to stores
   type InvoiceRef = { docNumber: string; customerName: string };
   const invoiceMap = new Map<string, InvoiceRef[]>();
+  // Hoisted so delta loop can check INTERNAL_USE movements since this date
+  let lastSyncAt: Date = new Date(Date.now() - 48 * 60 * 60 * 1000);
   try {
     const config = await prisma.integrationConfig.findUnique({
       where: { provider: "QUICKBOOKS" },
       select: { lastSyncAt: true },
     });
     // Default to 48 hours ago if this is the first sync, to catch recent invoices
-    const since = config?.lastSyncAt ?? new Date(Date.now() - 48 * 60 * 60 * 1000);
+    const since = config?.lastSyncAt ?? lastSyncAt;
+    lastSyncAt = since;
     const sinceDate = since.toISOString().slice(0, 10);
 
     const invoices = await fetchQboInvoices(sinceDate);
@@ -218,25 +221,40 @@ export async function POST(req: NextRequest) {
         } else {
           const delta = qty - existing.quantity;
           if (delta < 0) {
-            // QB qty dropped — items were dispatched / invoiced out
-            const refs = invoiceMap.get(item.Id) ?? [];
-            const reference = refs.length > 0
-              ? refs.map((r) => `QB-INV-${r.docNumber}`).join(", ")
-              : undefined;
-            const notes = refs.length > 0
-              ? `QBO sync: dispatched to ${[...new Set(refs.map((r) => r.customerName))].join(", ")}`
-              : "QBO sync: dispatched";
-            await tx.stockMovement.create({
-              data: {
-                productId:    hit.id,
-                locationId:   loc.id,
-                type:         "ADJUSTMENT_OUT",
-                quantity:     Math.abs(delta),
-                balanceAfter: qty,
-                reference,
-                notes,
+            // QB qty dropped — check if INTERNAL_USE movements since last sync explain some/all of the drop
+            const internalUsed = await tx.stockMovement.aggregate({
+              where: {
+                productId:  hit.id,
+                locationId: loc.id,
+                type:       "INTERNAL_USE",
+                createdAt:  { gte: lastSyncAt },
               },
+              _sum: { quantity: true },
             });
+            const internalQty  = internalUsed._sum.quantity ?? 0;
+            const unexplained  = Math.abs(delta) - internalQty;
+
+            if (unexplained > 0) {
+              // Remaining drop not explained by internal use — attribute to dispatch/invoice
+              const refs = invoiceMap.get(item.Id) ?? [];
+              const reference = refs.length > 0
+                ? refs.map((r) => `QB-INV-${r.docNumber}`).join(", ")
+                : undefined;
+              const notes = refs.length > 0
+                ? `QBO sync: dispatched to ${[...new Set(refs.map((r) => r.customerName))].join(", ")}`
+                : "QBO sync: dispatched";
+              await tx.stockMovement.create({
+                data: {
+                  productId:    hit.id,
+                  locationId:   loc.id,
+                  type:         "ADJUSTMENT_OUT",
+                  quantity:     unexplained,
+                  balanceAfter: qty,
+                  reference,
+                  notes,
+                },
+              });
+            }
             dispatched++;
           } else if (delta > 0) {
             // QB qty rose — items were received / restocked

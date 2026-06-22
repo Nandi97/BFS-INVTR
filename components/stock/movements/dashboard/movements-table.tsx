@@ -9,9 +9,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge }   from "@/components/ui/badge";
-import { Input }   from "@/components/ui/input";
-import { Button }  from "@/components/ui/button";
+import { Badge }     from "@/components/ui/badge";
+import { Input }     from "@/components/ui/input";
+import { Button }    from "@/components/ui/button";
+import { Textarea }  from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -19,6 +20,36 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from "@/components/ui/sheet";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { toast } from "sonner";
 import {
   ChevronLeft,
   ChevronRight,
@@ -29,19 +60,28 @@ import {
   LayoutList,
   Download,
   PackagePlus,
+  AlertTriangle,
+  CheckCircle,
+  PackageOpen,
 } from "lucide-react";
 import {
   useStockMovements,
   useStockMovementsSummary,
+  useLogInternalUse,
+  useReviewMovement,
   type StockMovementType,
   type ProductMovementSummary,
+  type StockMovement,
 } from "@/hooks/use-stock";
-import { useLocations } from "@/hooks/use-locations";
-import { useBrands }    from "@/hooks/use-brands";
-import { Skeleton }     from "@/components/ui/skeleton";
-import { EmptyState }   from "@/components/ui/empty-state";
-import { cn }           from "@/lib/utils";
-import { format }       from "date-fns";
+import { useLocations }  from "@/hooks/use-locations";
+import { useBrands }     from "@/hooks/use-brands";
+import { useProducts }   from "@/hooks/use-products";
+import { Skeleton }      from "@/components/ui/skeleton";
+import { EmptyState }    from "@/components/ui/empty-state";
+import { cn }            from "@/lib/utils";
+import { format }        from "date-fns";
+
+// ─── Constants ────────────────────────────────────────────────────────────────
 
 const MOVEMENT_COLORS: Record<StockMovementType, string> = {
   PURCHASE_RECEIPT: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
@@ -52,6 +92,7 @@ const MOVEMENT_COLORS: Record<StockMovementType, string> = {
   SALE:             "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
   TRANSFER_IN:      "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400",
   TRANSFER_OUT:     "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400",
+  INTERNAL_USE:     "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400",
 };
 
 const MOVEMENT_LABEL: Record<StockMovementType, string> = {
@@ -63,11 +104,315 @@ const MOVEMENT_LABEL: Record<StockMovementType, string> = {
   SALE:             "Sale",
   TRANSFER_IN:      "Transfer In",
   TRANSFER_OUT:     "Transfer Out",
+  INTERNAL_USE:     "Internal Use",
 };
 
-const OUT_TYPES: StockMovementType[] = ["SALE", "ADJUSTMENT_OUT", "TRANSFER_OUT"];
+const OUT_TYPES: StockMovementType[] = ["SALE", "ADJUSTMENT_OUT", "TRANSFER_OUT", "INTERNAL_USE"];
 
-type Preset = "all" | "restocks" | "dispatches";
+const INTERNAL_USE_REASONS = [
+  "Staff Training",
+  "Management Use",
+  "Demo / Display",
+  "Quality Check / Sampling",
+  "Write-off (damaged/expired)",
+  "Other",
+] as const;
+
+type InternalUseReason = (typeof INTERNAL_USE_REASONS)[number];
+
+type Preset = "all" | "restocks" | "dispatches" | "shrinkage";
+
+// ─── Internal Use form ────────────────────────────────────────────────────────
+
+const internalUseSchema = z.object({
+  productId:  z.string().min(1, "Select a product"),
+  locationId: z.string().min(1, "Select a location"),
+  quantity:   z.number({ error: "Required" }).positive("Must be positive"),
+  reason:     z.enum(INTERNAL_USE_REASONS),
+  notes:      z.string().optional(),
+});
+type InternalUseForm = z.infer<typeof internalUseSchema>;
+
+function LogInternalUseSheet({
+  open,
+  onOpenChange,
+  defaultLocationId,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  defaultLocationId?: string;
+}) {
+  const logUse    = useLogInternalUse();
+  const { data: locations } = useLocations({ active: true });
+  const { data: products }  = useProducts({ isActive: true, limit: 1000 });
+
+  const form = useForm<InternalUseForm>({
+    resolver: zodResolver(internalUseSchema),
+    defaultValues: {
+      productId:  "",
+      locationId: defaultLocationId ?? "",
+      quantity:   1,
+      reason:     "Staff Training",
+      notes:      "",
+    },
+  });
+
+  async function onSubmit(values: InternalUseForm) {
+    try {
+      await logUse.mutateAsync(values);
+      toast.success("Internal use logged — stock updated");
+      form.reset();
+      onOpenChange(false);
+    } catch {
+      toast.error("Failed to log internal use");
+    }
+  }
+
+  const productList: Array<{ id: string; name: string }> =
+    (products as { products?: Array<{ id: string; name: string }> } | undefined)?.products ?? [];
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
+        <SheetHeader className="px-6 pt-6 pb-2">
+          <SheetTitle>Log Internal Use</SheetTitle>
+          <SheetDescription>
+            Record stock taken for training, management use, demos, or write-offs.
+            Stock is reduced immediately and excluded from store dispatch reports.
+          </SheetDescription>
+        </SheetHeader>
+
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="px-6 pb-6 space-y-5">
+            <FormField
+              control={form.control}
+              name="productId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Product</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select product…" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent className="max-h-64">
+                      {productList.map((p: { id: string; name: string }) => (
+                        <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="locationId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>From Location</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select location…" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {locations?.map((l) => (
+                        <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="quantity"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Quantity</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      min={0.01}
+                      step={0.01}
+                      value={field.value ?? ""}
+                      onChange={(e) => field.onChange(e.target.valueAsNumber)}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="reason"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Reason</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {INTERNAL_USE_REASONS.map((r) => (
+                        <SelectItem key={r} value={r}>{r}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="notes"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Notes <span className="text-muted-foreground">(optional)</span></FormLabel>
+                  <FormControl>
+                    <Textarea
+                      placeholder="Who took it, what training, etc."
+                      rows={3}
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <div className="flex justify-end gap-3 pt-5 border-t">
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={logUse.isPending}>
+                {logUse.isPending ? "Saving…" : "Log Internal Use"}
+              </Button>
+            </div>
+          </form>
+        </Form>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+// ─── Explain shrinkage sheet ──────────────────────────────────────────────────
+
+const explainSchema = z.object({
+  reason:     z.enum(INTERNAL_USE_REASONS),
+  reviewNote: z.string().optional(),
+});
+type ExplainForm = z.infer<typeof explainSchema>;
+
+function ExplainSheet({
+  movement,
+  open,
+  onOpenChange,
+}: {
+  movement: StockMovement | null;
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+}) {
+  const review = useReviewMovement();
+  const form   = useForm<ExplainForm>({
+    resolver: zodResolver(explainSchema),
+    defaultValues: { reason: "Staff Training", reviewNote: "" },
+  });
+
+  async function onSubmit(values: ExplainForm) {
+    if (!movement) return;
+    try {
+      await review.mutateAsync({
+        id:         movement.id,
+        reviewNote: `${values.reason}${values.reviewNote ? ` — ${values.reviewNote}` : ""}`,
+      });
+      toast.success("Movement explained and removed from shrinkage queue");
+      form.reset();
+      onOpenChange(false);
+    } catch {
+      toast.error("Failed to save explanation");
+    }
+  }
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+        <SheetHeader className="px-6 pt-6 pb-2">
+          <SheetTitle>Explain Shrinkage</SheetTitle>
+          <SheetDescription>
+            {movement
+              ? `${movement.product.name} · −${movement.quantity} units · ${format(new Date(movement.createdAt), "MMM d, yyyy")}`
+              : "Explain this unexplained stock movement"}
+          </SheetDescription>
+        </SheetHeader>
+
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="px-6 pb-6 space-y-5">
+            <FormField
+              control={form.control}
+              name="reason"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Reason</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {INTERNAL_USE_REASONS.map((r) => (
+                        <SelectItem key={r} value={r}>{r}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="reviewNote"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Notes <span className="text-muted-foreground">(optional)</span></FormLabel>
+                  <FormControl>
+                    <Textarea
+                      placeholder="Who took it, when, any context…"
+                      rows={3}
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <div className="flex justify-end gap-3 pt-5 border-t">
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={review.isPending}>
+                {review.isPending ? "Saving…" : "Mark as Explained"}
+              </Button>
+            </div>
+          </form>
+        </Form>
+      </SheetContent>
+    </Sheet>
+  );
+}
 
 // ─── By-product summary table ─────────────────────────────────────────────────
 
@@ -234,12 +579,14 @@ const PRESET_TYPE: Record<Preset, "all" | StockMovementType> = {
   all:        "all",
   restocks:   "ADJUSTMENT_IN",
   dispatches: "ADJUSTMENT_OUT",
+  shrinkage:  "ADJUSTMENT_OUT",
 };
 
 const PRESET_TYPE_GROUP: Record<Preset, "in" | "out" | undefined> = {
   all:        undefined,
   restocks:   "in",
   dispatches: "out",
+  shrinkage:  undefined,
 };
 
 export function MovementsTable({ locationId: defaultLocationId }: { locationId?: string }) {
@@ -251,6 +598,8 @@ export function MovementsTable({ locationId: defaultLocationId }: { locationId?:
   const [page,       setPage]       = useState(1);
   const [view,       setView]       = useState<"movements" | "by-product">("movements");
   const [preset,     setPreset]     = useState<Preset>("all");
+  const [logOpen,    setLogOpen]    = useState(false);
+  const [explainTarget, setExplainTarget] = useState<StockMovement | null>(null);
   const limit = 30;
 
   function applyPreset(p: Preset) {
@@ -258,6 +607,8 @@ export function MovementsTable({ locationId: defaultLocationId }: { locationId?:
     setType(PRESET_TYPE[p]);
     setPage(1);
   }
+
+  const isShrinkage = preset === "shrinkage";
 
   const sharedFilters = {
     locationId: locationId === "all" ? undefined : locationId,
@@ -268,7 +619,8 @@ export function MovementsTable({ locationId: defaultLocationId }: { locationId?:
 
   const { data, isLoading } = useStockMovements({
     ...sharedFilters,
-    type: type === "all" ? undefined : type,
+    type:      isShrinkage ? undefined : (type === "all" ? undefined : type),
+    shrinkage: isShrinkage ? true : undefined,
     page,
     limit,
   });
@@ -277,6 +629,9 @@ export function MovementsTable({ locationId: defaultLocationId }: { locationId?:
     ...sharedFilters,
     typeGroup: PRESET_TYPE_GROUP[preset],
   });
+
+  // Separate count query for shrinkage badge (unfiltered by date/location)
+  const { data: shrinkageCount } = useStockMovements({ shrinkage: true, limit: 1 });
 
   const { data: locations } = useLocations({ active: true });
   const { data: brands }    = useBrands();
@@ -288,22 +643,52 @@ export function MovementsTable({ locationId: defaultLocationId }: { locationId?:
 
   return (
     <div className="space-y-4">
-      {/* Preset chips */}
-      <div className="flex items-center gap-2">
-        {(["all", "restocks", "dispatches"] as Preset[]).map((p) => (
+      {/* Preset chips + Log Internal Use button */}
+      <div className="flex items-center gap-2 flex-wrap">
+        {(["all", "restocks", "dispatches", "shrinkage"] as Preset[]).map((p) => (
           <Button
             key={p}
             variant={preset === p ? "default" : "outline"}
             size="sm"
-            className="h-7 px-3 text-xs capitalize"
+            className={cn(
+              "h-7 px-3 text-xs capitalize",
+              p === "shrinkage" && preset !== "shrinkage" &&
+                (shrinkageCount?.total ?? 0) > 0 &&
+                "border-amber-400 text-amber-700 dark:text-amber-400"
+            )}
             onClick={() => applyPreset(p)}
           >
-            {p === "restocks" && <PackagePlus className="size-3.5 mr-1.5" />}
-            {p === "dispatches" && <TrendingDown className="size-3.5 mr-1.5" />}
+            {p === "restocks"   && <PackagePlus   className="size-3.5 mr-1.5" />}
+            {p === "dispatches" && <TrendingDown   className="size-3.5 mr-1.5" />}
+            {p === "shrinkage"  && <AlertTriangle  className="size-3.5 mr-1.5" />}
             {p === "all" ? "All Movements" : p.charAt(0).toUpperCase() + p.slice(1)}
+            {p === "shrinkage" && (shrinkageCount?.total ?? 0) > 0 && (
+              <span className={cn(
+                "ml-1.5 rounded-full px-1.5 py-0 text-[10px] font-semibold leading-4",
+                preset === "shrinkage"
+                  ? "bg-white/20 text-white"
+                  : "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+              )}>
+                {shrinkageCount?.total}
+              </span>
+            )}
           </Button>
         ))}
+
+        <div className="ml-auto">
+          <Button size="sm" variant="outline" onClick={() => setLogOpen(true)}>
+            <PackageOpen className="size-3.5 mr-1.5" />
+            Log Internal Use
+          </Button>
+        </div>
       </div>
+
+      {isShrinkage && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-900/40 px-4 py-3 text-sm text-amber-800 dark:text-amber-300">
+          <strong>Unexplained shrinkage</strong> — these are stock drops detected by the QB sync
+          with no invoice attribution. Use "Explain" to record the reason and remove them from this queue.
+        </div>
+      )}
 
       {/* Filters + view toggle */}
       <div className="flex flex-wrap items-center gap-2">
@@ -331,8 +716,8 @@ export function MovementsTable({ locationId: defaultLocationId }: { locationId?:
           </SelectContent>
         </Select>
 
-        {/* Type filter only applies to individual movements view */}
-        {view === "movements" && (
+        {/* Type filter only applies to individual movements view and non-shrinkage presets */}
+        {view === "movements" && !isShrinkage && (
           <Select value={type} onValueChange={(v) => { setType(v as typeof type); setPage(1); }}>
             <SelectTrigger className="w-40">
               <SelectValue placeholder="Type" />
@@ -361,31 +746,33 @@ export function MovementsTable({ locationId: defaultLocationId }: { locationId?:
           placeholder="To"
         />
 
-        {/* View toggle */}
-        <div className="ml-auto flex items-center rounded-md border p-0.5 gap-0.5">
-          <Button
-            variant={view === "movements" ? "secondary" : "ghost"}
-            size="sm"
-            className="h-7 px-2.5 text-xs"
-            onClick={() => setView("movements")}
-          >
-            <List className="size-3.5 mr-1.5" />
-            Movements
-          </Button>
-          <Button
-            variant={view === "by-product" ? "secondary" : "ghost"}
-            size="sm"
-            className="h-7 px-2.5 text-xs"
-            onClick={() => setView("by-product")}
-          >
-            <LayoutList className="size-3.5 mr-1.5" />
-            By Product
-          </Button>
-        </div>
+        {/* View toggle — hidden for shrinkage (always movements) */}
+        {!isShrinkage && (
+          <div className="ml-auto flex items-center rounded-md border p-0.5 gap-0.5">
+            <Button
+              variant={view === "movements" ? "secondary" : "ghost"}
+              size="sm"
+              className="h-7 px-2.5 text-xs"
+              onClick={() => setView("movements")}
+            >
+              <List className="size-3.5 mr-1.5" />
+              Movements
+            </Button>
+            <Button
+              variant={view === "by-product" ? "secondary" : "ghost"}
+              size="sm"
+              className="h-7 px-2.5 text-xs"
+              onClick={() => setView("by-product")}
+            >
+              <LayoutList className="size-3.5 mr-1.5" />
+              By Product
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Period summary cards — only when a date range is active */}
-      {showSummary && (
+      {showSummary && !isShrinkage && (
         <div className="grid grid-cols-3 gap-3">
           <div className="rounded-lg border bg-emerald-50 dark:bg-emerald-950/20 p-4 flex items-center gap-3">
             <TrendingUp className="size-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
@@ -424,7 +811,7 @@ export function MovementsTable({ locationId: defaultLocationId }: { locationId?:
       )}
 
       {/* By-product summary */}
-      {view === "by-product" && (
+      {view === "by-product" && !isShrinkage && (
         <div className="space-y-3">
           <div className="flex justify-end">
             <Button
@@ -453,7 +840,7 @@ export function MovementsTable({ locationId: defaultLocationId }: { locationId?:
       )}
 
       {/* Individual movements table */}
-      {view === "movements" && (
+      {(view === "movements" || isShrinkage) && (
         <>
           <div className="rounded-md border">
             <Table>
@@ -466,7 +853,9 @@ export function MovementsTable({ locationId: defaultLocationId }: { locationId?:
                   <TableHead className="text-right">Change</TableHead>
                   <TableHead className="text-right">Stock on Hand After</TableHead>
                   <TableHead>Reference</TableHead>
-                  <TableHead>User</TableHead>
+                  {isShrinkage
+                    ? <TableHead>Action</TableHead>
+                    : <TableHead>User</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -482,9 +871,13 @@ export function MovementsTable({ locationId: defaultLocationId }: { locationId?:
                   <TableRow>
                     <TableCell colSpan={8} className="h-48">
                       <EmptyState
-                        icon={ArrowLeftRight}
-                        title="No movements found"
-                        description="Stock adjustments, receipts, and sales will appear here once recorded."
+                        icon={isShrinkage ? CheckCircle : ArrowLeftRight}
+                        title={isShrinkage ? "No unexplained shrinkage" : "No movements found"}
+                        description={
+                          isShrinkage
+                            ? "All stock drops have been attributed to store dispatches or internal use."
+                            : "Stock adjustments, receipts, and sales will appear here once recorded."
+                        }
                       />
                     </TableCell>
                   </TableRow>
@@ -527,9 +920,22 @@ export function MovementsTable({ locationId: defaultLocationId }: { locationId?:
                         <TableCell className="text-sm text-muted-foreground">
                           {m.reference ?? "—"}
                         </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {m.user?.name ?? "System"}
-                        </TableCell>
+                        {isShrinkage ? (
+                          <TableCell>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 text-xs"
+                              onClick={() => setExplainTarget(m)}
+                            >
+                              Explain
+                            </Button>
+                          </TableCell>
+                        ) : (
+                          <TableCell className="text-sm text-muted-foreground">
+                            {m.user?.name ?? "System"}
+                          </TableCell>
+                        )}
                       </TableRow>
                     );
                   })
@@ -567,6 +973,18 @@ export function MovementsTable({ locationId: defaultLocationId }: { locationId?:
           )}
         </>
       )}
+
+      <LogInternalUseSheet
+        open={logOpen}
+        onOpenChange={setLogOpen}
+        defaultLocationId={locationId !== "all" ? locationId : undefined}
+      />
+
+      <ExplainSheet
+        movement={explainTarget}
+        open={!!explainTarget}
+        onOpenChange={(v) => { if (!v) setExplainTarget(null); }}
+      />
     </div>
   );
 }

@@ -13,6 +13,7 @@ export async function GET(req: NextRequest) {
   const type       = searchParams.get("type");
   const dateFrom   = searchParams.get("dateFrom");
   const dateTo     = searchParams.get("dateTo");
+  const shrinkage  = searchParams.get("shrinkage") === "true";
   const page       = parseInt(searchParams.get("page")  ?? "1",  10);
   const limit      = parseInt(searchParams.get("limit") ?? "50", 10);
   const skip       = (page - 1) * limit;
@@ -21,7 +22,10 @@ export async function GET(req: NextRequest) {
     ...(locationId ? { locationId } : {}),
     ...(productId  ? { productId }  : {}),
     ...(brandId    ? { product: { brandId } } : {}),
-    ...(type       ? { type: type as never }  : {}),
+    // shrinkage=true overrides type filter: unreviewed ADJUSTMENT_OUT with no QB reference
+    ...(shrinkage
+      ? { type: "ADJUSTMENT_OUT" as never, reference: null, isReviewed: false }
+      : type ? { type: type as never } : {}),
     ...(dateFrom || dateTo
       ? {
           createdAt: {
