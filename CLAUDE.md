@@ -196,9 +196,9 @@ Stock quantities are now maintained by the **nightly QB API sync** (`/api/cron/s
 
 | Item | Blocker | Notes |
 |---|---|---|
-| Live sync active | Need `ZENOTI_BFS_API_KEY` + `ZENOTI_BL_API_KEY` | Add to `.env` + Vercel, then hit `GET /api/zenoti/centers` to discover center IDs |
-| QB Invoice posting | Confirm accounting team amicable + QB customer names per store | `POST /api/zenoti/fulfillments/[id]/submit` currently emails only; QB posting is the next step |
-| Confirm PO endpoint path | Need to verify with real API key | Current assumption: `GET /v1/procurement/purchase_orders?center_id=&statuses=Raised,Updated` |
+| Live sync active | API subscription not yet enabled — ticket **BC-60590** raised 2026-06-18, ETA ~2026-06-23 (3–4 business days). Registered email: alvinkigen@outlook.com | Once activated, get API key from Zenoti Admin → Setup → Apps, add `ZENOTI_BFS_API_KEY` + `ZENOTI_BL_API_KEY` to `.env` + Vercel, then hit `GET /api/zenoti/centers` to discover center IDs |
+| QB Invoice posting | Confirm accounting team sign-off + QB customer names per store | `POST /api/zenoti/fulfillments/[id]/submit` currently emails only; QB posting is the next step |
+| Confirm PO endpoint path | Need real API key to test | Current assumption: `GET /v1/procurement/purchase_orders?center_id=&statuses=Raised,Updated` — verify once keys arrive, adjust `lib/zenoti.ts` `fetchZenotiPOs` if path differs |
 
 ---
 
