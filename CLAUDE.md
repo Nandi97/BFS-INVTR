@@ -148,7 +148,7 @@ Stock quantities are now maintained by the **nightly QB API sync** (`/api/cron/s
 
 ---
 
-## Current Data State (as of 2026-06-17)
+## Current Data State (as of 2026-06-22)
 
 - **847 active products** (81 Inverness products disabled — direct supplier to stores)
 - **665 stock records** — live via nightly QB Items API sync
@@ -191,6 +191,9 @@ Stock quantities are now maintained by the **nightly QB API sync** (`/api/cron/s
 | 24 | QB inactive product deactivation | Stock sync (`POST /api/integrations/quickbooks/items`) now runs a second pass fetching inactive QB items and setting matching BFS products `isActive = false`. Matches by SKU/barcode only. |
 | 25 | Sales calc shared helper | `lib/sales-calc.ts` — `computeAvgMonthly()` with trailing-zero trimming + linear recency weighting + `confident` flag. Imported by reorder route, calculate-minimums route, and stock-policy route. |
 | 26 | Email XLSX brand-per-sheet | `lib/email-xlsx.ts` rewritten — one sheet per brand (alphabetical), both Out-of-Stock and Low-Stock items together per sheet, Status column with red/amber coloring, Summary sheet with brand breakdown. |
+| 27 | QB stock sync delta tracking | `POST /api/integrations/quickbooks/items` now reads existing inventory qty before upserting. Writes `ADJUSTMENT_OUT` when QB qty drops (dispatched), `ADJUSTMENT_IN` when it rises (restocked), nothing when unchanged. `RECONCILIATION` is now only written for a product's first-ever sync (opening snapshot). Response includes `movements: { dispatched, restocked, unchanged }` counts. |
+| 28 | QB invoice backfill | `POST /api/integrations/quickbooks/backfill-movements` (ADMIN) — one-time route that reads QB Invoices going back 2 years and writes `ADJUSTMENT_OUT` movements with original invoice dates, QB invoice number as `reference`, and store name in `notes`. Idempotent (skips existing reference+product combos). `QboInvoice` types + `fetchQboInvoices()` added to `lib/qbo.ts`. UI button in Integrations → Stock sync tab (amber "One-time" card, self-disables after run). |
+| 29 | Movements Log — brand filter + By Product view | Brand dropdown filter added alongside location/type/date filters. Summary cards (Received / Dispatched / Net change) appear when date range is active — aggregated server-side across full filtered set. New **By Product** toggle shows one row per product with `totalIn`, `totalOut`, `netChange`, `currentStock` (live from Inventory table), `movementCount`. `GET /api/stock/movements/summary` uses `$queryRaw` grouped by product. `RECONCILIATION` and `OPENING_STOCK` excluded from both totals — they are balance snapshots, not real receipts/dispatches. |
 
 ### ⏳ Zenoti Phase 2 (post-meeting)
 
@@ -210,7 +213,7 @@ QB is the **source of truth** for stock quantities and product names. All file-u
 
 | Mode | Route | Trigger | What it does |
 |---|---|---|---|
-| **Live stock sync** | `POST /api/integrations/quickbooks/items` | UI button / nightly cron | Fetches `QtyOnHand` from QB Items API → upserts inventory |
+| **Live stock sync** | `POST /api/integrations/quickbooks/items` | UI button / nightly cron | Fetches `QtyOnHand` from QB Items API → upserts inventory. Writes `ADJUSTMENT_OUT`/`ADJUSTMENT_IN` for deltas; `RECONCILIATION` only on first-ever sync per product. |
 | **Live sales sync** | `POST /api/integrations/quickbooks/sync-sales-api` | UI button / nightly cron | Fetches `SalesByProductServiceSummary` (last 12 months) → upserts SalesRecord |
 | **Product name sync** | `POST /api/integrations/quickbooks/items/sync-names` | UI button / monthly cron | Overwrites `product.name` from QB canonical name, matched by SKU only |
 | **Vendor sync** | `POST /api/integrations/quickbooks/vendors` | UI button (on-demand) | Imports active QB Vendors → upserts Suppliers; fills blank fields only, never overwrites manual edits |
@@ -243,6 +246,7 @@ Only items with a QB SKU are renamed. Matching priority: `product.sku` → `prod
 
 - `QboItem` interface — `lib/qbo.ts`
 - `fetchQboItems(activeOnly = true)` — paginated fetch of QB Inventory items — `lib/qbo.ts`. Pass `false` to fetch inactive items (used by the deactivation pass in the stock sync route).
+- `QboInvoice` / `QboInvoiceLine` interfaces + `fetchQboInvoices(fromDate: string)` — paginated fetch of QB Invoices since a given date — `lib/qbo.ts`. Used by the backfill route.
 - **Do not import types or functions from route files into other route files.** Next.js App Router bundles each route independently; cross-route imports cause 502s. Put shared QB types/helpers in `lib/qbo.ts`.
 
 ### OAuth
@@ -461,16 +465,27 @@ Shopify integration is **cancelled** — replaced by Zenoti. `IntegrationProvide
 | QB Invoice posting | Build `POST /api/zenoti/fulfillments/[id]/post-to-qb`. Needs QB customer names per store + accounting team sign-off. Uses existing QB OAuth. |
 | Zenoti PO endpoint verification | Confirm actual endpoint path once API keys arrive. Update `lib/zenoti.ts` `fetchZenotiPOs` if needed. |
 
+### High priority (Movements / Inventory Intelligence)
+
+| Item | Notes |
+|---|---|
+| New product staging workflow | When QB stock sync finds an item with no BFS match, create a `PendingProduct` record instead of silently skipping it. Admin inbox at `/products/pending` — validate, assign brand/category, set SKU/barcode, then promote to live product. Closes the gap where new QB products are warehoused but invisible in BFS until manually added. |
+| QB invoice attribution on movements | Phase 2 of delta tracking. Before the sync loop, fetch QB Invoices since `lastSyncAt`, build `Map<qboItemId, {docNumber, customerRef}>`. Pass invoice number as `reference` and store name in `notes` on `ADJUSTMENT_OUT` records. TODO comment already in `app/api/integrations/quickbooks/items/route.ts`. |
+| Movements export (Excel/CSV) | Download filtered By Product view as Excel for boss budgeting reports. `GET /api/stock/movements/summary/export` — same filters as summary route, output via ExcelJS (already a dependency). |
+
 ### Medium priority
 
 | Item | Notes |
 |---|---|
 | QB unit cost sync | Pull `Item.PurchaseCost` during existing items sync → populate `ProductSupplier.cost`. Enables accurate stock valuation. Field already on `QboItem` in `lib/qbo.ts`. |
+| Restock history view | Dedicated tab or filter in Movements Log showing only `ADJUSTMENT_IN` records — when each product was restocked, how much arrived, and running restock frequency. Useful for supplier lead-time validation. |
+| Dispatch report by store | Once invoice attribution is in place, a report grouping `ADJUSTMENT_OUT` movements by `notes` (store name) per period. Shows what each store received and total value if `PurchaseCost` is synced. |
 | Reorder bulk actions | Multi-select rows → "Create PO for selected" or "Export selected". Currently only per-row actions. |
 | Dashboard KPI deltas | Add ±N trend vs prior week to each KPI card. Data already exists in StockMovement + SalesRecord. |
 | Analytics date range picker | Analytics charts show fixed period. A date range selector would make it useful for ad-hoc queries. |
 | Mobile table responsiveness | Wide tables (products, stock, reorder) need `overflow-x-auto` wrapper. Currently break layout at <768px. |
 | Error boundaries | Pages use `<Suspense>` but no `error.tsx` boundaries. A single component throw crashes the whole page section. `app/(dashboard)/products/error.tsx` exists as example. |
+| Remove backfill button | Once backfill is confirmed correct, remove `QbBackfillCard` from `components/integrations/dashboard/integrations-dashboard.tsx`. It is a one-time tool. |
 
 ### Skipped (no QB writes policy)
 
@@ -524,3 +539,6 @@ Shopify integration is **cancelled** — replaced by Zenoti. `IntegrationProvide
 - **`NEXT_PUBLIC_APP_URL` must be set in Vercel** — cron routes validate this isn't localhost before making sub-fetches. Set to `https://bfs.kigtech.digital`.
 - **`lib/sales-calc.ts` is the single source for avgMonthly** — `computeAvgMonthly()` and `SAFETY_DAYS` are imported by `app/api/reorder/route.ts`, `app/api/inventory/calculate-minimums/route.ts`, and `app/api/settings/stock-policy/route.ts`. Do not redefine SAFETY_DAYS or an inline average calculation in those routes; change it in `lib/sales-calc.ts` only.
 - **QB inactive deactivation is SKU/barcode-only** — the deactivation pass in the stock sync matches by `product.sku` or `product.barcode` against the QB item's `Sku` field. Items with no QB SKU are skipped. Already-inactive BFS products (e.g. Inverness) are not touched (query filters `isActive: true`).
+- **StockMovement type classification** — `RECONCILIATION` and `OPENING_STOCK` are balance snapshots, not real stock events. Both are excluded from `totalIn` in the movements summary and cards aggregation. Only `PURCHASE_RECEIPT`, `ADJUSTMENT_IN`, `TRANSFER_IN` count as received; only `SALE`, `ADJUSTMENT_OUT`, `TRANSFER_OUT` count as dispatched. Do not add `RECONCILIATION` or `OPENING_STOCK` back to either `IN_TYPES` (movements route) or the summary SQL.
+- **QB stock sync delta tracking** — `POST /api/integrations/quickbooks/items` compares `existing.quantity` to `item.QtyOnHand` before upserting. Writes `ADJUSTMENT_OUT` (dispatched) when delta < 0, `ADJUSTMENT_IN` (restocked) when delta > 0, nothing when delta = 0. Only writes `RECONCILIATION` when `existing === null` (first-ever sync for that product). The nightly cron and the manual UI button both use this route.
+- **Backfill movements `balanceAfter = 0`** — movements written by the QB invoice backfill route (`POST /api/integrations/quickbooks/backfill-movements`) have `balanceAfter: 0`. Historical balances cannot be reconstructed without full event replay. The "Stock on Hand After" column in the individual movements view will show 0 for these rows — this is expected and noted in the route.
