@@ -19,8 +19,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ChevronLeft, ChevronRight, ArrowLeftRight, TrendingDown, TrendingUp } from "lucide-react";
-import { useStockMovements, type StockMovementType } from "@/hooks/use-stock";
+import {
+  ChevronLeft,
+  ChevronRight,
+  ArrowLeftRight,
+  TrendingDown,
+  TrendingUp,
+  List,
+  LayoutList,
+} from "lucide-react";
+import {
+  useStockMovements,
+  useStockMovementsSummary,
+  type StockMovementType,
+  type ProductMovementSummary,
+} from "@/hooks/use-stock";
 import { useLocations } from "@/hooks/use-locations";
 import { useBrands }    from "@/hooks/use-brands";
 import { Skeleton }     from "@/components/ui/skeleton";
@@ -52,6 +65,83 @@ const MOVEMENT_LABEL: Record<StockMovementType, string> = {
 
 const OUT_TYPES: StockMovementType[] = ["SALE", "ADJUSTMENT_OUT", "TRANSFER_OUT"];
 
+// ─── By-product summary table ─────────────────────────────────────────────────
+
+function ProductSummaryTable({ rows, isLoading }: { rows: ProductMovementSummary[]; isLoading: boolean }) {
+  return (
+    <div className="rounded-md border">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Product</TableHead>
+            <TableHead className="text-right text-emerald-700 dark:text-emerald-400">Total In</TableHead>
+            <TableHead className="text-right text-red-700 dark:text-red-400">Total Out</TableHead>
+            <TableHead className="text-right">Net Change</TableHead>
+            <TableHead className="text-right text-muted-foreground">Movements</TableHead>
+            <TableHead>Last Movement</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {isLoading ? (
+            Array.from({ length: 12 }).map((_, i) => (
+              <TableRow key={i}>
+                {Array.from({ length: 6 }).map((_, j) => (
+                  <TableCell key={j}><Skeleton className="h-4 w-full" /></TableCell>
+                ))}
+              </TableRow>
+            ))
+          ) : rows.length === 0 ? (
+            <TableRow>
+              <TableCell colSpan={6} className="h-48">
+                <EmptyState
+                  icon={ArrowLeftRight}
+                  title="No movements found"
+                  description="Adjust your filters to see product movement totals."
+                />
+              </TableCell>
+            </TableRow>
+          ) : (
+            rows.map((r) => (
+              <TableRow key={r.productId}>
+                <TableCell>
+                  <div className="font-medium text-sm">{r.productName}</div>
+                  {r.brandName && (
+                    <div className="text-xs text-muted-foreground">{r.brandName}</div>
+                  )}
+                </TableCell>
+                <TableCell className="text-right font-mono font-medium text-emerald-600 dark:text-emerald-400">
+                  {r.totalIn > 0 ? `+${r.totalIn}` : "—"}
+                </TableCell>
+                <TableCell className="text-right font-mono font-medium text-red-600 dark:text-red-400">
+                  {r.totalOut > 0 ? `−${r.totalOut}` : "—"}
+                </TableCell>
+                <TableCell
+                  className={cn(
+                    "text-right font-mono font-medium",
+                    r.netChange > 0  ? "text-emerald-600 dark:text-emerald-400" :
+                    r.netChange < 0  ? "text-red-600 dark:text-red-400" :
+                    "text-muted-foreground"
+                  )}
+                >
+                  {r.netChange > 0 ? "+" : ""}{r.netChange}
+                </TableCell>
+                <TableCell className="text-right text-sm text-muted-foreground">
+                  {r.movementCount}
+                </TableCell>
+                <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                  {format(new Date(r.lastMovement), "MMM d, yyyy")}
+                </TableCell>
+              </TableRow>
+            ))
+          )}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
+
 export function MovementsTable({ locationId: defaultLocationId }: { locationId?: string }) {
   const [locationId, setLocationId] = useState(defaultLocationId ?? "all");
   const [brandId,    setBrandId]    = useState("all");
@@ -59,17 +149,24 @@ export function MovementsTable({ locationId: defaultLocationId }: { locationId?:
   const [dateFrom,   setDateFrom]   = useState("");
   const [dateTo,     setDateTo]     = useState("");
   const [page,       setPage]       = useState(1);
+  const [view,       setView]       = useState<"movements" | "by-product">("movements");
   const limit = 30;
 
-  const { data, isLoading } = useStockMovements({
+  const sharedFilters = {
     locationId: locationId === "all" ? undefined : locationId,
     brandId:    brandId    === "all" ? undefined : brandId,
-    type:       type       === "all" ? undefined : type,
     dateFrom:   dateFrom   || undefined,
     dateTo:     dateTo     || undefined,
+  };
+
+  const { data, isLoading } = useStockMovements({
+    ...sharedFilters,
+    type: type === "all" ? undefined : type,
     page,
     limit,
   });
+
+  const { data: summaryData, isLoading: summaryLoading } = useStockMovementsSummary(sharedFilters);
 
   const { data: locations } = useLocations({ active: true });
   const { data: brands }    = useBrands();
@@ -81,8 +178,8 @@ export function MovementsTable({ locationId: defaultLocationId }: { locationId?:
 
   return (
     <div className="space-y-4">
-      {/* Filters */}
-      <div className="flex flex-wrap gap-2">
+      {/* Filters + view toggle */}
+      <div className="flex flex-wrap items-center gap-2">
         <Select value={locationId} onValueChange={(v) => { setLocationId(v); setPage(1); }}>
           <SelectTrigger className="w-44">
             <SelectValue placeholder="Location" />
@@ -107,17 +204,20 @@ export function MovementsTable({ locationId: defaultLocationId }: { locationId?:
           </SelectContent>
         </Select>
 
-        <Select value={type} onValueChange={(v) => { setType(v as typeof type); setPage(1); }}>
-          <SelectTrigger className="w-40">
-            <SelectValue placeholder="Type" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Types</SelectItem>
-            {Object.entries(MOVEMENT_LABEL).map(([value, label]) => (
-              <SelectItem key={value} value={value}>{label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {/* Type filter only applies to individual movements view */}
+        {view === "movements" && (
+          <Select value={type} onValueChange={(v) => { setType(v as typeof type); setPage(1); }}>
+            <SelectTrigger className="w-40">
+              <SelectValue placeholder="Type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Types</SelectItem>
+              {Object.entries(MOVEMENT_LABEL).map(([value, label]) => (
+                <SelectItem key={value} value={value}>{label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
 
         <Input
           type="date"
@@ -133,9 +233,31 @@ export function MovementsTable({ locationId: defaultLocationId }: { locationId?:
           className="w-36"
           placeholder="To"
         />
+
+        {/* View toggle */}
+        <div className="ml-auto flex items-center rounded-md border p-0.5 gap-0.5">
+          <Button
+            variant={view === "movements" ? "secondary" : "ghost"}
+            size="sm"
+            className="h-7 px-2.5 text-xs"
+            onClick={() => setView("movements")}
+          >
+            <List className="size-3.5 mr-1.5" />
+            Movements
+          </Button>
+          <Button
+            variant={view === "by-product" ? "secondary" : "ghost"}
+            size="sm"
+            className="h-7 px-2.5 text-xs"
+            onClick={() => setView("by-product")}
+          >
+            <LayoutList className="size-3.5 mr-1.5" />
+            By Product
+          </Button>
+        </div>
       </div>
 
-      {/* Period summary — only when a date range is active */}
+      {/* Period summary cards — only when a date range is active */}
       {showSummary && (
         <div className="grid grid-cols-3 gap-3">
           <div className="rounded-lg border bg-emerald-50 dark:bg-emerald-950/20 p-4 flex items-center gap-3">
@@ -174,117 +296,128 @@ export function MovementsTable({ locationId: defaultLocationId }: { locationId?:
         </div>
       )}
 
-      {/* Table */}
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Date</TableHead>
-              <TableHead>Product</TableHead>
-              <TableHead>Location</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead className="text-right">Change</TableHead>
-              <TableHead className="text-right">Stock on Hand After</TableHead>
-              <TableHead>Reference</TableHead>
-              <TableHead>User</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              Array.from({ length: 10 }).map((_, i) => (
-                <TableRow key={i}>
-                  {Array.from({ length: 8 }).map((_, j) => (
-                    <TableCell key={j}><Skeleton className="h-4 w-full" /></TableCell>
-                  ))}
+      {/* By-product summary */}
+      {view === "by-product" && (
+        <ProductSummaryTable
+          rows={summaryData?.data ?? []}
+          isLoading={summaryLoading}
+        />
+      )}
+
+      {/* Individual movements table */}
+      {view === "movements" && (
+        <>
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Product</TableHead>
+                  <TableHead>Location</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead className="text-right">Change</TableHead>
+                  <TableHead className="text-right">Stock on Hand After</TableHead>
+                  <TableHead>Reference</TableHead>
+                  <TableHead>User</TableHead>
                 </TableRow>
-              ))
-            ) : rows.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={8} className="h-48">
-                  <EmptyState
-                    icon={ArrowLeftRight}
-                    title="No movements found"
-                    description="Stock adjustments, receipts, and sales will appear here once recorded."
-                  />
-                </TableCell>
-              </TableRow>
-            ) : (
-              rows.map((m) => {
-                const isOut = OUT_TYPES.includes(m.type);
-                return (
-                  <TableRow key={m.id}>
-                    <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
-                      {format(new Date(m.createdAt), "MMM d, yyyy HH:mm")}
-                    </TableCell>
-                    <TableCell>
-                      <div className="font-medium text-sm">{m.product.name}</div>
-                      {m.product.brand && (
-                        <div className="text-xs text-muted-foreground">{m.product.brand.name}</div>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-sm">{m.location.name}</TableCell>
-                    <TableCell>
-                      <Badge
-                        variant="secondary"
-                        className={cn("text-xs", MOVEMENT_COLORS[m.type])}
-                      >
-                        {MOVEMENT_LABEL[m.type]}
-                      </Badge>
-                    </TableCell>
-                    <TableCell
-                      className={cn(
-                        "text-right font-mono font-medium",
-                        isOut
-                          ? "text-destructive"
-                          : "text-emerald-600 dark:text-emerald-400"
-                      )}
-                    >
-                      {isOut ? "−" : "+"}{m.quantity}
-                    </TableCell>
-                    <TableCell className="text-right font-mono text-sm font-medium">
-                      {m.balanceAfter}
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {m.reference ?? "—"}
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {m.user?.name ?? "System"}
+              </TableHeader>
+              <TableBody>
+                {isLoading ? (
+                  Array.from({ length: 10 }).map((_, i) => (
+                    <TableRow key={i}>
+                      {Array.from({ length: 8 }).map((_, j) => (
+                        <TableCell key={j}><Skeleton className="h-4 w-full" /></TableCell>
+                      ))}
+                    </TableRow>
+                  ))
+                ) : rows.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={8} className="h-48">
+                      <EmptyState
+                        icon={ArrowLeftRight}
+                        title="No movements found"
+                        description="Stock adjustments, receipts, and sales will appear here once recorded."
+                      />
                     </TableCell>
                   </TableRow>
-                );
-              })
-            )}
-          </TableBody>
-        </Table>
-      </div>
-
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between">
-          <p className="text-xs text-muted-foreground">
-            Page {page} of {totalPages} · {data?.total} records
-          </p>
-          <div className="flex gap-1">
-            <Button
-              variant="outline"
-              size="icon"
-              className="size-7"
-              disabled={page <= 1}
-              onClick={() => setPage((p) => p - 1)}
-            >
-              <ChevronLeft className="size-4" />
-            </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              className="size-7"
-              disabled={page >= totalPages}
-              onClick={() => setPage((p) => p + 1)}
-            >
-              <ChevronRight className="size-4" />
-            </Button>
+                ) : (
+                  rows.map((m) => {
+                    const isOut = OUT_TYPES.includes(m.type);
+                    return (
+                      <TableRow key={m.id}>
+                        <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                          {format(new Date(m.createdAt), "MMM d, yyyy HH:mm")}
+                        </TableCell>
+                        <TableCell>
+                          <div className="font-medium text-sm">{m.product.name}</div>
+                          {m.product.brand && (
+                            <div className="text-xs text-muted-foreground">{m.product.brand.name}</div>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-sm">{m.location.name}</TableCell>
+                        <TableCell>
+                          <Badge
+                            variant="secondary"
+                            className={cn("text-xs", MOVEMENT_COLORS[m.type])}
+                          >
+                            {MOVEMENT_LABEL[m.type]}
+                          </Badge>
+                        </TableCell>
+                        <TableCell
+                          className={cn(
+                            "text-right font-mono font-medium",
+                            isOut
+                              ? "text-destructive"
+                              : "text-emerald-600 dark:text-emerald-400"
+                          )}
+                        >
+                          {isOut ? "−" : "+"}{m.quantity}
+                        </TableCell>
+                        <TableCell className="text-right font-mono text-sm font-medium">
+                          {m.balanceAfter}
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {m.reference ?? "—"}
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {m.user?.name ?? "System"}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                )}
+              </TableBody>
+            </Table>
           </div>
-        </div>
+
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-muted-foreground">
+                Page {page} of {totalPages} · {data?.total} records
+              </p>
+              <div className="flex gap-1">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="size-7"
+                  disabled={page <= 1}
+                  onClick={() => setPage((p) => p - 1)}
+                >
+                  <ChevronLeft className="size-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="size-7"
+                  disabled={page >= totalPages}
+                  onClick={() => setPage((p) => p + 1)}
+                >
+                  <ChevronRight className="size-4" />
+                </Button>
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

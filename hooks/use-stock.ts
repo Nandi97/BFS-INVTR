@@ -66,6 +66,17 @@ export interface MovementsSummary {
   totalOut: number;
 }
 
+export interface ProductMovementSummary {
+  productId:     string;
+  productName:   string;
+  brandName:     string | null;
+  totalIn:       number;
+  totalOut:      number;
+  netChange:     number;
+  movementCount: number;
+  lastMovement:  string;
+}
+
 export interface MovementsFilters {
   locationId?: string;
   productId?:  string;
@@ -135,6 +146,23 @@ export function useStockMovements(filters: MovementsFilters = {}) {
         limit: number;
         summary: MovementsSummary;
       }>(`/stock/movements?${p}`);
+      return data;
+    },
+  });
+}
+
+export function useStockMovementsSummary(filters: Omit<MovementsFilters, "type" | "page" | "limit"> = {}) {
+  return useQuery({
+    queryKey: [...MOVEMENTS_KEY, "summary", filters],
+    queryFn: async () => {
+      const p = new URLSearchParams();
+      if (filters.locationId) p.set("locationId", filters.locationId);
+      if (filters.brandId)    p.set("brandId",    filters.brandId);
+      if (filters.dateFrom)   p.set("dateFrom",   filters.dateFrom);
+      if (filters.dateTo)     p.set("dateTo",     filters.dateTo);
+      const { data } = await api.get<{ data: ProductMovementSummary[]; total: number }>(
+        `/stock/movements/summary?${p}`
+      );
       return data;
     },
   });
