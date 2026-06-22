@@ -128,6 +128,38 @@ export function useMovementsReport(filters: {
   });
 }
 
+export interface DispatchRow {
+  productId:   string;
+  productName: string;
+  brandName:   string | null;
+  unitCost:    number | null;
+  total:       number;
+  byStore:     Record<string, number>;
+}
+
+export interface DispatchByStoreResult {
+  stores:   string[];
+  products: DispatchRow[];
+  dateFrom: string | null;
+  dateTo:   string | null;
+}
+
+export function useDispatchByStoreReport(filters: {
+  dateFrom?: string;
+  dateTo?:   string;
+  brandId?:  string;
+} = {}) {
+  return useQuery({
+    queryKey: ["report", "dispatch-by-store", filters],
+    queryFn: async () => {
+      const { data } = await api.get<DispatchByStoreResult>(
+        `/reports/dispatch-by-store?${buildParams({ dateFrom: filters.dateFrom, dateTo: filters.dateTo, brandId: filters.brandId })}`
+      );
+      return data;
+    },
+  });
+}
+
 export function usePoReport(filters: {
   from?:        string;
   to?:          string;

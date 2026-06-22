@@ -1,10 +1,11 @@
 "use client";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { StockValuationReport } from "./stock-valuation-report";
-import { LowStockReport }       from "./low-stock-report";
-import { MovementsReport }      from "./movements-report";
-import { PoReport }             from "./po-report";
+import { StockValuationReport }    from "./stock-valuation-report";
+import { LowStockReport }          from "./low-stock-report";
+import { MovementsReport }         from "./movements-report";
+import { PoReport }                from "./po-report";
+import { DispatchByStoreReport }   from "./dispatch-by-store-report";
 
 export function ReportsDashboard() {
   return (
@@ -22,12 +23,14 @@ export function ReportsDashboard() {
           <TabsTrigger value="low-stock">Low Stock</TabsTrigger>
           <TabsTrigger value="movements">Movements</TabsTrigger>
           <TabsTrigger value="purchase-orders">Purchase Orders</TabsTrigger>
+          <TabsTrigger value="dispatch-by-store">Dispatch by Store</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="valuation"      className="mt-4"><StockValuationReport /></TabsContent>
-        <TabsContent value="low-stock"      className="mt-4"><LowStockReport /></TabsContent>
-        <TabsContent value="movements"      className="mt-4"><MovementsReport /></TabsContent>
-        <TabsContent value="purchase-orders" className="mt-4"><PoReport /></TabsContent>
+        <TabsContent value="valuation"         className="mt-4"><StockValuationReport /></TabsContent>
+        <TabsContent value="low-stock"         className="mt-4"><LowStockReport /></TabsContent>
+        <TabsContent value="movements"         className="mt-4"><MovementsReport /></TabsContent>
+        <TabsContent value="purchase-orders"   className="mt-4"><PoReport /></TabsContent>
+        <TabsContent value="dispatch-by-store" className="mt-4"><DispatchByStoreReport /></TabsContent>
       </Tabs>
     </div>
   );
