@@ -21,7 +21,8 @@ import { Separator } from "@/components/ui/separator";
 import { useCreatePO } from "@/hooks/use-purchase-orders";
 import { useSuppliers } from "@/hooks/use-suppliers";
 import { useLocations } from "@/hooks/use-locations";
-import { useProducts } from "@/hooks/use-products";
+import { useProducts }  from "@/hooks/use-products";
+import { ProductCombobox } from "@/components/ui/product-combobox";
 
 const itemSchema = z.object({
   productId: z.string().min(1, "Select a product"),
@@ -48,7 +49,7 @@ export function POForm({ open, onOpenChange }: POFormProps) {
   const create = useCreatePO();
   const { data: suppliersData } = useSuppliers({ active: true, limit: 100 });
   const { data: locationsData  } = useLocations({ active: true });
-  const { data: productsData   } = useProducts({ limit: 500, isActive: true });
+  const { data: productsData   } = useProducts({ limit: 1000, isActive: true });
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -64,7 +65,14 @@ export function POForm({ open, onOpenChange }: POFormProps) {
 
   const suppliers = suppliersData?.data ?? [];
   const locations = locationsData ?? [];
-  const products  = productsData?.products ?? [];
+  const products  = (productsData?.products ?? []).map(
+    (p: { id: string; name: string; sku?: string | null; brand?: { name: string } | null }) => ({
+      id:        p.id,
+      name:      p.name,
+      sku:       p.sku,
+      brandName: p.brand?.name ?? null,
+    })
+  );
 
   async function onSubmit(values: FormValues) {
     try {
@@ -190,25 +198,14 @@ export function POForm({ open, onOpenChange }: POFormProps) {
                           render={({ field: f }) => (
                             <FormItem>
                               <FormLabel className="text-xs">Product</FormLabel>
-                              <Select onValueChange={f.onChange} value={f.value}>
-                                <FormControl>
-                                  <SelectTrigger className="h-8 text-sm">
-                                    <SelectValue placeholder="Select product" />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  {products.map((p: { id: string; name: string; brand?: { name: string } | null }) => (
-                                    <SelectItem key={p.id} value={p.id}>
-                                      <span>{p.name}</span>
-                                      {p.brand && (
-                                        <span className="text-muted-foreground ml-1.5 text-xs">
-                                          {p.brand.name}
-                                        </span>
-                                      )}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
+                              <FormControl>
+                                <ProductCombobox
+                                  products={products}
+                                  value={f.value}
+                                  onChange={f.onChange}
+                                  size="sm"
+                                />
+                              </FormControl>
                               <FormMessage />
                             </FormItem>
                           )}

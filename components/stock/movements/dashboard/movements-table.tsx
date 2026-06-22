@@ -73,9 +73,10 @@ import {
   type ProductMovementSummary,
   type StockMovement,
 } from "@/hooks/use-stock";
-import { useLocations }  from "@/hooks/use-locations";
-import { useBrands }     from "@/hooks/use-brands";
-import { useProducts }   from "@/hooks/use-products";
+import { useLocations }     from "@/hooks/use-locations";
+import { useBrands }        from "@/hooks/use-brands";
+import { useProducts }      from "@/hooks/use-products";
+import { ProductCombobox }  from "@/components/ui/product-combobox";
 import { Skeleton }      from "@/components/ui/skeleton";
 import { EmptyState }    from "@/components/ui/empty-state";
 import { cn }            from "@/lib/utils";
@@ -168,8 +169,14 @@ function LogInternalUseSheet({
     }
   }
 
-  const productList: Array<{ id: string; name: string }> =
-    (products as { products?: Array<{ id: string; name: string }> } | undefined)?.products ?? [];
+  type RawProduct = { id: string; name: string; sku?: string | null; brand?: { name: string } | null };
+  const productList =
+    ((products as { products?: RawProduct[] } | undefined)?.products ?? []).map((p) => ({
+      id:        p.id,
+      name:      p.name,
+      sku:       p.sku,
+      brandName: p.brand?.name ?? null,
+    }));
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -190,18 +197,13 @@ function LogInternalUseSheet({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Product</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select product…" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent className="max-h-64">
-                      {productList.map((p: { id: string; name: string }) => (
-                        <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <FormControl>
+                    <ProductCombobox
+                      products={productList}
+                      value={field.value}
+                      onChange={field.onChange}
+                    />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
