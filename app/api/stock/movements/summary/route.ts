@@ -14,12 +14,17 @@ export interface ProductMovementSummary {
   currentStock:  number;
 }
 
+const IN_TYPES  = ["PURCHASE_RECEIPT", "ADJUSTMENT_IN", "TRANSFER_IN"] as const;
+const OUT_TYPES = ["ADJUSTMENT_OUT", "SALE", "TRANSFER_OUT"] as const;
+
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const locationId = searchParams.get("locationId");
   const brandId    = searchParams.get("brandId");
   const dateFrom   = searchParams.get("dateFrom");
   const dateTo     = searchParams.get("dateTo");
+  // "in" = restocks only, "out" = dispatches only, default = all
+  const typeGroup  = searchParams.get("typeGroup") as "in" | "out" | null;
 
   const conditions: Prisma.Sql[] = [];
   if (locationId) conditions.push(Prisma.sql`sm."locationId" = ${locationId}`);
@@ -27,12 +32,23 @@ export async function GET(req: NextRequest) {
   if (dateFrom)   conditions.push(Prisma.sql`sm."createdAt" >= ${new Date(dateFrom)}`);
   if (dateTo)     conditions.push(Prisma.sql`sm."createdAt" <= ${new Date(dateTo + "T23:59:59Z")}`);
 
-  const where = conditions.length > 0
-    ? Prisma.sql`WHERE ${Prisma.join(conditions, " AND ")}`
-    : Prisma.empty;
+  if (typeGroup === "in") {
+    conditions.push(Prisma.sql`sm.type IN ('PURCHASE_RECEIPT','ADJUSTMENT_IN','TRANSFER_IN')`);
+  } else if (typeGroup === "out") {
+    conditions.push(Prisma.sql`sm.type IN ('ADJUSTMENT_OUT','SALE','TRANSFER_OUT')`);
+  } else {
+    // Exclude snapshots from unfiltered view
+    conditions.push(Prisma.sql`sm.type NOT IN ('RECONCILIATION','OPENING_STOCK')`);
+  }
 
-  // RECONCILIATION and OPENING_STOCK excluded from both sides — both are balance
-  // snapshots/bootstrap entries, not real receipts. Including them inflates totalIn.
+  const where = Prisma.sql`WHERE ${Prisma.join(conditions, " AND ")}`;
+
+  const orderBy = typeGroup === "in"
+    ? Prisma.sql`ORDER BY "totalIn"  DESC`
+    : typeGroup === "out"
+    ? Prisma.sql`ORDER BY "totalOut" DESC`
+    : Prisma.sql`ORDER BY "totalOut" DESC`;
+
   const rows = await prisma.$queryRaw<Array<{
     productId:     string;
     productName:   string;
@@ -59,7 +75,7 @@ export async function GET(req: NextRequest) {
     LEFT JOIN "Brand" b ON b.id = p."brandId"
     ${where}
     GROUP BY sm."productId", p.name, b.name
-    ORDER BY "totalOut" DESC
+    ${orderBy}
   `;
 
   // Fetch current stock from Inventory (same source as Products page)
@@ -94,3 +110,5 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({ data, total: data.length });
 }
+
+export { IN_TYPES, OUT_TYPES };

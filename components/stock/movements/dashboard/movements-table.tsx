@@ -28,6 +28,7 @@ import {
   List,
   LayoutList,
   Download,
+  PackagePlus,
 } from "lucide-react";
 import {
   useStockMovements,
@@ -66,42 +67,124 @@ const MOVEMENT_LABEL: Record<StockMovementType, string> = {
 
 const OUT_TYPES: StockMovementType[] = ["SALE", "ADJUSTMENT_OUT", "TRANSFER_OUT"];
 
+type Preset = "all" | "restocks" | "dispatches";
+
 // ─── By-product summary table ─────────────────────────────────────────────────
 
-function ProductSummaryTable({ rows, isLoading }: { rows: ProductMovementSummary[]; isLoading: boolean }) {
+function ProductSummaryTable({
+  rows,
+  isLoading,
+  preset,
+}: {
+  rows: ProductMovementSummary[];
+  isLoading: boolean;
+  preset: Preset;
+}) {
+  const isRestocks   = preset === "restocks";
+  const isDispatches = preset === "dispatches";
+  const colSpan = isRestocks ? 6 : 7;
+
   return (
     <div className="rounded-md border">
       <Table>
         <TableHeader>
           <TableRow>
             <TableHead>Product</TableHead>
-            <TableHead className="text-right text-emerald-700 dark:text-emerald-400">Total In</TableHead>
-            <TableHead className="text-right text-red-700 dark:text-red-400">Total Out</TableHead>
-            <TableHead className="text-right">Net Change</TableHead>
-            <TableHead className="text-right">Current Stock</TableHead>
-            <TableHead className="text-right text-muted-foreground">Movements</TableHead>
-            <TableHead>Last Movement</TableHead>
+            {isRestocks ? (
+              <>
+                <TableHead className="text-right text-emerald-700 dark:text-emerald-400">Units Restocked</TableHead>
+                <TableHead className="text-right text-muted-foreground">Restock Events</TableHead>
+                <TableHead className="text-right text-muted-foreground">Avg per Restock</TableHead>
+                <TableHead className="text-right">Current Stock</TableHead>
+                <TableHead>Last Restock</TableHead>
+              </>
+            ) : isDispatches ? (
+              <>
+                <TableHead className="text-right text-red-700 dark:text-red-400">Units Dispatched</TableHead>
+                <TableHead className="text-right text-muted-foreground">Dispatch Events</TableHead>
+                <TableHead className="text-right text-muted-foreground">Avg per Dispatch</TableHead>
+                <TableHead className="text-right">Current Stock</TableHead>
+                <TableHead>Last Dispatch</TableHead>
+              </>
+            ) : (
+              <>
+                <TableHead className="text-right text-emerald-700 dark:text-emerald-400">Total In</TableHead>
+                <TableHead className="text-right text-red-700 dark:text-red-400">Total Out</TableHead>
+                <TableHead className="text-right">Net Change</TableHead>
+                <TableHead className="text-right">Current Stock</TableHead>
+                <TableHead className="text-right text-muted-foreground">Movements</TableHead>
+                <TableHead>Last Movement</TableHead>
+              </>
+            )}
           </TableRow>
         </TableHeader>
         <TableBody>
           {isLoading ? (
             Array.from({ length: 12 }).map((_, i) => (
               <TableRow key={i}>
-                {Array.from({ length: 7 }).map((_, j) => (
+                {Array.from({ length: colSpan }).map((_, j) => (
                   <TableCell key={j}><Skeleton className="h-4 w-full" /></TableCell>
                 ))}
               </TableRow>
             ))
           ) : rows.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={7} className="h-48">
+              <TableCell colSpan={colSpan} className="h-48">
                 <EmptyState
-                  icon={ArrowLeftRight}
-                  title="No movements found"
-                  description="Adjust your filters to see product movement totals."
+                  icon={isRestocks ? PackagePlus : ArrowLeftRight}
+                  title={isRestocks ? "No restocks found" : "No movements found"}
+                  description="Adjust your filters to see results."
                 />
               </TableCell>
             </TableRow>
+          ) : isRestocks ? (
+            rows.map((r) => (
+              <TableRow key={r.productId}>
+                <TableCell>
+                  <div className="font-medium text-sm">{r.productName}</div>
+                  {r.brandName && <div className="text-xs text-muted-foreground">{r.brandName}</div>}
+                </TableCell>
+                <TableCell className="text-right font-mono font-medium text-emerald-600 dark:text-emerald-400">
+                  {r.totalIn > 0 ? `+${r.totalIn}` : "—"}
+                </TableCell>
+                <TableCell className="text-right text-sm text-muted-foreground">
+                  {r.movementCount}
+                </TableCell>
+                <TableCell className="text-right text-sm text-muted-foreground">
+                  {r.movementCount > 0 ? (r.totalIn / r.movementCount).toFixed(1) : "—"}
+                </TableCell>
+                <TableCell className="text-right font-mono text-sm font-semibold">
+                  {r.currentStock}
+                </TableCell>
+                <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                  {format(new Date(r.lastMovement), "MMM d, yyyy")}
+                </TableCell>
+              </TableRow>
+            ))
+          ) : isDispatches ? (
+            rows.map((r) => (
+              <TableRow key={r.productId}>
+                <TableCell>
+                  <div className="font-medium text-sm">{r.productName}</div>
+                  {r.brandName && <div className="text-xs text-muted-foreground">{r.brandName}</div>}
+                </TableCell>
+                <TableCell className="text-right font-mono font-medium text-red-600 dark:text-red-400">
+                  {r.totalOut > 0 ? `−${r.totalOut}` : "—"}
+                </TableCell>
+                <TableCell className="text-right text-sm text-muted-foreground">
+                  {r.movementCount}
+                </TableCell>
+                <TableCell className="text-right text-sm text-muted-foreground">
+                  {r.movementCount > 0 ? (r.totalOut / r.movementCount).toFixed(1) : "—"}
+                </TableCell>
+                <TableCell className="text-right font-mono text-sm font-semibold">
+                  {r.currentStock}
+                </TableCell>
+                <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                  {format(new Date(r.lastMovement), "MMM d, yyyy")}
+                </TableCell>
+              </TableRow>
+            ))
           ) : (
             rows.map((r) => (
               <TableRow key={r.productId}>
@@ -147,6 +230,18 @@ function ProductSummaryTable({ rows, isLoading }: { rows: ProductMovementSummary
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
+const PRESET_TYPE: Record<Preset, "all" | StockMovementType> = {
+  all:        "all",
+  restocks:   "ADJUSTMENT_IN",
+  dispatches: "ADJUSTMENT_OUT",
+};
+
+const PRESET_TYPE_GROUP: Record<Preset, "in" | "out" | undefined> = {
+  all:        undefined,
+  restocks:   "in",
+  dispatches: "out",
+};
+
 export function MovementsTable({ locationId: defaultLocationId }: { locationId?: string }) {
   const [locationId, setLocationId] = useState(defaultLocationId ?? "all");
   const [brandId,    setBrandId]    = useState("all");
@@ -155,7 +250,14 @@ export function MovementsTable({ locationId: defaultLocationId }: { locationId?:
   const [dateTo,     setDateTo]     = useState("");
   const [page,       setPage]       = useState(1);
   const [view,       setView]       = useState<"movements" | "by-product">("movements");
+  const [preset,     setPreset]     = useState<Preset>("all");
   const limit = 30;
+
+  function applyPreset(p: Preset) {
+    setPreset(p);
+    setType(PRESET_TYPE[p]);
+    setPage(1);
+  }
 
   const sharedFilters = {
     locationId: locationId === "all" ? undefined : locationId,
@@ -171,7 +273,10 @@ export function MovementsTable({ locationId: defaultLocationId }: { locationId?:
     limit,
   });
 
-  const { data: summaryData, isLoading: summaryLoading } = useStockMovementsSummary(sharedFilters);
+  const { data: summaryData, isLoading: summaryLoading } = useStockMovementsSummary({
+    ...sharedFilters,
+    typeGroup: PRESET_TYPE_GROUP[preset],
+  });
 
   const { data: locations } = useLocations({ active: true });
   const { data: brands }    = useBrands();
@@ -183,6 +288,23 @@ export function MovementsTable({ locationId: defaultLocationId }: { locationId?:
 
   return (
     <div className="space-y-4">
+      {/* Preset chips */}
+      <div className="flex items-center gap-2">
+        {(["all", "restocks", "dispatches"] as Preset[]).map((p) => (
+          <Button
+            key={p}
+            variant={preset === p ? "default" : "outline"}
+            size="sm"
+            className="h-7 px-3 text-xs capitalize"
+            onClick={() => applyPreset(p)}
+          >
+            {p === "restocks" && <PackagePlus className="size-3.5 mr-1.5" />}
+            {p === "dispatches" && <TrendingDown className="size-3.5 mr-1.5" />}
+            {p === "all" ? "All Movements" : p.charAt(0).toUpperCase() + p.slice(1)}
+          </Button>
+        ))}
+      </div>
+
       {/* Filters + view toggle */}
       <div className="flex flex-wrap items-center gap-2">
         <Select value={locationId} onValueChange={(v) => { setLocationId(v); setPage(1); }}>
@@ -325,6 +447,7 @@ export function MovementsTable({ locationId: defaultLocationId }: { locationId?:
           <ProductSummaryTable
             rows={summaryData?.data ?? []}
             isLoading={summaryLoading}
+            preset={preset}
           />
         </div>
       )}

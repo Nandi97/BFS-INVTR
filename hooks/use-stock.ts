@@ -152,7 +152,9 @@ export function useStockMovements(filters: MovementsFilters = {}) {
   });
 }
 
-export function useStockMovementsSummary(filters: Omit<MovementsFilters, "type" | "page" | "limit"> = {}) {
+export function useStockMovementsSummary(
+  filters: Omit<MovementsFilters, "type" | "page" | "limit"> & { typeGroup?: "in" | "out" } = {}
+) {
   return useQuery({
     queryKey: [...MOVEMENTS_KEY, "summary", filters],
     queryFn: async () => {
@@ -161,6 +163,7 @@ export function useStockMovementsSummary(filters: Omit<MovementsFilters, "type" 
       if (filters.brandId)    p.set("brandId",    filters.brandId);
       if (filters.dateFrom)   p.set("dateFrom",   filters.dateFrom);
       if (filters.dateTo)     p.set("dateTo",     filters.dateTo);
+      if (filters.typeGroup)  p.set("typeGroup",  filters.typeGroup);
       const { data } = await api.get<{ data: ProductMovementSummary[]; total: number }>(
         `/stock/movements/summary?${p}`
       );
