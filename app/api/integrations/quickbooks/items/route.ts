@@ -130,7 +130,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `Location "${locationName}" not found` }, { status: 422 });
   }
 
-  let synced = 0, skipped = 0, deactivated = 0, dispatched = 0, restocked = 0, unchanged = 0;
+  let synced = 0, skipped = 0, deactivated = 0, dispatched = 0, restocked = 0, unchanged = 0, costUpdated = 0;
   const errors: string[] = [];
   const startedAt = new Date();
 
@@ -162,6 +162,15 @@ export async function POST(req: NextRequest) {
           update: { quantity: qty, ...(item.ReorderPoint != null ? { reorderPoint: item.ReorderPoint } : {}) },
           create: { productId: hit.id, locationId: loc.id, quantity: qty, reorderPoint: item.ReorderPoint ?? 0, reorderQty: 0, minQuantity: 0 },
         });
+
+        // Sync purchase cost from QB → ProductSupplier records for this product
+        if (item.PurchaseCost != null && item.PurchaseCost > 0) {
+          const updated = await tx.productSupplier.updateMany({
+            where: { productId: hit.id },
+            data:  { cost: item.PurchaseCost },
+          });
+          if (updated.count > 0) costUpdated++;
+        }
 
         if (existing === null) {
           // First-ever sync for this product — record opening snapshot
@@ -249,7 +258,7 @@ export async function POST(req: NextRequest) {
       provider:   "QUICKBOOKS",
       type:       "STOCK_SYNC",
       status:     errors.length > 0 && synced === 0 ? "FAILED" : errors.length > 0 ? "PARTIAL" : "SUCCESS",
-      message:    `QBO API sync: ${synced} synced (${dispatched} dispatched, ${restocked} restocked, ${unchanged} unchanged), ${skipped} skipped, ${deactivated} deactivated`,
+      message:    `QBO API sync: ${synced} synced (${dispatched} dispatched, ${restocked} restocked, ${unchanged} unchanged), ${costUpdated} costs updated, ${skipped} skipped, ${deactivated} deactivated`,
       recordsIn:  qboItems.length,
       recordsOut: synced,
     },
@@ -263,6 +272,7 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({
     total: qboItems.length, synced, skipped, deactivated,
     movements: { dispatched, restocked, unchanged },
+    costUpdated,
     errors: errors.slice(0, 30),
   });
 }
