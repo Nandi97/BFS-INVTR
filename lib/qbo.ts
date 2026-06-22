@@ -27,6 +27,51 @@ export interface QboItem {
   PurchaseCost?:      number;
 }
 
+// ─── QB Invoice shapes ────────────────────────────────────────────────────────
+
+export interface QboInvoiceLine {
+  DetailType: string;
+  SalesItemLineDetail?: {
+    ItemRef: { value: string; name: string };
+    Qty?:    number;
+  };
+  Amount?: number;
+}
+
+export interface QboInvoice {
+  Id:          string;
+  DocNumber:   string;
+  TxnDate:     string; // "YYYY-MM-DD"
+  CustomerRef?: { value: string; name: string };
+  Line:        QboInvoiceLine[];
+}
+
+/** Fetch all QB Invoices on or after fromDate ("YYYY-MM-DD"), paging through all results. */
+export async function fetchQboInvoices(fromDate: string): Promise<QboInvoice[]> {
+  const invoices: QboInvoice[] = [];
+  const PAGE = 1000;
+  let start = 1;
+
+  while (true) {
+    const query = `SELECT * FROM Invoice WHERE TxnDate >= '${fromDate}' STARTPOSITION ${start} MAXRESULTS ${PAGE}`;
+    const res = await qboFetch(`/query?query=${encodeURIComponent(query)}`);
+
+    if (!res.ok) {
+      const txt = await res.text();
+      throw new Error(`QBO invoice query failed: ${res.status} ${txt.slice(0, 300)}`);
+    }
+
+    const data = await res.json();
+    const page: QboInvoice[] = data?.QueryResponse?.Invoice ?? [];
+    invoices.push(...page);
+
+    if (page.length < PAGE) break;
+    start += PAGE;
+  }
+
+  return invoices;
+}
+
 /** Fetch Inventory items from QB, paging through all results. Pass activeOnly=false to fetch inactive items instead. */
 export async function fetchQboItems(activeOnly = true): Promise<QboItem[]> {
   const items: QboItem[] = [];
