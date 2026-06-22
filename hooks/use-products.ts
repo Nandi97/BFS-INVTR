@@ -63,6 +63,62 @@ export function useUpdateProduct() {
   });
 }
 
+export interface PendingProduct {
+  id:                 string;
+  qboItemId:          string;
+  qboName:            string;
+  qboSku:             string | null;
+  qtyOnHand:          number;
+  purchaseCost:       number | null;
+  suggestedBrandId:   string | null;
+  suggestedBrandName: string | null;
+  firstSeenAt:        string;
+  lastSeenAt:         string;
+  seenCount:          number;
+}
+
+export interface ApproveInput {
+  name:       string;
+  brandId?:   string;
+  categoryId?: string;
+  sku?:       string;
+  barcode?:   string;
+  unit:       string;
+  locationId: string;
+}
+
+export function usePendingProducts() {
+  return useQuery({
+    queryKey: ["products", "pending"],
+    queryFn:  () => api.get<{ data: PendingProduct[]; total: number }>("/products/pending").then((r) => r.data),
+  });
+}
+
+export function useApprovePendingProduct() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...data }: ApproveInput & { id: string }) =>
+      api.post(`/products/pending/${id}/approve`, data).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["products"] });
+      toast.success("Product added to inventory");
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useDismissPendingProduct() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.delete(`/products/pending/${id}`).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["products", "pending"] });
+      toast.success("Item dismissed");
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
 export function useArchiveProduct() {
   const qc = useQueryClient();
   return useMutation({

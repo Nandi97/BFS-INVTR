@@ -167,7 +167,15 @@ export async function POST(req: NextRequest) {
   for (const item of qboItems) {
     const hit = await resolveProduct(item.FullyQualifiedName, item.Sku);
     if (!hit) {
-      errors.push(`Not found: "${item.FullyQualifiedName}"`);
+      // Stage for admin review instead of silently dropping
+      const suggestedBrand = item.FullyQualifiedName.includes(":")
+        ? item.FullyQualifiedName.split(":")[0].trim()
+        : null;
+      await prisma.pendingProduct.upsert({
+        where:  { qboItemId: item.Id },
+        update: { qboName: item.FullyQualifiedName, qboSku: item.Sku ?? null, qtyOnHand: Math.max(0, item.QtyOnHand ?? 0), purchaseCost: item.PurchaseCost ?? null, suggestedBrandName: suggestedBrand, lastSeenAt: new Date(), seenCount: { increment: 1 } },
+        create: { qboItemId: item.Id, qboName: item.FullyQualifiedName, qboSku: item.Sku ?? null, qtyOnHand: Math.max(0, item.QtyOnHand ?? 0), purchaseCost: item.PurchaseCost ?? null, suggestedBrandName: suggestedBrand },
+      });
       skipped++;
       continue;
     }

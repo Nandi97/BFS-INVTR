@@ -341,6 +341,22 @@ model BfsFulfillmentItem {
   product     Product?       @relation(fields: [productId], references: [id])
 }
 
+// ─── Pending Products (unmatched QB items awaiting admin review) ──────────────
+
+model PendingProduct {
+  id              String   @id @default(cuid())
+  qboItemId       String   @unique
+  qboName         String
+  qboSku          String?
+  qtyOnHand       Float    @default(0)
+  purchaseCost    Float?
+  suggestedBrandId    String?
+  suggestedBrandName  String?
+  firstSeenAt     DateTime @default(now())
+  lastSeenAt      DateTime @updatedAt
+  seenCount       Int      @default(1)
+}
+
 // ─── Integrations ─────────────────────────────────────────────────────────────
 
 model IntegrationConfig {

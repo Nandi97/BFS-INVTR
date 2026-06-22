@@ -34,7 +34,15 @@ type NavItem = {
 
 const navInventory: NavItem[] = [
   { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { title: "Products",  href: "/products",  icon: Package },
+  {
+    title: "Products",
+    href:  "/products",
+    icon:  Package,
+    items: [
+      { title: "All Products",      href: "/products" },
+      { title: "Pending from QB",   href: "/products/pending" },
+    ],
+  },
   {
     title: "Stock & Locations",
     href:  "/stock",
