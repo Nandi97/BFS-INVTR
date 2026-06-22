@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { fetchQboItems, type QboItem } from "@/lib/qbo";
+import { fetchQboItems, fetchQboInvoices, type QboItem } from "@/lib/qbo";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/require-role";
 
@@ -134,12 +134,35 @@ export async function POST(req: NextRequest) {
   const errors: string[] = [];
   const startedAt = new Date();
 
-  // TODO (Phase 2): before the loop, fetch QB invoices since lastSyncAt and build
-  //   invoiceMap: Map<qboItemId, { docNumber: string; customerRef: string }[]>
-  // Then pass the matching invoice numbers as `reference` on ADJUSTMENT_OUT records.
-  // QB endpoint: GET /v3/company/{realmId}/query
-  //   ?query=SELECT * FROM Invoice WHERE MetaData.LastUpdatedTime > '{lastSyncAt}'
-  // Each Invoice.Line[] has ItemRef.value (QB item ID) and Qty.
+  // Fetch QB invoices since last sync to attribute dispatch movements to stores
+  type InvoiceRef = { docNumber: string; customerName: string };
+  const invoiceMap = new Map<string, InvoiceRef[]>();
+  try {
+    const config = await prisma.integrationConfig.findUnique({
+      where: { provider: "QUICKBOOKS" },
+      select: { lastSyncAt: true },
+    });
+    // Default to 48 hours ago if this is the first sync, to catch recent invoices
+    const since = config?.lastSyncAt ?? new Date(Date.now() - 48 * 60 * 60 * 1000);
+    const sinceDate = since.toISOString().slice(0, 10);
+
+    const invoices = await fetchQboInvoices(sinceDate);
+    for (const inv of invoices) {
+      const customerName = inv.CustomerRef?.name ?? "Unknown";
+      for (const line of inv.Line) {
+        if (line.DetailType !== "SalesItemLineDetail") continue;
+        const itemId = line.SalesItemLineDetail?.ItemRef?.value;
+        if (!itemId) continue;
+        const existing = invoiceMap.get(itemId) ?? [];
+        existing.push({ docNumber: inv.DocNumber, customerName });
+        invoiceMap.set(itemId, existing);
+      }
+    }
+  } catch {
+    // Non-fatal: if invoice fetch fails, dispatch movements are still written
+    // but without reference/store attribution
+    errors.push("Invoice attribution unavailable (invoice fetch failed); dispatch movements written without store reference");
+  }
 
   for (const item of qboItems) {
     const hit = await resolveProduct(item.FullyQualifiedName, item.Sku);
@@ -188,7 +211,13 @@ export async function POST(req: NextRequest) {
           const delta = qty - existing.quantity;
           if (delta < 0) {
             // QB qty dropped — items were dispatched / invoiced out
-            // TODO (Phase 2): set reference = QB invoice number from invoiceMap
+            const refs = invoiceMap.get(item.Id) ?? [];
+            const reference = refs.length > 0
+              ? refs.map((r) => `QB-INV-${r.docNumber}`).join(", ")
+              : undefined;
+            const notes = refs.length > 0
+              ? `QBO sync: dispatched to ${[...new Set(refs.map((r) => r.customerName))].join(", ")}`
+              : "QBO sync: dispatched";
             await tx.stockMovement.create({
               data: {
                 productId:    hit.id,
@@ -196,7 +225,8 @@ export async function POST(req: NextRequest) {
                 type:         "ADJUSTMENT_OUT",
                 quantity:     Math.abs(delta),
                 balanceAfter: qty,
-                notes:        "QBO sync: dispatched",
+                reference,
+                notes,
               },
             });
             dispatched++;
