@@ -1,473 +1,473 @@
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+    provider = "prisma-client"
+    output   = "../generated/prisma"
 }
 
 datasource db {
-  provider = "postgresql"
+    provider = "postgresql"
 }
 
 // ─── Auth (better-auth) ───────────────────────────────────────────────────────
 
 model User {
-  id            String    @id @default(cuid())
-  name          String
-  email         String    @unique
-  emailVerified Boolean   @default(false)
-  image         String?
-  role          UserRole  @default(VIEWER)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+    id            String   @id @default(cuid())
+    name          String
+    email         String   @unique
+    emailVerified Boolean  @default(false)
+    image         String?
+    role          UserRole @default(VIEWER)
+    createdAt     DateTime @default(now())
+    updatedAt     DateTime @updatedAt
 
-  sessions      Session[]
-  accounts      Account[]
-  stockMovements StockMovement[]
-  purchaseOrders PurchaseOrder[]
+    sessions       Session[]
+    accounts       Account[]
+    stockMovements StockMovement[]
+    purchaseOrders PurchaseOrder[]
 }
 
 model Session {
-  id        String   @id @default(cuid())
-  userId    String
-  token     String   @unique
-  expiresAt DateTime
-  ipAddress String?
-  userAgent String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+    id        String   @id @default(cuid())
+    userId    String
+    token     String   @unique
+    expiresAt DateTime
+    ipAddress String?
+    userAgent String?
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Account {
-  id                    String    @id @default(cuid())
-  userId                String
-  accountId             String
-  providerId            String
-  accessToken           String?
-  refreshToken          String?
-  idToken               String?
-  accessTokenExpiresAt  DateTime?
-  refreshTokenExpiresAt DateTime?
-  scope                 String?
-  password              String?
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
+    id                    String    @id @default(cuid())
+    userId                String
+    accountId             String
+    providerId            String
+    accessToken           String?
+    refreshToken          String?
+    idToken               String?
+    accessTokenExpiresAt  DateTime?
+    refreshTokenExpiresAt DateTime?
+    scope                 String?
+    password              String?
+    createdAt             DateTime  @default(now())
+    updatedAt             DateTime  @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Verification {
-  id         String    @id @default(cuid())
-  identifier String
-  value      String
-  expiresAt  DateTime
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+    id         String   @id @default(cuid())
+    identifier String
+    value      String
+    expiresAt  DateTime
+    createdAt  DateTime @default(now())
+    updatedAt  DateTime @updatedAt
 }
 
 // ─── Core Inventory ───────────────────────────────────────────────────────────
 
 model Brand {
-  id           String    @id @default(cuid())
-  name         String    @unique
-  leadTimeDays Int       @default(30)
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+    id           String   @id @default(cuid())
+    name         String   @unique
+    leadTimeDays Int      @default(30)
+    createdAt    DateTime @default(now())
+    updatedAt    DateTime @updatedAt
 
-  products Product[]
+    products Product[]
 }
 
 model Category {
-  id        String    @id @default(cuid())
-  name      String    @unique
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+    id        String   @id @default(cuid())
+    name      String   @unique
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
 
-  products Product[]
+    products Product[]
 }
 
 model Product {
-  id          String      @id @default(cuid())
-  name        String
-  sku         String?     @unique
-  barcode     String?     @unique
-  brandId     String?
-  categoryId  String?
-  productType ProductType @default(BOTH)
-  unit        String      @default("each")
-  description String?
-  imageUrl    String?
-  isActive          Boolean     @default(true)
-  targetStockMonths Int         @default(6)
-  createdAt         DateTime    @default(now())
-  updatedAt         DateTime    @updatedAt
+    id                String      @id @default(cuid())
+    name              String
+    sku               String?     @unique
+    barcode           String?     @unique
+    brandId           String?
+    categoryId        String?
+    productType       ProductType @default(BOTH)
+    unit              String      @default("each")
+    description       String?
+    imageUrl          String?
+    isActive          Boolean     @default(true)
+    targetStockMonths Int         @default(6)
+    createdAt         DateTime    @default(now())
+    updatedAt         DateTime    @updatedAt
 
-  brand    Brand?    @relation(fields: [brandId], references: [id])
-  category Category? @relation(fields: [categoryId], references: [id])
+    brand    Brand?    @relation(fields: [brandId], references: [id])
+    category Category? @relation(fields: [categoryId], references: [id])
 
-  inventory        Inventory[]
-  stockMovements   StockMovement[]
-  productSuppliers ProductSupplier[]
-  purchaseOrderItems PurchaseOrderItem[]
-  salesRecords     SalesRecord[]
-  fulfillmentItems BfsFulfillmentItem[]
+    inventory          Inventory[]
+    stockMovements     StockMovement[]
+    productSuppliers   ProductSupplier[]
+    purchaseOrderItems PurchaseOrderItem[]
+    salesRecords       SalesRecord[]
+    fulfillmentItems   BfsFulfillmentItem[]
 }
 
 model Location {
-  id        String       @id @default(cuid())
-  name      String       @unique
-  code      String       @unique
-  type      LocationType @default(WAREHOUSE)
-  address   String?
-  isActive  Boolean      @default(true)
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
+    id        String       @id @default(cuid())
+    name      String       @unique
+    code      String       @unique
+    type      LocationType @default(WAREHOUSE)
+    address   String?
+    isActive  Boolean      @default(true)
+    createdAt DateTime     @default(now())
+    updatedAt DateTime     @updatedAt
 
-  inventory      Inventory[]
-  stockMovements StockMovement[]
-  purchaseOrders PurchaseOrder[]
+    inventory      Inventory[]
+    stockMovements StockMovement[]
+    purchaseOrders PurchaseOrder[]
 }
 
 model Inventory {
-  id            String   @id @default(cuid())
-  productId     String
-  locationId    String
-  quantity      Float    @default(0)
-  minQuantity   Float    @default(0)
-  reorderPoint  Float    @default(0)
-  reorderQty    Float    @default(0)
-  updatedAt     DateTime @updatedAt
+    id           String   @id @default(cuid())
+    productId    String
+    locationId   String
+    quantity     Float    @default(0)
+    minQuantity  Float    @default(0)
+    reorderPoint Float    @default(0)
+    reorderQty   Float    @default(0)
+    updatedAt    DateTime @updatedAt
 
-  product  Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  location Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+    product  Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+    location Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
 
-  @@unique([productId, locationId])
+    @@unique([productId, locationId])
 }
 
 model StockMovement {
-  id           String            @id @default(cuid())
-  productId    String
-  locationId   String
-  type         StockMovementType
-  quantity     Float
-  balanceAfter Float
-  reference    String?
-  notes        String?
-  userId       String?
-  isReviewed   Boolean           @default(false)
-  reviewNote   String?
-  reviewedAt   DateTime?
-  createdAt    DateTime          @default(now())
+    id           String            @id @default(cuid())
+    productId    String
+    locationId   String
+    type         StockMovementType
+    quantity     Float
+    balanceAfter Float
+    reference    String?
+    notes        String?
+    userId       String?
+    isReviewed   Boolean           @default(false)
+    reviewNote   String?
+    reviewedAt   DateTime?
+    createdAt    DateTime          @default(now())
 
-  product  Product  @relation(fields: [productId], references: [id])
-  location Location @relation(fields: [locationId], references: [id])
-  user     User?    @relation(fields: [userId], references: [id])
+    product  Product  @relation(fields: [productId], references: [id])
+    location Location @relation(fields: [locationId], references: [id])
+    user     User?    @relation(fields: [userId], references: [id])
 }
 
 // ─── Suppliers & Purchase Orders ──────────────────────────────────────────────
 
 model Supplier {
-  id           String   @id @default(cuid())
-  name         String   @unique
-  contactName  String?
-  email        String?
-  phone        String?
-  address      String?
-  leadTimeDays Int      @default(7)
-  notes        String?
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+    id           String   @id @default(cuid())
+    name         String   @unique
+    contactName  String?
+    email        String?
+    phone        String?
+    address      String?
+    leadTimeDays Int      @default(7)
+    notes        String?
+    isActive     Boolean  @default(true)
+    createdAt    DateTime @default(now())
+    updatedAt    DateTime @updatedAt
 
-  productSuppliers ProductSupplier[]
-  purchaseOrders   PurchaseOrder[]
+    productSuppliers ProductSupplier[]
+    purchaseOrders   PurchaseOrder[]
 }
 
 model ProductSupplier {
-  id          String  @id @default(cuid())
-  productId   String
-  supplierId  String
-  supplierSku String?
-  cost        Float?
-  isPreferred Boolean @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+    id          String   @id @default(cuid())
+    productId   String
+    supplierId  String
+    supplierSku String?
+    cost        Float?
+    isPreferred Boolean  @default(false)
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
 
-  product  Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  supplier Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+    product  Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+    supplier Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
 
-  @@unique([productId, supplierId])
+    @@unique([productId, supplierId])
 }
 
 model PurchaseOrder {
-  id          String              @id @default(cuid())
-  poNumber    String              @unique
-  supplierId  String
-  locationId  String
-  status      PurchaseOrderStatus @default(DRAFT)
-  notes       String?
-  sentAt      DateTime?
-  receivedAt  DateTime?
-  createdById String?
-  createdAt   DateTime            @default(now())
-  updatedAt   DateTime            @updatedAt
+    id          String              @id @default(cuid())
+    poNumber    String              @unique
+    supplierId  String
+    locationId  String
+    status      PurchaseOrderStatus @default(DRAFT)
+    notes       String?
+    sentAt      DateTime?
+    receivedAt  DateTime?
+    createdById String?
+    createdAt   DateTime            @default(now())
+    updatedAt   DateTime            @updatedAt
 
-  supplier  Supplier  @relation(fields: [supplierId], references: [id])
-  location  Location  @relation(fields: [locationId], references: [id])
-  createdBy User?     @relation(fields: [createdById], references: [id])
-  items     PurchaseOrderItem[]
+    supplier  Supplier            @relation(fields: [supplierId], references: [id])
+    location  Location            @relation(fields: [locationId], references: [id])
+    createdBy User?               @relation(fields: [createdById], references: [id])
+    items     PurchaseOrderItem[]
 }
 
 model PurchaseOrderItem {
-  id          String  @id @default(cuid())
-  orderId     String
-  productId   String
-  quantity    Float
-  unitCost    Float?
-  receivedQty Float   @default(0)
-  notes       String?
+    id          String  @id @default(cuid())
+    orderId     String
+    productId   String
+    quantity    Float
+    unitCost    Float?
+    receivedQty Float   @default(0)
+    notes       String?
 
-  order   PurchaseOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  product Product       @relation(fields: [productId], references: [id])
+    order   PurchaseOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+    product Product       @relation(fields: [productId], references: [id])
 }
 
 // ─── Sales History ────────────────────────────────────────────────────────────
 
 model SalesRecord {
-  id        String   @id @default(cuid())
-  productId String
-  year      Int
-  month     Int
-  quantity  Float    @default(0)
-  revenue   Float    @default(0)
-  source    String   @default("QB_EXPORT")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+    id        String   @id @default(cuid())
+    productId String
+    year      Int
+    month     Int
+    quantity  Float    @default(0)
+    revenue   Float    @default(0)
+    source    String   @default("QB_EXPORT")
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
 
-  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+    product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
-  @@unique([productId, year, month])
+    @@unique([productId, year, month])
 }
 
 // ─── Email Notifications ──────────────────────────────────────────────────────
 
 model AlertRule {
-  id                String          @id @default(cuid())
-  name              String
-  type              AlertType
-  thresholdMonths   Float?
-  recipients        String[]
-  isActive          Boolean         @default(true)
-  lastTriggeredAt   DateTime?
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
+    id              String    @id @default(cuid())
+    name            String
+    type            AlertType
+    thresholdMonths Float?
+    recipients      String[]
+    isActive        Boolean   @default(true)
+    lastTriggeredAt DateTime?
+    createdAt       DateTime  @default(now())
+    updatedAt       DateTime  @updatedAt
 }
 
 model EmailLog {
-  id        String          @id @default(cuid())
-  type      AlertType
-  subject   String
-  recipients String[]
-  status    EmailStatus     @default(PENDING)
-  error     String?
-  sentAt    DateTime?
-  createdAt DateTime        @default(now())
+    id         String      @id @default(cuid())
+    type       AlertType
+    subject    String
+    recipients String[]
+    status     EmailStatus @default(PENDING)
+    error      String?
+    sentAt     DateTime?
+    createdAt  DateTime    @default(now())
 }
 
 // ─── Zenoti Fulfillment ───────────────────────────────────────────────────────
 
 model ZenotiOrder {
-  id            String            @id @default(cuid())
-  zenotiOrderId String            @unique
-  orderNumber   String
-  org           String            // "bfs" | "bl"
-  centerName    String
-  centerId      String
-  zenotiStatus  ZenotiOrderStatus
-  raisedAt      DateTime?
-  deliverBy     DateTime?
-  notes         String?
-  lastSyncedAt  DateTime
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
+    id            String            @id @default(cuid())
+    zenotiOrderId String            @unique
+    orderNumber   String
+    org           String // "bfs" | "bl"
+    centerName    String
+    centerId      String
+    zenotiStatus  ZenotiOrderStatus
+    raisedAt      DateTime?
+    deliverBy     DateTime?
+    notes         String?
+    lastSyncedAt  DateTime
+    createdAt     DateTime          @default(now())
+    updatedAt     DateTime          @updatedAt
 
-  items       ZenotiOrderItem[]
-  fulfillment BfsFulfillment?
+    items       ZenotiOrderItem[]
+    fulfillment BfsFulfillment?
 }
 
 model ZenotiOrderItem {
-  id               String  @id @default(cuid())
-  orderId          String
-  zenotiItemId     String?
-  productCode      String
-  productName      String
-  retailRaised     Float   @default(0)
-  consumableRaised Float   @default(0)
-  unitPrice        Float?
+    id               String  @id @default(cuid())
+    orderId          String
+    zenotiItemId     String?
+    productCode      String
+    productName      String
+    retailRaised     Float   @default(0)
+    consumableRaised Float   @default(0)
+    unitPrice        Float?
 
-  order ZenotiOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+    order ZenotiOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
 }
 
 model BfsFulfillment {
-  id          String            @id @default(cuid())
-  orderId     String            @unique
-  status      FulfillmentStatus @default(PENDING)
-  submittedAt DateTime?
-  submittedBy String?
-  qbInvoiceId String?
-  qbInvoiceNo String?
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
+    id          String            @id @default(cuid())
+    orderId     String            @unique
+    status      FulfillmentStatus @default(PENDING)
+    submittedAt DateTime?
+    submittedBy String?
+    qbInvoiceId String?
+    qbInvoiceNo String?
+    createdAt   DateTime          @default(now())
+    updatedAt   DateTime          @updatedAt
 
-  order ZenotiOrder          @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  items BfsFulfillmentItem[]
+    order ZenotiOrder          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+    items BfsFulfillmentItem[]
 }
 
 model BfsFulfillmentItem {
-  id                     String  @id @default(cuid())
-  fulfillmentId          String
-  zenotiItemId           String?
-  productId              String?
-  productCode            String?
-  productName            String
-  requestedRetailQty     Float   @default(0)
-  requestedConsumableQty Float   @default(0)
-  fulfilledRetailQty     Float   @default(0)
-  fulfilledConsumableQty Float   @default(0)
-  isPacked               Boolean @default(false)
-  isWalkIn               Boolean @default(false)
-  notes                  String?
-  unitPrice              Float?
-  sortOrder              Int     @default(0)
+    id                     String  @id @default(cuid())
+    fulfillmentId          String
+    zenotiItemId           String?
+    productId              String?
+    productCode            String?
+    productName            String
+    requestedRetailQty     Float   @default(0)
+    requestedConsumableQty Float   @default(0)
+    fulfilledRetailQty     Float   @default(0)
+    fulfilledConsumableQty Float   @default(0)
+    isPacked               Boolean @default(false)
+    isWalkIn               Boolean @default(false)
+    notes                  String?
+    unitPrice              Float?
+    sortOrder              Int     @default(0)
 
-  fulfillment BfsFulfillment @relation(fields: [fulfillmentId], references: [id], onDelete: Cascade)
-  product     Product?       @relation(fields: [productId], references: [id])
+    fulfillment BfsFulfillment @relation(fields: [fulfillmentId], references: [id], onDelete: Cascade)
+    product     Product?       @relation(fields: [productId], references: [id])
 }
 
 // ─── Pending Products (unmatched QB items awaiting admin review) ──────────────
 
 model PendingProduct {
-  id              String   @id @default(cuid())
-  qboItemId       String   @unique
-  qboName         String
-  qboSku          String?
-  qtyOnHand       Float    @default(0)
-  purchaseCost    Float?
-  suggestedBrandId    String?
-  suggestedBrandName  String?
-  firstSeenAt     DateTime @default(now())
-  lastSeenAt      DateTime @updatedAt
-  seenCount       Int      @default(1)
+    id                 String   @id @default(cuid())
+    qboItemId          String   @unique
+    qboName            String
+    qboSku             String?
+    qtyOnHand          Float    @default(0)
+    purchaseCost       Float?
+    suggestedBrandId   String?
+    suggestedBrandName String?
+    firstSeenAt        DateTime @default(now())
+    lastSeenAt         DateTime @updatedAt
+    seenCount          Int      @default(1)
 }
 
 // ─── Integrations ─────────────────────────────────────────────────────────────
 
 model IntegrationConfig {
-  id        String          @id @default(cuid())
-  provider  IntegrationProvider @unique
-  config    Json
-  isActive  Boolean         @default(false)
-  lastSyncAt DateTime?
-  createdAt DateTime        @default(now())
-  updatedAt DateTime        @updatedAt
+    id         String              @id @default(cuid())
+    provider   IntegrationProvider @unique
+    config     Json
+    isActive   Boolean             @default(false)
+    lastSyncAt DateTime?
+    createdAt  DateTime            @default(now())
+    updatedAt  DateTime            @updatedAt
 }
 
 model SyncLog {
-  id         String          @id @default(cuid())
-  provider   IntegrationProvider
-  type       String
-  status     SyncStatus
-  message    String?
-  recordsIn  Int             @default(0)
-  recordsOut Int             @default(0)
-  createdAt  DateTime        @default(now())
+    id         String              @id @default(cuid())
+    provider   IntegrationProvider
+    type       String
+    status     SyncStatus
+    message    String?
+    recordsIn  Int                 @default(0)
+    recordsOut Int                 @default(0)
+    createdAt  DateTime            @default(now())
 }
 
 // ─── Settings ─────────────────────────────────────────────────────────────────
 
 model AppSetting {
-  key       String   @id
-  value     String
-  updatedAt DateTime @updatedAt
+    key       String   @id
+    value     String
+    updatedAt DateTime @updatedAt
 }
 
 // ─── Enums ────────────────────────────────────────────────────────────────────
 
 enum ProductType {
-  PROFESSIONAL
-  RETAIL
-  BOTH
+    PROFESSIONAL
+    RETAIL
+    BOTH
 }
 
 enum UserRole {
-  ADMIN
-  MANAGER
-  VIEWER
+    ADMIN
+    MANAGER
+    VIEWER
 }
 
 enum LocationType {
-  WAREHOUSE
-  RETAIL
-  VIRTUAL
+    WAREHOUSE
+    RETAIL
+    VIRTUAL
 }
 
 enum StockMovementType {
-  PURCHASE_RECEIPT
-  SALE
-  ADJUSTMENT_IN
-  ADJUSTMENT_OUT
-  TRANSFER_IN
-  TRANSFER_OUT
-  OPENING_STOCK
-  RECONCILIATION
-  INTERNAL_USE
+    PURCHASE_RECEIPT
+    SALE
+    ADJUSTMENT_IN
+    ADJUSTMENT_OUT
+    TRANSFER_IN
+    TRANSFER_OUT
+    OPENING_STOCK
+    RECONCILIATION
+    INTERNAL_USE
 }
 
 enum PurchaseOrderStatus {
-  DRAFT
-  SENT
-  PARTIALLY_RECEIVED
-  RECEIVED
-  CANCELLED
+    DRAFT
+    SENT
+    PARTIALLY_RECEIVED
+    RECEIVED
+    CANCELLED
 }
 
 enum AlertType {
-  LOW_STOCK
-  OUT_OF_STOCK
-  REORDER_NEEDED
-  DAILY_DIGEST
-  PO_SENT
-  PO_RECEIVED
+    LOW_STOCK
+    OUT_OF_STOCK
+    REORDER_NEEDED
+    DAILY_DIGEST
+    PO_SENT
+    PO_RECEIVED
 }
 
 enum EmailStatus {
-  PENDING
-  SENT
-  FAILED
+    PENDING
+    SENT
+    FAILED
 }
 
 enum IntegrationProvider {
-  QUICKBOOKS
-  SHOPIFY
-  ZENOTI
+    QUICKBOOKS
+    SHOPIFY
+    ZENOTI
 }
 
 enum ZenotiOrderStatus {
-  RAISED
-  UPDATED
-  DELIVERED
-  CANCELLED
+    RAISED
+    UPDATED
+    DELIVERED
+    CANCELLED
 }
 
 enum FulfillmentStatus {
-  PENDING
-  IN_PROGRESS
-  SUBMITTED
-  INVOICED
+    PENDING
+    IN_PROGRESS
+    SUBMITTED
+    INVOICED
 }
 
 enum SyncStatus {
-  SUCCESS
-  PARTIAL
-  FAILED
+    SUCCESS
+    PARTIAL
+    FAILED
 }

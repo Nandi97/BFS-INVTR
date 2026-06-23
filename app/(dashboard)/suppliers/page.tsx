@@ -1,5 +1,5 @@
-import { SuppliersDashboard } from "@/components/suppliers/dashboard/suppliers-dashboard";
+import { SuppliersDashboard } from '@/components/suppliers/dashboard/suppliers-dashboard';
 
 export default function SuppliersPage() {
-  return <SuppliersDashboard />;
+	return <SuppliersDashboard />;
 }

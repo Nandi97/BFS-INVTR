@@ -1,49 +1,49 @@
 body {
-  @apply overscroll-none bg-transparent;
+	@apply overscroll-none bg-transparent;
 }
 
 :root {
-  --header-height: calc(var(--spacing) * 12 + 1px);
+	--header-height: calc(var(--spacing) * 12 + 1px);
 }
 
 /* Compact/scaled layout at desktop widths */
 .theme-scaled {
-  @media (min-width: 1024px) {
-    --radius: 0.5rem;
-    --text-base: 0.85rem;
-    --text-sm: 0.8rem;
-    --spacing: 0.222222rem;
-  }
+	@media (min-width: 1024px) {
+		--radius: 0.5rem;
+		--text-base: 0.85rem;
+		--text-sm: 0.8rem;
+		--spacing: 0.222222rem;
+	}
 
-  [data-slot='card'] {
-    --spacing: 0.16rem;
-  }
+	[data-slot='card'] {
+		--spacing: 0.16rem;
+	}
 }
 
 /* Theme colour variants */
 .theme-default {
-  --primary: oklch(0.556 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  @variant dark {
-    --primary: oklch(0.708 0 0);
-    --primary-foreground: oklch(0.145 0 0);
-  }
+	--primary: oklch(0.556 0 0);
+	--primary-foreground: oklch(0.985 0 0);
+	@variant dark {
+		--primary: oklch(0.708 0 0);
+		--primary-foreground: oklch(0.145 0 0);
+	}
 }
 
 .theme-blue {
-  --primary: oklch(0.488 0.243 264.376);
-  --primary-foreground: oklch(0.985 0 0);
-  @variant dark {
-    --primary: oklch(0.6 0.2 264.376);
-    --primary-foreground: oklch(0.985 0 0);
-  }
+	--primary: oklch(0.488 0.243 264.376);
+	--primary-foreground: oklch(0.985 0 0);
+	@variant dark {
+		--primary: oklch(0.6 0.2 264.376);
+		--primary-foreground: oklch(0.985 0 0);
+	}
 }
 
 .theme-rose {
-  --primary: oklch(0.577 0.245 27.325);
-  --primary-foreground: oklch(0.985 0 0);
-  @variant dark {
-    --primary: oklch(0.65 0.22 27.325);
-    --primary-foreground: oklch(0.985 0 0);
-  }
+	--primary: oklch(0.577 0.245 27.325);
+	--primary-foreground: oklch(0.985 0 0);
+	@variant dark {
+		--primary: oklch(0.65 0.22 27.325);
+		--primary-foreground: oklch(0.985 0 0);
+	}
 }

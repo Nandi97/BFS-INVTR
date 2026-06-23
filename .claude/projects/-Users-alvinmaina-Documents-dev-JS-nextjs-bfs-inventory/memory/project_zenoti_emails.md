@@ -2,10 +2,11 @@
 name: project-zenoti-emails
 description: Email addresses for Zenoti fulfillment submission notifications
 metadata:
-  type: project
+    type: project
 ---
 
 Fulfillment submission email recipients:
+
 - **To**: accounting@beautyfirstspa.com (accounting team — reviews and posts QB invoices)
 - **CC**: order@beautylogix.ca (Alvin — inventory associate, confirmation copy)
 

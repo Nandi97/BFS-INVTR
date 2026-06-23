@@ -1,52 +1,65 @@
 {
-  "$schema": "https://openapi.vercel.sh/vercel.json",
+	"$schema": "https://openapi.vercel.sh/vercel.json",
 
-  "regions": ["iad1"],
+	"regions": ["iad1"],
 
-  "crons": [
-    {
-      "path":     "/api/cron/sync",
-      "schedule": "0 6 * * *"
-    },
-    {
-      "path":     "/api/cron/sync-names",
-      "schedule": "0 7 1 * *"
-    }
-  ],
+	"crons": [
+		{
+			"path": "/api/cron/sync",
+			"schedule": "0 6 * * *"
+		},
+		{
+			"path": "/api/cron/sync-names",
+			"schedule": "0 7 1 * *"
+		}
+	],
 
-  "functions": {
-    "app/api/integrations/quickbooks/sync-stock/route.ts":        { "maxDuration": 60 },
-    "app/api/integrations/quickbooks/sync-sales/route.ts":        { "maxDuration": 60 },
-    "app/api/integrations/quickbooks/sync-sales-api/route.ts":    { "maxDuration": 60 },
-    "app/api/integrations/quickbooks/items/route.ts":             { "maxDuration": 60 },
-    "app/api/integrations/quickbooks/items/sync-names/route.ts": { "maxDuration": 60 },
-    "app/api/cron/sync-names/route.ts":                          { "maxDuration": 60 },
-    "app/api/integrations/quickbooks/import-xls/route.ts":        { "maxDuration": 60 },
-    "app/api/cron/sync/route.ts":                                 { "maxDuration": 60 },
-    "app/api/inventory/calculate-minimums/route.ts":         { "maxDuration": 60 },
-    "app/api/import/products/route.ts":                      { "maxDuration": 60 },
-    "app/api/import/stock/route.ts":                         { "maxDuration": 60 },
-    "app/api/import/suppliers/route.ts":                     { "maxDuration": 60 },
-    "app/api/sales/import/route.ts":                         { "maxDuration": 60 },
-    "app/api/notifications/run/route.ts":                    { "maxDuration": 60 },
-    "app/api/reports/low-stock/route.ts":                    { "maxDuration": 60 },
-    "app/api/reports/stock-valuation/route.ts":              { "maxDuration": 60 },
-    "app/api/reports/purchase-orders/route.ts":              { "maxDuration": 60 },
-    "app/api/reports/movements/route.ts":                    { "maxDuration": 60 }
-  },
+	"functions": {
+		"app/api/integrations/quickbooks/sync-stock/route.ts": {
+			"maxDuration": 60
+		},
+		"app/api/integrations/quickbooks/sync-sales/route.ts": {
+			"maxDuration": 60
+		},
+		"app/api/integrations/quickbooks/sync-sales-api/route.ts": {
+			"maxDuration": 60
+		},
+		"app/api/integrations/quickbooks/items/route.ts": { "maxDuration": 60 },
+		"app/api/integrations/quickbooks/items/sync-names/route.ts": {
+			"maxDuration": 60
+		},
+		"app/api/cron/sync-names/route.ts": { "maxDuration": 60 },
+		"app/api/integrations/quickbooks/import-xls/route.ts": {
+			"maxDuration": 60
+		},
+		"app/api/cron/sync/route.ts": { "maxDuration": 60 },
+		"app/api/inventory/calculate-minimums/route.ts": { "maxDuration": 60 },
+		"app/api/import/products/route.ts": { "maxDuration": 60 },
+		"app/api/import/stock/route.ts": { "maxDuration": 60 },
+		"app/api/import/suppliers/route.ts": { "maxDuration": 60 },
+		"app/api/sales/import/route.ts": { "maxDuration": 60 },
+		"app/api/notifications/run/route.ts": { "maxDuration": 60 },
+		"app/api/reports/low-stock/route.ts": { "maxDuration": 60 },
+		"app/api/reports/stock-valuation/route.ts": { "maxDuration": 60 },
+		"app/api/reports/purchase-orders/route.ts": { "maxDuration": 60 },
+		"app/api/reports/movements/route.ts": { "maxDuration": 60 }
+	},
 
-  "headers": [
-    {
-      "source": "/(.*)",
-      "headers": [
-        { "key": "X-Content-Type-Options",    "value": "nosniff" },
-        { "key": "X-Frame-Options",            "value": "DENY" },
-        { "key": "Referrer-Policy",            "value": "strict-origin-when-cross-origin" }
-      ]
-    }
-  ],
+	"headers": [
+		{
+			"source": "/(.*)",
+			"headers": [
+				{ "key": "X-Content-Type-Options", "value": "nosniff" },
+				{ "key": "X-Frame-Options", "value": "DENY" },
+				{
+					"key": "Referrer-Policy",
+					"value": "strict-origin-when-cross-origin"
+				}
+			]
+		}
+	],
 
-  "env": {
-    "NEXT_TELEMETRY_DISABLED": "1"
-  }
+	"env": {
+		"NEXT_TELEMETRY_DISABLED": "1"
+	}
 }

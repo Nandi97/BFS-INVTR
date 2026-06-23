@@ -1,6 +1,10 @@
-import { ProductView } from "@/components/products/view/product-view";
+import { ProductView } from '@/components/products/view/product-view';
 
-export default async function ProductDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  return <ProductView productId={id} />;
+export default async function ProductDetailPage({
+	params,
+}: {
+	params: Promise<{ id: string }>;
+}) {
+	const { id } = await params;
+	return <ProductView productId={id} />;
 }

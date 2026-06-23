@@ -1,5 +1,5 @@
-import { StockDashboard } from "@/components/stock/dashboard/stock-dashboard";
+import { StockDashboard } from '@/components/stock/dashboard/stock-dashboard';
 
 export default function StockPage() {
-  return <StockDashboard />;
+	return <StockDashboard />;
 }

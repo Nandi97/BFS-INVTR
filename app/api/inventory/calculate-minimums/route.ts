@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/require-role";
-import { computeAvgMonthly, SAFETY_DAYS } from "@/lib/sales-calc";
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+import { requireRole } from '@/lib/require-role';
+import { computeAvgMonthly, SAFETY_DAYS } from '@/lib/sales-calc';
 
 /**
  * POST /api/inventory/calculate-minimums
@@ -15,109 +15,125 @@ import { computeAvgMonthly, SAFETY_DAYS } from "@/lib/sales-calc";
  */
 
 export async function POST(req: NextRequest) {
-  const _auth = await requireRole("ADMIN");
-  if (_auth instanceof NextResponse) return _auth;
+	const _auth = await requireRole('ADMIN');
+	if (_auth instanceof NextResponse) return _auth;
 
-  const body = await req.json().catch(() => ({}));
-  const locationId: string | undefined = body.locationId;
+	const body = await req.json().catch(() => ({}));
+	const locationId: string | undefined = body.locationId;
 
-  const items = await prisma.inventory.findMany({
-    where: {
-      ...(locationId ? { locationId } : {}),
-      location: { isActive: true },
-      product:  { isActive: true },
-    },
-    include: {
-      product: {
-        include: {
-          brand: { select: { leadTimeDays: true } },
-          salesRecords: {
-            orderBy: [{ year: "desc" }, { month: "desc" }],
-            take: 12,
-          },
-        },
-      },
-    },
-  });
+	const items = await prisma.inventory.findMany({
+		where: {
+			...(locationId ? { locationId } : {}),
+			location: { isActive: true },
+			product: { isActive: true },
+		},
+		include: {
+			product: {
+				include: {
+					brand: { select: { leadTimeDays: true } },
+					salesRecords: {
+						orderBy: [{ year: 'desc' }, { month: 'desc' }],
+						take: 12,
+					},
+				},
+			},
+		},
+	});
 
-  let updated = 0, skipped = 0;
+	let updated = 0,
+		skipped = 0;
 
-  for (const inv of items) {
-    const sales = inv.product.salesRecords;
-    if (sales.length === 0) { skipped++; continue; }
+	for (const inv of items) {
+		const sales = inv.product.salesRecords;
+		if (sales.length === 0) {
+			skipped++;
+			continue;
+		}
 
-    const { avgMonthly } = computeAvgMonthly(sales);
-    if (!isFinite(avgMonthly) || avgMonthly <= 0) { skipped++; continue; }
+		const { avgMonthly } = computeAvgMonthly(sales);
+		if (!isFinite(avgMonthly) || avgMonthly <= 0) {
+			skipped++;
+			continue;
+		}
 
-    const leadTimeDays      = inv.product.brand?.leadTimeDays ?? 30;
-    const targetStockMonths = inv.product.targetStockMonths ?? 6;
-    const reorderPoint      = Math.ceil(avgMonthly * (leadTimeDays + SAFETY_DAYS) / 30);
-    const minQuantity       = Math.ceil(avgMonthly * SAFETY_DAYS / 30);
-    const reorderQty        = Math.ceil(avgMonthly * targetStockMonths);
+		const leadTimeDays = inv.product.brand?.leadTimeDays ?? 30;
+		const targetStockMonths = inv.product.targetStockMonths ?? 6;
+		const reorderPoint = Math.ceil(
+			(avgMonthly * (leadTimeDays + SAFETY_DAYS)) / 30
+		);
+		const minQuantity = Math.ceil((avgMonthly * SAFETY_DAYS) / 30);
+		const reorderQty = Math.ceil(avgMonthly * targetStockMonths);
 
-    if (!isFinite(reorderPoint) || !isFinite(minQuantity) || !isFinite(reorderQty)) {
-      skipped++;
-      continue;
-    }
+		if (
+			!isFinite(reorderPoint) ||
+			!isFinite(minQuantity) ||
+			!isFinite(reorderQty)
+		) {
+			skipped++;
+			continue;
+		}
 
-    await prisma.inventory.update({
-      where: { id: inv.id },
-      data:  { reorderPoint, minQuantity, reorderQty },
-    });
-    updated++;
-  }
+		await prisma.inventory.update({
+			where: { id: inv.id },
+			data: { reorderPoint, minQuantity, reorderQty },
+		});
+		updated++;
+	}
 
-  return NextResponse.json({ updated, skipped, total: items.length });
+	return NextResponse.json({ updated, skipped, total: items.length });
 }
 
 /** GET: preview without applying */
 export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const locationId: string | undefined = searchParams.get("locationId") ?? undefined;
+	const { searchParams } = new URL(req.url);
+	const locationId: string | undefined =
+		searchParams.get('locationId') ?? undefined;
 
-  const items = await prisma.inventory.findMany({
-    where: {
-      ...(locationId ? { locationId } : {}),
-      location: { isActive: true },
-      product:  { isActive: true },
-    },
-    include: {
-      product: {
-        include: {
-          brand: { select: { name: true, leadTimeDays: true } },
-          salesRecords: {
-            orderBy: [{ year: "desc" }, { month: "desc" }],
-            take: 12,
-          },
-        },
-      },
-      location: { select: { name: true } },
-    },
-    take: 20,
-  });
+	const items = await prisma.inventory.findMany({
+		where: {
+			...(locationId ? { locationId } : {}),
+			location: { isActive: true },
+			product: { isActive: true },
+		},
+		include: {
+			product: {
+				include: {
+					brand: { select: { name: true, leadTimeDays: true } },
+					salesRecords: {
+						orderBy: [{ year: 'desc' }, { month: 'desc' }],
+						take: 12,
+					},
+				},
+			},
+			location: { select: { name: true } },
+		},
+		take: 20,
+	});
 
-  const preview = items
-    .map((inv) => {
-      const sales = inv.product.salesRecords;
-      if (sales.length === 0) return null;
-      const { avgMonthly } = computeAvgMonthly(sales);
-      if (!isFinite(avgMonthly) || avgMonthly <= 0) return null;
-      const leadTimeDays      = inv.product.brand?.leadTimeDays ?? 30;
-      const targetStockMonths = inv.product.targetStockMonths ?? 6;
-      return {
-        product:          inv.product.name,
-        brand:            inv.product.brand?.name,
-        location:         inv.location.name,
-        avgMonthly:       Math.round(avgMonthly * 10) / 10,
-        leadTimeDays,
-        targetStockMonths,
-        reorderPoint:     Math.ceil(avgMonthly * (leadTimeDays + SAFETY_DAYS) / 30),
-        minQuantity:      Math.ceil(avgMonthly * SAFETY_DAYS / 30),
-        reorderQty:       Math.ceil(avgMonthly * targetStockMonths),
-        currentReorderAt: inv.reorderPoint,
-      };
-    })
-    .filter(Boolean);
+	const preview = items
+		.map((inv) => {
+			const sales = inv.product.salesRecords;
+			if (sales.length === 0) return null;
+			const { avgMonthly } = computeAvgMonthly(sales);
+			if (!isFinite(avgMonthly) || avgMonthly <= 0) return null;
+			const leadTimeDays = inv.product.brand?.leadTimeDays ?? 30;
+			const targetStockMonths = inv.product.targetStockMonths ?? 6;
+			return {
+				product: inv.product.name,
+				brand: inv.product.brand?.name,
+				location: inv.location.name,
+				avgMonthly: Math.round(avgMonthly * 10) / 10,
+				leadTimeDays,
+				targetStockMonths,
+				reorderPoint: Math.ceil(
+					(avgMonthly * (leadTimeDays + SAFETY_DAYS)) / 30
+				),
+				minQuantity: Math.ceil((avgMonthly * SAFETY_DAYS) / 30),
+				reorderQty: Math.ceil(avgMonthly * targetStockMonths),
+				currentReorderAt: inv.reorderPoint,
+			};
+		})
+		.filter(Boolean);
 
-  return NextResponse.json({ preview });
+	return NextResponse.json({ preview });
 }

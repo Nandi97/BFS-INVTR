@@ -1,9 +1,9 @@
 export const SAFETY_DAYS = 7;
 
 export interface AvgMonthlyResult {
-  avgMonthly: number;
-  monthsUsed: number;  // months included after trimming
-  confident:  boolean; // true when >= 3 non-zero months in the trimmed window
+	avgMonthly: number;
+	monthsUsed: number; // months included after trimming
+	confident: boolean; // true when >= 3 non-zero months in the trimmed window
 }
 
 /**
@@ -31,34 +31,34 @@ export interface AvgMonthlyResult {
  *   orderBy: [{ year: "desc" }, { month: "desc" }]
  */
 export function computeAvgMonthly(
-  records: { quantity: number }[]
+	records: { quantity: number }[]
 ): AvgMonthlyResult {
-  // Strip leading zeros = most recent zero months (current hold period)
-  let start = 0;
-  while (start < records.length && records[start].quantity <= 0) start++;
+	// Strip leading zeros = most recent zero months (current hold period)
+	let start = 0;
+	while (start < records.length && records[start].quantity <= 0) start++;
 
-  const trimmed = records.slice(start);
+	const trimmed = records.slice(start);
 
-  if (trimmed.length === 0) {
-    return { avgMonthly: 0, monthsUsed: 0, confident: false };
-  }
+	if (trimmed.length === 0) {
+		return { avgMonthly: 0, monthsUsed: 0, confident: false };
+	}
 
-  // Linear recency weights: index 0 (most recent) = n, index n-1 (oldest) = 1
-  const n = trimmed.length;
-  let weightedSum = 0;
-  let totalWeight = 0;
-  for (let i = 0; i < n; i++) {
-    const w = n - i;
-    weightedSum += Number(trimmed[i].quantity) * w;
-    totalWeight += w;
-  }
+	// Linear recency weights: index 0 (most recent) = n, index n-1 (oldest) = 1
+	const n = trimmed.length;
+	let weightedSum = 0;
+	let totalWeight = 0;
+	for (let i = 0; i < n; i++) {
+		const w = n - i;
+		weightedSum += Number(trimmed[i].quantity) * w;
+		totalWeight += w;
+	}
 
-  const avgMonthly = weightedSum / totalWeight;
-  const nonZero    = trimmed.filter((r) => r.quantity > 0).length;
+	const avgMonthly = weightedSum / totalWeight;
+	const nonZero = trimmed.filter((r) => r.quantity > 0).length;
 
-  return {
-    avgMonthly,
-    monthsUsed: n,
-    confident:  nonZero >= 3,
-  };
+	return {
+		avgMonthly,
+		monthsUsed: n,
+		confident: nonZero >= 3,
+	};
 }

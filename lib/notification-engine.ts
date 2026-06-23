@@ -1,29 +1,42 @@
-import { prisma } from "@/lib/prisma";
-import { sendMail } from "@/lib/mailer";
-import { generateStockAlertXlsx } from "@/lib/email-xlsx";
-import type { StockAlertItem } from "@/lib/email-templates";
-import { dailyDigestTemplate } from "@/lib/email-templates";
+import { prisma } from '@/lib/prisma';
+import { sendMail } from '@/lib/mailer';
+import { generateStockAlertXlsx } from '@/lib/email-xlsx';
+import type { StockAlertItem } from '@/lib/email-templates';
+import { dailyDigestTemplate } from '@/lib/email-templates';
 
 async function getOutOfStockItems(): Promise<StockAlertItem[]> {
-  const rows = await prisma.inventory.findMany({
-    where:   { quantity: { lte: 0 }, product: { isActive: true } },
-    include: { product: { include: { brand: true } }, location: true },
-  });
-  return rows.map((r) => ({
-    name:         r.product.name,
-    brand:        r.product.brand?.name,
-    sku:          r.product.sku ?? r.product.barcode ?? undefined,
-    location:     r.location.name,
-    quantity:     r.quantity,
-    suggestedQty: isFinite(r.reorderQty) && r.reorderQty > 0 ? r.reorderQty : undefined,
-  }));
+	const rows = await prisma.inventory.findMany({
+		where: { quantity: { lte: 0 }, product: { isActive: true } },
+		include: { product: { include: { brand: true } }, location: true },
+	});
+	return rows.map((r) => ({
+		name: r.product.name,
+		brand: r.product.brand?.name,
+		sku: r.product.sku ?? r.product.barcode ?? undefined,
+		location: r.location.name,
+		quantity: r.quantity,
+		suggestedQty:
+			isFinite(r.reorderQty) && r.reorderQty > 0
+				? r.reorderQty
+				: undefined,
+	}));
 }
 
 async function getLowStockItems(): Promise<StockAlertItem[]> {
-  // Filter at DB level: quantity > 0 AND reorderPoint > 0 AND quantity <= reorderPoint
-  const rows = await prisma.$queryRaw<
-    { id: string; name: string; brand: string | null; sku: string | null; barcode: string | null; location: string; quantity: number; reorderPoint: number; reorderQty: number }[]
-  >`
+	// Filter at DB level: quantity > 0 AND reorderPoint > 0 AND quantity <= reorderPoint
+	const rows = await prisma.$queryRaw<
+		{
+			id: string;
+			name: string;
+			brand: string | null;
+			sku: string | null;
+			barcode: string | null;
+			location: string;
+			quantity: number;
+			reorderPoint: number;
+			reorderQty: number;
+		}[]
+	>`
     SELECT
       i.id,
       p.name,
@@ -43,40 +56,52 @@ async function getLowStockItems(): Promise<StockAlertItem[]> {
       AND i.quantity <= i."reorderPoint"
     ORDER BY (i.quantity / i."reorderPoint") ASC
   `;
-  return rows.map((r) => ({
-    name:         r.name,
-    brand:        r.brand ?? undefined,
-    sku:          r.sku ?? r.barcode ?? undefined,
-    location:     r.location,
-    quantity:     Number(r.quantity),
-    reorderPoint: Number(r.reorderPoint),
-    suggestedQty: isFinite(Number(r.reorderQty)) && Number(r.reorderQty) > 0 ? Number(r.reorderQty) : undefined,
-  }));
+	return rows.map((r) => ({
+		name: r.name,
+		brand: r.brand ?? undefined,
+		sku: r.sku ?? r.barcode ?? undefined,
+		location: r.location,
+		quantity: Number(r.quantity),
+		reorderPoint: Number(r.reorderPoint),
+		suggestedQty:
+			isFinite(Number(r.reorderQty)) && Number(r.reorderQty) > 0
+				? Number(r.reorderQty)
+				: undefined,
+	}));
 }
 
 async function logEmail(params: {
-  type:       string;
-  subject:    string;
-  recipients: string[];
-  status:     "SENT" | "FAILED";
-  error?:     string;
+	type: string;
+	subject: string;
+	recipients: string[];
+	status: 'SENT' | 'FAILED';
+	error?: string;
 }) {
-  await prisma.emailLog.create({
-    data: {
-      type:       params.type as never,
-      subject:    params.subject,
-      recipients: params.recipients,
-      status:     params.status,
-      error:      params.error ?? null,
-      sentAt:     params.status === "SENT" ? new Date() : null,
-    },
-  });
+	await prisma.emailLog.create({
+		data: {
+			type: params.type as never,
+			subject: params.subject,
+			recipients: params.recipients,
+			status: params.status,
+			error: params.error ?? null,
+			sentAt: params.status === 'SENT' ? new Date() : null,
+		},
+	});
 }
 
 /** Minimal HTML body — full detail is in the XLSX attachment. */
-function summaryHtml(title: string, outCount: number, lowCount: number): string {
-  const date = new Date().toLocaleDateString("en-CA", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
-  return `<!DOCTYPE html>
+function summaryHtml(
+	title: string,
+	outCount: number,
+	lowCount: number
+): string {
+	const date = new Date().toLocaleDateString('en-CA', {
+		weekday: 'long',
+		year: 'numeric',
+		month: 'long',
+		day: 'numeric',
+	});
+	return `<!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8" />
@@ -112,7 +137,7 @@ function summaryHtml(title: string, outCount: number, lowCount: number): string 
       <div class="stat stat-red"><h2>${outCount}</h2><p>Out of stock</p></div>
       <div class="stat stat-amber"><h2>${lowCount}</h2><p>Low stock</p></div>
     </div>
-    <a class="btn" href="${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/reorder">Open Reorder Page →</a>
+    <a class="btn" href="${process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'}/reorder">Open Reorder Page →</a>
     <p class="note">Full details — product names, SKUs, quantities, and suggested order quantities — are in the attached Excel file.</p>
   </div>
   <div class="footer">Beauty First / Beauty Logix · Automated alert from BFS Inventory</div>
@@ -122,109 +147,187 @@ function summaryHtml(title: string, outCount: number, lowCount: number): string 
 }
 
 export async function runAlertRules(): Promise<{
-  processed: number;
-  sent: number;
-  skipped: number;
-  errors: string[];
+	processed: number;
+	sent: number;
+	skipped: number;
+	errors: string[];
 }> {
-  const rules = await prisma.alertRule.findMany({ where: { isActive: true } });
-  let sent = 0, skipped = 0;
-  const errors: string[] = [];
+	const rules = await prisma.alertRule.findMany({
+		where: { isActive: true },
+	});
+	let sent = 0,
+		skipped = 0;
+	const errors: string[] = [];
 
-  for (const rule of rules) {
-    if (rule.recipients.length === 0) { skipped++; continue; }
+	for (const rule of rules) {
+		if (rule.recipients.length === 0) {
+			skipped++;
+			continue;
+		}
 
-    try {
-      let subject = "";
-      let html    = "";
-      let xlsxBuf: Buffer | null = null;
-      let xlsxFilename = "stock-alert.xlsx";
+		try {
+			let subject = '';
+			let html = '';
+			let xlsxBuf: Buffer | null = null;
+			let xlsxFilename = 'stock-alert.xlsx';
 
-      if (rule.type === "OUT_OF_STOCK") {
-        const items = await getOutOfStockItems();
-        if (items.length === 0) { skipped++; continue; }
-        subject     = `Out of Stock Alert — ${items.length} product${items.length !== 1 ? "s" : ""}`;
-        html        = summaryHtml("Out of Stock Alert", items.length, 0);
-        xlsxBuf     = await generateStockAlertXlsx({ outOfStock: items, lowStock: [], title: "Out of Stock" });
-        xlsxFilename = `out-of-stock-${new Date().toISOString().slice(0, 10)}.xlsx`;
+			if (rule.type === 'OUT_OF_STOCK') {
+				const items = await getOutOfStockItems();
+				if (items.length === 0) {
+					skipped++;
+					continue;
+				}
+				subject = `Out of Stock Alert — ${items.length} product${items.length !== 1 ? 's' : ''}`;
+				html = summaryHtml('Out of Stock Alert', items.length, 0);
+				xlsxBuf = await generateStockAlertXlsx({
+					outOfStock: items,
+					lowStock: [],
+					title: 'Out of Stock',
+				});
+				xlsxFilename = `out-of-stock-${new Date().toISOString().slice(0, 10)}.xlsx`;
+			} else if (rule.type === 'LOW_STOCK') {
+				const items = await getLowStockItems();
+				if (items.length === 0) {
+					skipped++;
+					continue;
+				}
+				subject = `Low Stock Alert — ${items.length} product${items.length !== 1 ? 's' : ''}`;
+				html = summaryHtml('Low Stock Alert', 0, items.length);
+				xlsxBuf = await generateStockAlertXlsx({
+					outOfStock: [],
+					lowStock: items,
+					title: 'Low Stock',
+				});
+				xlsxFilename = `low-stock-${new Date().toISOString().slice(0, 10)}.xlsx`;
+			} else if (rule.type === 'REORDER_NEEDED') {
+				const [outItems, lowItems] = await Promise.all([
+					getOutOfStockItems(),
+					getLowStockItems(),
+				]);
+				if (outItems.length === 0 && lowItems.length === 0) {
+					skipped++;
+					continue;
+				}
+				subject = `Reorder Needed — ${outItems.length + lowItems.length} product${outItems.length + lowItems.length !== 1 ? 's' : ''}`;
+				html = summaryHtml(
+					'Reorder Needed',
+					outItems.length,
+					lowItems.length
+				);
+				xlsxBuf = await generateStockAlertXlsx({
+					outOfStock: outItems,
+					lowStock: lowItems,
+					title: 'Reorder',
+				});
+				xlsxFilename = `reorder-${new Date().toISOString().slice(0, 10)}.xlsx`;
+			} else if (rule.type === 'DAILY_DIGEST') {
+				const [totalProducts, outOfStock, allInv] = await Promise.all([
+					prisma.inventory.count({
+						where: { product: { isActive: true } },
+					}),
+					prisma.inventory.count({
+						where: {
+							quantity: { lte: 0 },
+							product: { isActive: true },
+						},
+					}),
+					prisma.inventory.findMany({
+						where: { product: { isActive: true } },
+					}),
+				]);
+				const lowStock = allInv.filter(
+					(r) =>
+						r.quantity > 0 &&
+						r.reorderPoint > 0 &&
+						r.quantity <= r.reorderPoint
+				).length;
+				const healthyStock = Math.max(
+					0,
+					totalProducts - outOfStock - lowStock
+				);
 
-      } else if (rule.type === "LOW_STOCK") {
-        const items = await getLowStockItems();
-        if (items.length === 0) { skipped++; continue; }
-        subject     = `Low Stock Alert — ${items.length} product${items.length !== 1 ? "s" : ""}`;
-        html        = summaryHtml("Low Stock Alert", 0, items.length);
-        xlsxBuf     = await generateStockAlertXlsx({ outOfStock: [], lowStock: items, title: "Low Stock" });
-        xlsxFilename = `low-stock-${new Date().toISOString().slice(0, 10)}.xlsx`;
+				const movements = await prisma.stockMovement.findMany({
+					orderBy: { createdAt: 'desc' },
+					take: 10,
+					include: { product: true, location: true },
+				});
 
-      } else if (rule.type === "REORDER_NEEDED") {
-        const [outItems, lowItems] = await Promise.all([getOutOfStockItems(), getLowStockItems()]);
-        if (outItems.length === 0 && lowItems.length === 0) { skipped++; continue; }
-        subject     = `Reorder Needed — ${outItems.length + lowItems.length} product${(outItems.length + lowItems.length) !== 1 ? "s" : ""}`;
-        html        = summaryHtml("Reorder Needed", outItems.length, lowItems.length);
-        xlsxBuf     = await generateStockAlertXlsx({ outOfStock: outItems, lowStock: lowItems, title: "Reorder" });
-        xlsxFilename = `reorder-${new Date().toISOString().slice(0, 10)}.xlsx`;
+				subject = `Daily Inventory Digest — ${new Date().toLocaleDateString('en-CA')}`;
+				html = dailyDigestTemplate({
+					totalProducts,
+					outOfStock,
+					lowStock,
+					healthyStock,
+					recentMovements: movements.map((m) => ({
+						product: m.product.name,
+						type: m.type,
+						qty: [
+							'SALE',
+							'ADJUSTMENT_OUT',
+							'TRANSFER_OUT',
+						].includes(m.type)
+							? -m.quantity
+							: m.quantity,
+						location: m.location.name,
+					})),
+				});
 
-      } else if (rule.type === "DAILY_DIGEST") {
-        const [totalProducts, outOfStock, allInv] = await Promise.all([
-          prisma.inventory.count({ where: { product: { isActive: true } } }),
-          prisma.inventory.count({ where: { quantity: { lte: 0 }, product: { isActive: true } } }),
-          prisma.inventory.findMany({ where: { product: { isActive: true } } }),
-        ]);
-        const lowStock     = allInv.filter((r) => r.quantity > 0 && r.reorderPoint > 0 && r.quantity <= r.reorderPoint).length;
-        const healthyStock = Math.max(0, totalProducts - outOfStock - lowStock);
+				// Attach XLSX only if there are alerts
+				if (outOfStock > 0 || lowStock > 0) {
+					const [outItems, lowItems] = await Promise.all([
+						getOutOfStockItems(),
+						getLowStockItems(),
+					]);
+					xlsxBuf = await generateStockAlertXlsx({
+						outOfStock: outItems,
+						lowStock: lowItems,
+						title: 'Daily Digest',
+					});
+					xlsxFilename = `digest-${new Date().toISOString().slice(0, 10)}.xlsx`;
+				}
+			} else {
+				skipped++;
+				continue;
+			}
 
-        const movements = await prisma.stockMovement.findMany({
-          orderBy: { createdAt: "desc" },
-          take: 10,
-          include: { product: true, location: true },
-        });
+			await sendMail({
+				to: rule.recipients,
+				subject,
+				html,
+				attachments: xlsxBuf
+					? [
+							{
+								filename: xlsxFilename,
+								content: xlsxBuf,
+								contentType:
+									'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+							},
+						]
+					: undefined,
+			});
+			await logEmail({
+				type: rule.type,
+				subject,
+				recipients: rule.recipients,
+				status: 'SENT',
+			});
+			await prisma.alertRule.update({
+				where: { id: rule.id },
+				data: { lastTriggeredAt: new Date() },
+			});
+			sent++;
+		} catch (err) {
+			const msg = err instanceof Error ? err.message : String(err);
+			errors.push(`Rule "${rule.name}": ${msg}`);
+			await logEmail({
+				type: rule.type,
+				subject: `Failed: ${rule.name}`,
+				recipients: rule.recipients,
+				status: 'FAILED',
+				error: msg,
+			}).catch(() => {});
+		}
+	}
 
-        subject = `Daily Inventory Digest — ${new Date().toLocaleDateString("en-CA")}`;
-        html    = dailyDigestTemplate({
-          totalProducts,
-          outOfStock,
-          lowStock,
-          healthyStock,
-          recentMovements: movements.map((m) => ({
-            product:  m.product.name,
-            type:     m.type,
-            qty:      ["SALE", "ADJUSTMENT_OUT", "TRANSFER_OUT"].includes(m.type) ? -m.quantity : m.quantity,
-            location: m.location.name,
-          })),
-        });
-
-        // Attach XLSX only if there are alerts
-        if (outOfStock > 0 || lowStock > 0) {
-          const [outItems, lowItems] = await Promise.all([getOutOfStockItems(), getLowStockItems()]);
-          xlsxBuf     = await generateStockAlertXlsx({ outOfStock: outItems, lowStock: lowItems, title: "Daily Digest" });
-          xlsxFilename = `digest-${new Date().toISOString().slice(0, 10)}.xlsx`;
-        }
-      } else {
-        skipped++;
-        continue;
-      }
-
-      await sendMail({
-        to:      rule.recipients,
-        subject,
-        html,
-        attachments: xlsxBuf ? [{ filename: xlsxFilename, content: xlsxBuf, contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }] : undefined,
-      });
-      await logEmail({ type: rule.type, subject, recipients: rule.recipients, status: "SENT" });
-      await prisma.alertRule.update({ where: { id: rule.id }, data: { lastTriggeredAt: new Date() } });
-      sent++;
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      errors.push(`Rule "${rule.name}": ${msg}`);
-      await logEmail({
-        type:       rule.type,
-        subject:    `Failed: ${rule.name}`,
-        recipients: rule.recipients,
-        status:     "FAILED",
-        error:      msg,
-      }).catch(() => {});
-    }
-  }
-
-  return { processed: rules.length, sent, skipped, errors };
+	return { processed: rules.length, sent, skipped, errors };
 }

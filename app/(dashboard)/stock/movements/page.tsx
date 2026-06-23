@@ -1,5 +1,5 @@
-import { MovementsDashboard } from "@/components/stock/movements/dashboard/movements-dashboard";
+import { MovementsDashboard } from '@/components/stock/movements/dashboard/movements-dashboard';
 
 export default function MovementsPage() {
-  return <MovementsDashboard />;
+	return <MovementsDashboard />;
 }

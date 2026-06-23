@@ -1,5 +1,5 @@
-import { IntegrationsDashboard } from "@/components/integrations/dashboard/integrations-dashboard";
+import { IntegrationsDashboard } from '@/components/integrations/dashboard/integrations-dashboard';
 
 export default function IntegrationsPage() {
-  return <IntegrationsDashboard />;
+	return <IntegrationsDashboard />;
 }

@@ -14,18 +14,18 @@ A Next.js 16 web app replacing the Excel-based inventory workflow for **Beauty F
 
 ## Tech Stack
 
-| Layer | Choice |
-|---|---|
-| Framework | Next.js 16.2.9, App Router, React 19, TypeScript |
-| Database | PostgreSQL via Prisma 7 (Neon) |
-| Auth | better-auth 1.6 |
-| UI | shadcn (radix-nova style) + Tailwind 4 |
-| Data fetching | TanStack Query v5 + axios |
-| Forms | react-hook-form + Zod 4 |
-| Charts | recharts |
-| Email | nodemailer (Gmail app password) |
-| Font | Plus Jakarta Sans → `--font-sans` (variable set directly on `<body>`) |
-| Excel generation | ExcelJS v4 (email attachments + reports) |
+| Layer            | Choice                                                                |
+| ---------------- | --------------------------------------------------------------------- |
+| Framework        | Next.js 16.2.9, App Router, React 19, TypeScript                      |
+| Database         | PostgreSQL via Prisma 7 (Neon)                                        |
+| Auth             | better-auth 1.6                                                       |
+| UI               | shadcn (radix-nova style) + Tailwind 4                                |
+| Data fetching    | TanStack Query v5 + axios                                             |
+| Forms            | react-hook-form + Zod 4                                               |
+| Charts           | recharts                                                              |
+| Email            | nodemailer (Gmail app password)                                       |
+| Font             | Plus Jakarta Sans → `--font-sans` (variable set directly on `<body>`) |
+| Excel generation | ExcelJS v4 (email attachments + reports)                              |
 
 ---
 
@@ -85,6 +85,7 @@ components/<module>/
 Not every module uses all three subdirs — only what the feature requires.
 
 Examples:
+
 - `components/products/dashboard/products-dashboard.tsx` → rendered by `app/(dashboard)/products/page.tsx`
 - `components/products/create/product-form.tsx` → shared add/edit form
 - `components/products/view/product-view.tsx` → rendered by `app/(dashboard)/products/[id]/page.tsx`
@@ -101,23 +102,24 @@ Examples:
 All `<Sheet>` slide-over forms follow this pattern:
 
 ```tsx
-<SheetContent className="w-full sm:max-w-{size} overflow-y-auto">
-  <SheetHeader className="px-6 pt-6 pb-2">
-    <SheetTitle>…</SheetTitle>
-    <SheetDescription>…</SheetDescription>
-  </SheetHeader>
+<SheetContent className="sm:max-w-{size} w-full overflow-y-auto">
+	<SheetHeader className="px-6 pt-6 pb-2">
+		<SheetTitle>…</SheetTitle>
+		<SheetDescription>…</SheetDescription>
+	</SheetHeader>
 
-  <form className="px-6 pb-6 space-y-5">
-    {/* fields */}
-    <div className="flex justify-end gap-3 pt-5 border-t">
-      <Button variant="outline">Cancel</Button>
-      <Button type="submit">Save</Button>
-    </div>
-  </form>
+	<form className="space-y-5 px-6 pb-6">
+		{/* fields */}
+		<div className="flex justify-end gap-3 border-t pt-5">
+			<Button variant="outline">Cancel</Button>
+			<Button type="submit">Save</Button>
+		</div>
+	</form>
 </SheetContent>
 ```
 
 **Width guide:**
+
 - `sm:max-w-lg` — simple forms with 3–4 fields (Set Thresholds, Add Location)
 - `sm:max-w-xl` — standard forms with 5+ fields (Alert Rule, Product, Adjust Stock, Supplier)
 - `sm:max-w-2xl` — complex / table-heavy sheets (New PO, PO Detail, Receive PO)
@@ -166,49 +168,49 @@ Stock quantities are now maintained by the **nightly QB API sync** (`/api/cron/s
 
 ### ✅ Done
 
-| # | Feature | Key files |
-|---|---|---|
-| — | UI Shell | `components/app-header.tsx`, `components/app-sidebar.tsx`, `app/(dashboard)/layout.tsx`, `lib/font.ts` |
-| 1–4 | Products, Brands, Categories, Dashboard | `components/products/`, `components/dashboard/`, `app/api/products/` |
-| 5 | Stock & Locations | `app/api/stock/`, `app/api/locations/`, `components/stock/` |
-| 6 | Reorder Management | `app/api/reorder/`, `components/reorder/` |
-| 7 | Supplier Management | `app/api/suppliers/`, `components/suppliers/` |
-| 8 | Purchase Orders | `app/api/purchase-orders/`, `components/purchase-orders/` |
-| 9 | Email Notifications | `app/api/notifications/`, `lib/mailer.ts`, `lib/notification-engine.ts`, `components/notifications/` |
-| 10 | Sales History / Analytics | `app/api/sales/`, `components/analytics/` |
-| 11 | Reports | `app/api/reports/`, `components/reports/` |
-| 12 | Import / Export | `app/api/import/`, `app/api/export/`, `components/import-export/` |
-| 13 | QB Integration | `app/api/integrations/quickbooks/`, `hooks/use-integrations.ts`, `components/integrations/` |
-| 14 | Zenoti Fulfillment (Phase 1) | `app/api/zenoti/`, `hooks/use-zenoti.ts`, `components/zenoti/` — see section below |
-| 15 | Settings | `app/api/settings/stock-policy/`, `components/settings/` |
-| 16 | Authentication + RBAC | `lib/auth.ts`, `lib/auth-client.ts`, `lib/require-role.ts`, `components/auth/login-view.tsx`, `middleware.ts` |
-| 17 | User admin panel | `app/api/users/`, `hooks/use-users.ts`, `components/settings/dashboard/user-table.tsx` — Team tab in Settings |
-| 18 | QB refresh token alert | `lib/qb-token-check.ts` — runs in nightly cron, emails admin if ≤7 days |
-| 19 | Empty states | `components/ui/empty-state.tsx` — used in products, stock, movements, email log, suppliers, reorder tables |
-| 20 | QB Vendor sync | `app/api/integrations/quickbooks/vendors/route.ts`, Vendors tab in Integrations |
-| 21 | QB Product name sync | `app/api/integrations/quickbooks/items/sync-names/route.ts`, monthly cron `0 7 1 * *` |
-| 22 | Product detail page | `components/products/view/product-view.tsx` — image, sales bar chart, stock balance line chart, recent movements table |
-| 23 | Product image upload | UploadThing endpoint `productImage` in `app/api/uploadthing/core.ts`; CDN at `utfs.io` (added to `next.config.ts` remotePatterns) |
-| 24 | QB inactive product deactivation | Stock sync (`POST /api/integrations/quickbooks/items`) now runs a second pass fetching inactive QB items and setting matching BFS products `isActive = false`. Matches by SKU/barcode only. |
-| 25 | Sales calc shared helper | `lib/sales-calc.ts` — `computeAvgMonthly()` with trailing-zero trimming + linear recency weighting + `confident` flag. Imported by reorder route, calculate-minimums route, and stock-policy route. |
-| 26 | Email XLSX brand-per-sheet | `lib/email-xlsx.ts` rewritten — one sheet per brand (alphabetical), both Out-of-Stock and Low-Stock items together per sheet, Status column with red/amber coloring, Summary sheet with brand breakdown. |
-| 27 | QB stock sync delta tracking | `POST /api/integrations/quickbooks/items` now reads existing inventory qty before upserting. Writes `ADJUSTMENT_OUT` when QB qty drops (dispatched), `ADJUSTMENT_IN` when it rises (restocked), nothing when unchanged. `RECONCILIATION` is now only written for a product's first-ever sync (opening snapshot). Response includes `movements: { dispatched, restocked, unchanged }` counts. |
-| 28 | QB invoice backfill (done, button removed) | `POST /api/integrations/quickbooks/backfill-movements` — read-only one-time route that reconstructed 2 years of `ADJUSTMENT_OUT` movements from QB Invoices. 10,405 movements written with `reference = "QB-INV-{DocNumber}"` and `notes = "QB backfill: invoiced to {store}"`. Route and UI button retained in codebase but button removed from Integrations UI after confirming data (10,405/10,435 = 99.7% attributed). |
-| 29 | Movements Log — brand filter + By Product view | Brand dropdown filter. Summary cards (Received / Dispatched / Net change) when date range active. **By Product** toggle: one row per product with `totalIn`, `totalOut`, `netChange`, `currentStock`, `movementCount`. `GET /api/stock/movements/summary` uses `$queryRaw`. `RECONCILIATION` and `OPENING_STOCK` excluded from both totals. |
-| 30 | Movements export — Excel download | **Export Excel** button on By Product view. `GET /api/stock/movements/summary/export` — same filters as summary, ExcelJS output with coloured Total In/Out/Net columns, meta rows (brand, period), totals row. Filename: `movements-{dateFrom}-{dateTo}.xlsx`. |
-| 31 | QB unit cost sync | During stock sync loop, if `item.PurchaseCost != null && > 0`, calls `updateMany` on `ProductSupplier` for that product. `costUpdated` count in sync response and SyncLog message. |
-| 32 | QB invoice attribution on movements | Before the sync loop in `POST /api/integrations/quickbooks/items`, fetches QB Invoices since `lastSyncAt` (default 48h on first run). Builds `Map<qboItemId, [{docNumber, customerName}]>`. `ADJUSTMENT_OUT` movements now get `reference = "QB-INV-1023"` and `notes = "QBO sync: dispatched to Square One"`. Non-fatal if invoice fetch fails — movements still written without attribution. |
-| 33 | Pending product staging workflow | `PendingProduct` table (migration `20260622180459_add_pending_product`). QB sync upserts unmatched items here instead of silently skipping. `/products/pending` page: table sorted by qty desc, with QB name, SKU, cost, suggested brand (parsed from QB hierarchy), first seen, seen count. **Add** button opens Sheet to validate name/SKU/barcode/brand/category/location → creates Product + Inventory + `OPENING_STOCK` movement + deletes pending record. **Dismiss** removes from list (reappears on next sync if still unmatched). Sidebar: Products now has sub-items (All Products / Pending from QB). API: `GET/DELETE /api/products/pending`, `POST /api/products/pending/[id]/approve`. |
-| 34 | Restocks / Dispatches preset views | Movements Log now has three preset chips: **All Movements** / **Restocks** / **Dispatches**. Each sets the type filter (movements view) and `typeGroup` param (By Product view). Summary API supports `typeGroup=in\|out` to scope SQL to IN or OUT types only. By Product view in Restocks mode shows: Units Restocked, Restock Events, Avg per Restock, Current Stock, Last Restock. Dispatches mode mirrors with OUT columns. |
-| 35 | Dispatch by Store report | New tab in Reports → **Dispatch by Store**. `GET /api/reports/dispatch-by-store` parses store name from `notes` field of `ADJUSTMENT_OUT` movements, pivots product × store. Table: product rows, store columns (sorted alpha, Unknown last), per-store totals sub-header, Total + Unit Cost + Total Value columns. ExcelJS export with frozen headers and totals row. Filter: date range + brand. |
+| #   | Feature                                        | Key files                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| --- | ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| —   | UI Shell                                       | `components/app-header.tsx`, `components/app-sidebar.tsx`, `app/(dashboard)/layout.tsx`, `lib/font.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| 1–4 | Products, Brands, Categories, Dashboard        | `components/products/`, `components/dashboard/`, `app/api/products/`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| 5   | Stock & Locations                              | `app/api/stock/`, `app/api/locations/`, `components/stock/`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| 6   | Reorder Management                             | `app/api/reorder/`, `components/reorder/`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| 7   | Supplier Management                            | `app/api/suppliers/`, `components/suppliers/`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| 8   | Purchase Orders                                | `app/api/purchase-orders/`, `components/purchase-orders/`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| 9   | Email Notifications                            | `app/api/notifications/`, `lib/mailer.ts`, `lib/notification-engine.ts`, `components/notifications/`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| 10  | Sales History / Analytics                      | `app/api/sales/`, `components/analytics/`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| 11  | Reports                                        | `app/api/reports/`, `components/reports/`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| 12  | Import / Export                                | `app/api/import/`, `app/api/export/`, `components/import-export/`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| 13  | QB Integration                                 | `app/api/integrations/quickbooks/`, `hooks/use-integrations.ts`, `components/integrations/`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| 14  | Zenoti Fulfillment (Phase 1)                   | `app/api/zenoti/`, `hooks/use-zenoti.ts`, `components/zenoti/` — see section below                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| 15  | Settings                                       | `app/api/settings/stock-policy/`, `components/settings/`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| 16  | Authentication + RBAC                          | `lib/auth.ts`, `lib/auth-client.ts`, `lib/require-role.ts`, `components/auth/login-view.tsx`, `middleware.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| 17  | User admin panel                               | `app/api/users/`, `hooks/use-users.ts`, `components/settings/dashboard/user-table.tsx` — Team tab in Settings                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| 18  | QB refresh token alert                         | `lib/qb-token-check.ts` — runs in nightly cron, emails admin if ≤7 days                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| 19  | Empty states                                   | `components/ui/empty-state.tsx` — used in products, stock, movements, email log, suppliers, reorder tables                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| 20  | QB Vendor sync                                 | `app/api/integrations/quickbooks/vendors/route.ts`, Vendors tab in Integrations                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| 21  | QB Product name sync                           | `app/api/integrations/quickbooks/items/sync-names/route.ts`, monthly cron `0 7 1 * *`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| 22  | Product detail page                            | `components/products/view/product-view.tsx` — image, sales bar chart, stock balance line chart, recent movements table                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| 23  | Product image upload                           | UploadThing endpoint `productImage` in `app/api/uploadthing/core.ts`; CDN at `utfs.io` (added to `next.config.ts` remotePatterns)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| 24  | QB inactive product deactivation               | Stock sync (`POST /api/integrations/quickbooks/items`) now runs a second pass fetching inactive QB items and setting matching BFS products `isActive = false`. Matches by SKU/barcode only.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| 25  | Sales calc shared helper                       | `lib/sales-calc.ts` — `computeAvgMonthly()` with trailing-zero trimming + linear recency weighting + `confident` flag. Imported by reorder route, calculate-minimums route, and stock-policy route.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| 26  | Email XLSX brand-per-sheet                     | `lib/email-xlsx.ts` rewritten — one sheet per brand (alphabetical), both Out-of-Stock and Low-Stock items together per sheet, Status column with red/amber coloring, Summary sheet with brand breakdown.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| 27  | QB stock sync delta tracking                   | `POST /api/integrations/quickbooks/items` now reads existing inventory qty before upserting. Writes `ADJUSTMENT_OUT` when QB qty drops (dispatched), `ADJUSTMENT_IN` when it rises (restocked), nothing when unchanged. `RECONCILIATION` is now only written for a product's first-ever sync (opening snapshot). Response includes `movements: { dispatched, restocked, unchanged }` counts.                                                                                                                                                                                                                                                                                                         |
+| 28  | QB invoice backfill (done, button removed)     | `POST /api/integrations/quickbooks/backfill-movements` — read-only one-time route that reconstructed 2 years of `ADJUSTMENT_OUT` movements from QB Invoices. 10,405 movements written with `reference = "QB-INV-{DocNumber}"` and `notes = "QB backfill: invoiced to {store}"`. Route and UI button retained in codebase but button removed from Integrations UI after confirming data (10,405/10,435 = 99.7% attributed).                                                                                                                                                                                                                                                                           |
+| 29  | Movements Log — brand filter + By Product view | Brand dropdown filter. Summary cards (Received / Dispatched / Net change) when date range active. **By Product** toggle: one row per product with `totalIn`, `totalOut`, `netChange`, `currentStock`, `movementCount`. `GET /api/stock/movements/summary` uses `$queryRaw`. `RECONCILIATION` and `OPENING_STOCK` excluded from both totals.                                                                                                                                                                                                                                                                                                                                                          |
+| 30  | Movements export — Excel download              | **Export Excel** button on By Product view. `GET /api/stock/movements/summary/export` — same filters as summary, ExcelJS output with coloured Total In/Out/Net columns, meta rows (brand, period), totals row. Filename: `movements-{dateFrom}-{dateTo}.xlsx`.                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| 31  | QB unit cost sync                              | During stock sync loop, if `item.PurchaseCost != null && > 0`, calls `updateMany` on `ProductSupplier` for that product. `costUpdated` count in sync response and SyncLog message.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| 32  | QB invoice attribution on movements            | Before the sync loop in `POST /api/integrations/quickbooks/items`, fetches QB Invoices since `lastSyncAt` (default 48h on first run). Builds `Map<qboItemId, [{docNumber, customerName}]>`. `ADJUSTMENT_OUT` movements now get `reference = "QB-INV-1023"` and `notes = "QBO sync: dispatched to Square One"`. Non-fatal if invoice fetch fails — movements still written without attribution.                                                                                                                                                                                                                                                                                                       |
+| 33  | Pending product staging workflow               | `PendingProduct` table (migration `20260622180459_add_pending_product`). QB sync upserts unmatched items here instead of silently skipping. `/products/pending` page: table sorted by qty desc, with QB name, SKU, cost, suggested brand (parsed from QB hierarchy), first seen, seen count. **Add** button opens Sheet to validate name/SKU/barcode/brand/category/location → creates Product + Inventory + `OPENING_STOCK` movement + deletes pending record. **Dismiss** removes from list (reappears on next sync if still unmatched). Sidebar: Products now has sub-items (All Products / Pending from QB). API: `GET/DELETE /api/products/pending`, `POST /api/products/pending/[id]/approve`. |
+| 34  | Restocks / Dispatches preset views             | Movements Log now has three preset chips: **All Movements** / **Restocks** / **Dispatches**. Each sets the type filter (movements view) and `typeGroup` param (By Product view). Summary API supports `typeGroup=in\|out` to scope SQL to IN or OUT types only. By Product view in Restocks mode shows: Units Restocked, Restock Events, Avg per Restock, Current Stock, Last Restock. Dispatches mode mirrors with OUT columns.                                                                                                                                                                                                                                                                     |
+| 35  | Dispatch by Store report                       | New tab in Reports → **Dispatch by Store**. `GET /api/reports/dispatch-by-store` parses store name from `notes` field of `ADJUSTMENT_OUT` movements, pivots product × store. Table: product rows, store columns (sorted alpha, Unknown last), per-store totals sub-header, Total + Unit Cost + Total Value columns. ExcelJS export with frozen headers and totals row. Filter: date range + brand.                                                                                                                                                                                                                                                                                                   |
 
 ### ⏳ Zenoti Phase 2 (post-meeting)
 
-| Item | Blocker | Notes |
-|---|---|---|
-| Live sync active | API subscription not yet enabled — ticket **BC-60590** raised 2026-06-18, ETA ~2026-06-23 (3–4 business days). Registered email: alvinkigen@outlook.com | Once activated, get API key from Zenoti Admin → Setup → Apps, add `ZENOTI_BFS_API_KEY` + `ZENOTI_BL_API_KEY` to `.env` + Vercel, then hit `GET /api/zenoti/centers` to discover center IDs |
-| QB Invoice posting | Confirm accounting team sign-off + QB customer names per store | `POST /api/zenoti/fulfillments/[id]/submit` currently emails only; QB posting is the next step |
-| Confirm PO endpoint path | Need real API key to test | Current assumption: `GET /v1/procurement/purchase_orders?center_id=&statuses=Raised,Updated` — verify once keys arrive, adjust `lib/zenoti.ts` `fetchZenotiPOs` if path differs |
+| Item                     | Blocker                                                                                                                                                 | Notes                                                                                                                                                                                      |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Live sync active         | API subscription not yet enabled — ticket **BC-60590** raised 2026-06-18, ETA ~2026-06-23 (3–4 business days). Registered email: alvinkigen@outlook.com | Once activated, get API key from Zenoti Admin → Setup → Apps, add `ZENOTI_BFS_API_KEY` + `ZENOTI_BL_API_KEY` to `.env` + Vercel, then hit `GET /api/zenoti/centers` to discover center IDs |
+| QB Invoice posting       | Confirm accounting team sign-off + QB customer names per store                                                                                          | `POST /api/zenoti/fulfillments/[id]/submit` currently emails only; QB posting is the next step                                                                                             |
+| Confirm PO endpoint path | Need real API key to test                                                                                                                               | Current assumption: `GET /v1/procurement/purchase_orders?center_id=&statuses=Raised,Updated` — verify once keys arrive, adjust `lib/zenoti.ts` `fetchZenotiPOs` if path differs            |
 
 ---
 
@@ -218,22 +220,22 @@ QB is the **source of truth** for stock quantities and product names. All file-u
 
 ### Sync modes
 
-| Mode | Route | Trigger | What it does |
-|---|---|---|---|
-| **Live stock sync** | `POST /api/integrations/quickbooks/items` | UI button / nightly cron | Fetches `QtyOnHand` from QB Items API → upserts inventory. Writes `ADJUSTMENT_OUT`/`ADJUSTMENT_IN` for deltas; `RECONCILIATION` only on first-ever sync. Attributes `ADJUSTMENT_OUT` to QB invoice number + store name via invoice fetch before the loop. Updates `ProductSupplier.cost` from `PurchaseCost`. Upserts unmatched items to `PendingProduct`. |
-| **Live sales sync** | `POST /api/integrations/quickbooks/sync-sales-api` | UI button / nightly cron | Fetches `SalesByProductServiceSummary` (last 12 months) → upserts SalesRecord |
-| **Product name sync** | `POST /api/integrations/quickbooks/items/sync-names` | UI button / monthly cron | Overwrites `product.name` from QB canonical name, matched by SKU only |
-| **Vendor sync** | `POST /api/integrations/quickbooks/vendors` | UI button (on-demand) | Imports active QB Vendors → upserts Suppliers; fills blank fields only, never overwrites manual edits |
-| **XLS file import** | `POST /api/integrations/quickbooks/sync-stock` | UI file upload | Emergency: parse `ProductServiceList__*.xls` → upsert inventory |
-| **CSV paste import** | `POST /api/integrations/quickbooks/sync-stock` | UI text area | Emergency: rows from CSV paste |
-| **Sales CSV import** | `POST /api/integrations/quickbooks/sync-sales` | UI text area | Emergency: QB Sales Detail CSV (flat or wide format) |
+| Mode                  | Route                                                | Trigger                  | What it does                                                                                                                                                                                                                                                                                                                                               |
+| --------------------- | ---------------------------------------------------- | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Live stock sync**   | `POST /api/integrations/quickbooks/items`            | UI button / nightly cron | Fetches `QtyOnHand` from QB Items API → upserts inventory. Writes `ADJUSTMENT_OUT`/`ADJUSTMENT_IN` for deltas; `RECONCILIATION` only on first-ever sync. Attributes `ADJUSTMENT_OUT` to QB invoice number + store name via invoice fetch before the loop. Updates `ProductSupplier.cost` from `PurchaseCost`. Upserts unmatched items to `PendingProduct`. |
+| **Live sales sync**   | `POST /api/integrations/quickbooks/sync-sales-api`   | UI button / nightly cron | Fetches `SalesByProductServiceSummary` (last 12 months) → upserts SalesRecord                                                                                                                                                                                                                                                                              |
+| **Product name sync** | `POST /api/integrations/quickbooks/items/sync-names` | UI button / monthly cron | Overwrites `product.name` from QB canonical name, matched by SKU only                                                                                                                                                                                                                                                                                      |
+| **Vendor sync**       | `POST /api/integrations/quickbooks/vendors`          | UI button (on-demand)    | Imports active QB Vendors → upserts Suppliers; fills blank fields only, never overwrites manual edits                                                                                                                                                                                                                                                      |
+| **XLS file import**   | `POST /api/integrations/quickbooks/sync-stock`       | UI file upload           | Emergency: parse `ProductServiceList__*.xls` → upsert inventory                                                                                                                                                                                                                                                                                            |
+| **CSV paste import**  | `POST /api/integrations/quickbooks/sync-stock`       | UI text area             | Emergency: rows from CSV paste                                                                                                                                                                                                                                                                                                                             |
+| **Sales CSV import**  | `POST /api/integrations/quickbooks/sync-sales`       | UI text area             | Emergency: QB Sales Detail CSV (flat or wide format)                                                                                                                                                                                                                                                                                                       |
 
 ### Cron jobs
 
-| Schedule | Route | What it does |
-|---|---|---|
-| `0 6 * * *` (daily 06:00 UTC) | `GET /api/cron/sync` | Stock sync + QB token expiry check (sales sync removed — QB Reports API returns 403) |
-| `0 7 1 * *` (monthly, 1st) | `GET /api/cron/sync-names` | Overwrites product names from QB by SKU match |
+| Schedule                      | Route                      | What it does                                                                         |
+| ----------------------------- | -------------------------- | ------------------------------------------------------------------------------------ |
+| `0 6 * * *` (daily 06:00 UTC) | `GET /api/cron/sync`       | Stock sync + QB token expiry check (sales sync removed — QB Reports API returns 403) |
+| `0 7 1 * *` (monthly, 1st)    | `GET /api/cron/sync-names` | Overwrites product names from QB by SKU match                                        |
 
 Both cron routes are protected by `Authorization: Bearer <CRON_SECRET>`. Vercel sends this header automatically; set `CRON_SECRET` in both `.env` and Vercel environment variables.
 
@@ -261,6 +263,7 @@ Only items with a QB SKU are renamed. Matching priority: `product.sku` → `prod
 Tokens live in `IntegrationConfig.config.oauth` (JSON). Access token auto-refreshes when <2 min from expiry. Refresh token expires ~Sep 2026 — if it expires, reconnect via `/integrations` → Settings tab. The nightly cron emails the admin (`GMAIL_USER`) if fewer than 7 days remain.
 
 **QB redirect URI** (registered in Intuit portal):
+
 ```
 https://bfs.kigtech.digital/api/integrations/quickbooks/callback
 ```
@@ -280,6 +283,7 @@ https://bfs.kigtech.digital/api/integrations/quickbooks/callback
 - Role helper: `lib/require-role.ts` — `requireRole("ADMIN" | "MANAGER")`, returns `{ user }` or `NextResponse` 401/403
 
 **Role split**:
+
 - `ADMIN` — settings, locations, user role management, QB connect/disconnect, product/supplier/stock imports
 - `MANAGER` — products, brands, categories, suppliers, purchase orders, stock adjustments, notifications, QB syncs, Zenoti fulfillment
 - `VIEWER` — read-only (all GET routes are public to any authenticated session)
@@ -289,9 +293,11 @@ https://bfs.kigtech.digital/api/integrations/quickbooks/callback
 **First admin**: must be set directly in DB (`UPDATE "user" SET role = 'ADMIN' WHERE email = '...'`). All new sign-ins default to `VIEWER`.
 
 **What's still missing**:
+
 - No email/password fallback — if Google/GitHub OAuth is down, no login path exists.
 
 **Legal pages** (public, no auth required):
+
 - `https://bfs.kigtech.digital/legal/privacy`
 - `https://bfs.kigtech.digital/legal/terms`
 
@@ -302,16 +308,19 @@ https://bfs.kigtech.digital/api/integrations/quickbooks/callback
 Three tabs at `/settings`:
 
 **Stock Policy** (`/api/settings/stock-policy`):
+
 - Per-product `targetStockMonths` (Int, default 6) — drives `reorderQty = ceil(avgMonthly × targetStockMonths)`
 - Accordion grouped by brand; quick-set buttons (1/2/3/6/9/12 mo) per brand header
 - Sticky save bar; "Recalculate" button calls `/api/inventory/calculate-minimums`
 - Note: `reorderPoint` on the reorder page is now computed live — "Recalculate" is only needed to refresh stored `inventory.reorderPoint`/`reorderQty` values used elsewhere (e.g. stock page thresholds)
 
 **Brand Lead Times**:
+
 - Editable `leadTimeDays` per brand (inline edit, Enter/Escape)
 - Drives `reorderPoint = ceil(avgMonthly × (leadTimeDays + 7) / 30)`
 
 **Team**:
+
 - Lists all users with avatar, role selector, last seen, member since
 - ADMIN-only API (`GET/PATCH /api/users`, `PATCH /api/users/[id]`)
 
@@ -351,19 +360,21 @@ Zenoti is the inventory/POS system used at all service locations. Service locati
 
 ### Two Zenoti instances
 
-| Domain | Label | Env var |
-|---|---|---|
+| Domain                      | Label            | Env var              |
+| --------------------------- | ---------------- | -------------------- |
 | `beautyfirstspa.zenoti.com` | Beauty First Spa | `ZENOTI_BFS_API_KEY` |
-| `beautylogix.zenoti.com` | Beauty Logix | `ZENOTI_BL_API_KEY` |
+| `beautylogix.zenoti.com`    | Beauty Logix     | `ZENOTI_BL_API_KEY`  |
 
 Both use base URL `https://api.zenoti.com`. Auth: `Authorization: apikey {key}` header on every request. No OAuth, no token refresh.
 
 **beautyfirstspa.zenoti.com — service locations:**
+
 - Corp-Owned: Burlington Mall, Limeridge Mall, Oakville Place, Square One
 - Franchise: Dixie Outlet Mall, Hillcrest Mall, Upper Canada Mall, Yonge-Eglinton
 - Excluded: Call Center (not a store)
 
 **beautylogix.zenoti.com — service locations:**
+
 - Franchise: Bolton, Burlington, Milton, Oakville, Ottawa-Kanata, Rymal
 
 ### Fulfillment flow (as built)
@@ -397,10 +408,10 @@ Both use base URL `https://api.zenoti.com`. Auth: `Authorization: apikey {key}` 
 
 ### Zenoti API endpoints (assumed — verify with real keys)
 
-| Endpoint | Purpose |
-|---|---|
-| `GET /v1/centers` | List all centers for the org (used to discover center IDs) |
-| `GET /v1/procurement/purchase_orders?center_id=&statuses=Raised,Updated` | List RAISED+UPDATED POs for one center |
+| Endpoint                                                                 | Purpose                                                    |
+| ------------------------------------------------------------------------ | ---------------------------------------------------------- |
+| `GET /v1/centers`                                                        | List all centers for the org (used to discover center IDs) |
+| `GET /v1/procurement/purchase_orders?center_id=&statuses=Raised,Updated` | List RAISED+UPDATED POs for one center                     |
 
 No org-wide "all centers" endpoint — BFS fans out one request per `center_id` and merges results.
 
@@ -444,8 +455,8 @@ Enums added: `ZenotiOrderStatus`, `FulfillmentStatus`. `IntegrationProvider` enu
 ### Getting started after the meeting
 
 1. Get API keys: Zenoti Admin → Setup → Apps → create backend app → copy key
-   - `ZENOTI_BFS_API_KEY` from beautyfirstspa.zenoti.com
-   - `ZENOTI_BL_API_KEY` from beautylogix.zenoti.com
+    - `ZENOTI_BFS_API_KEY` from beautyfirstspa.zenoti.com
+    - `ZENOTI_BL_API_KEY` from beautylogix.zenoti.com
 2. Add both to `.env` and Vercel environment variables
 3. Hit `GET /api/zenoti/centers` (authenticated) — returns center IDs for both orgs
 4. Test sync: "Sync from Zenoti" button on `/zenoti` dashboard
@@ -467,38 +478,38 @@ Shopify integration is **cancelled** — replaced by Zenoti. `IntegrationProvide
 
 ### High priority (Zenoti Phase 2)
 
-| Item | Notes |
-|---|---|
-| QB Invoice posting | Build `POST /api/zenoti/fulfillments/[id]/post-to-qb`. Needs QB customer names per store + accounting team sign-off. Uses existing QB OAuth. |
-| Zenoti PO endpoint verification | Confirm actual endpoint path once API keys arrive. Update `lib/zenoti.ts` `fetchZenotiPOs` if needed. |
+| Item                            | Notes                                                                                                                                        |
+| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| QB Invoice posting              | Build `POST /api/zenoti/fulfillments/[id]/post-to-qb`. Needs QB customer names per store + accounting team sign-off. Uses existing QB OAuth. |
+| Zenoti PO endpoint verification | Confirm actual endpoint path once API keys arrive. Update `lib/zenoti.ts` `fetchZenotiPOs` if needed.                                        |
 
 ### Medium priority
 
-| Item | Notes |
-|---|---|
-| Reorder bulk actions | Multi-select rows → "Create PO for selected" or "Export selected". Currently only per-row actions. |
-| Dashboard KPI deltas | Add ±N trend vs prior week to each KPI card. Data already exists in StockMovement + SalesRecord. |
-| Analytics date range picker | Analytics charts show fixed period. A date range selector would make it useful for ad-hoc queries. |
-| Mobile table responsiveness | Wide tables (products, stock, reorder) need `overflow-x-auto` wrapper. Currently break layout at <768px. |
-| Error boundaries | Pages use `<Suspense>` but no `error.tsx` boundaries. A single component throw crashes the whole page section. `app/(dashboard)/products/error.tsx` exists as example. |
+| Item                        | Notes                                                                                                                                                                  |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Reorder bulk actions        | Multi-select rows → "Create PO for selected" or "Export selected". Currently only per-row actions.                                                                     |
+| Dashboard KPI deltas        | Add ±N trend vs prior week to each KPI card. Data already exists in StockMovement + SalesRecord.                                                                       |
+| Analytics date range picker | Analytics charts show fixed period. A date range selector would make it useful for ad-hoc queries.                                                                     |
+| Mobile table responsiveness | Wide tables (products, stock, reorder) need `overflow-x-auto` wrapper. Currently break layout at <768px.                                                               |
+| Error boundaries            | Pages use `<Suspense>` but no `error.tsx` boundaries. A single component throw crashes the whole page section. `app/(dashboard)/products/error.tsx` exists as example. |
 
 ### Skipped (no QB writes policy)
 
-| Item | Notes |
-|---|---|
+| Item         | Notes                                                                                                                                                |
+| ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
 | PO → QB push | Would create QB PurchaseOrder when a BFS PO is sent. Skipped — app is read-only from QB's perspective (except Zenoti invoices which are AR, not AP). |
 
 ### Low priority / nice-to-have
 
-| Item | Notes |
-|---|---|
-| Product image gallery | `Product.imageUrl` field exists, UploadThing wired, upload UI in product form works. Still missing: thumbnail column in products table. |
-| PO status timeline | Show DRAFT → SENT → RECEIVED steps with timestamps on PO detail. |
-| Email/password auth | Fallback login if OAuth providers are down. better-auth supports it natively. |
-| Test alert button per rule | "Send test email" on each alert rule in notifications page. |
-| AppSetting usage | Schema has `AppSetting` model but nothing uses it. `SAFETY_DAYS` is now centralised in `lib/sales-calc.ts`; remaining candidates: default location name, email recipients fallback. |
-| Observability | No error tracking. Add Sentry or Axiom for production error monitoring. |
-| Rate limiting on sync routes | QB sync routes can be called without throttle. Could exhaust Intuit API quota. |
+| Item                         | Notes                                                                                                                                                                               |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Product image gallery        | `Product.imageUrl` field exists, UploadThing wired, upload UI in product form works. Still missing: thumbnail column in products table.                                             |
+| PO status timeline           | Show DRAFT → SENT → RECEIVED steps with timestamps on PO detail.                                                                                                                    |
+| Email/password auth          | Fallback login if OAuth providers are down. better-auth supports it natively.                                                                                                       |
+| Test alert button per rule   | "Send test email" on each alert rule in notifications page.                                                                                                                         |
+| AppSetting usage             | Schema has `AppSetting` model but nothing uses it. `SAFETY_DAYS` is now centralised in `lib/sales-calc.ts`; remaining candidates: default location name, email recipients fallback. |
+| Observability                | No error tracking. Add Sentry or Axiom for production error monitoring.                                                                                                             |
+| Rate limiting on sync routes | QB sync routes can be called without throttle. Could exhaust Intuit API quota.                                                                                                      |
 
 ---
 

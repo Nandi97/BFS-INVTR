@@ -1,35 +1,45 @@
-import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/require-role";
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+import { requireRole } from '@/lib/require-role';
 
 export async function PUT(req: NextRequest) {
-  const _auth = await requireRole("MANAGER");
-  if (_auth instanceof NextResponse) return _auth;
+	const _auth = await requireRole('MANAGER');
+	if (_auth instanceof NextResponse) return _auth;
 
-  const body = await req.json();
-  const { productId, locationId, minQuantity, reorderPoint, reorderQty } = body;
+	const body = await req.json();
+	const { productId, locationId, minQuantity, reorderPoint, reorderQty } =
+		body;
 
-  if (!productId || !locationId) {
-    return NextResponse.json({ error: "productId and locationId are required" }, { status: 400 });
-  }
+	if (!productId || !locationId) {
+		return NextResponse.json(
+			{ error: 'productId and locationId are required' },
+			{ status: 400 }
+		);
+	}
 
-  const updated = await prisma.inventory.upsert({
-    where: { productId_locationId: { productId, locationId } },
-    update: {
-      ...(minQuantity !== undefined ? { minQuantity: Number(minQuantity) } : {}),
-      ...(reorderPoint !== undefined ? { reorderPoint: Number(reorderPoint) } : {}),
-      ...(reorderQty !== undefined ? { reorderQty: Number(reorderQty) } : {}),
-    },
-    create: {
-      productId,
-      locationId,
-      quantity: 0,
-      minQuantity: Number(minQuantity ?? 0),
-      reorderPoint: Number(reorderPoint ?? 0),
-      reorderQty: Number(reorderQty ?? 0),
-    },
-    include: { product: { include: { brand: true } }, location: true },
-  });
+	const updated = await prisma.inventory.upsert({
+		where: { productId_locationId: { productId, locationId } },
+		update: {
+			...(minQuantity !== undefined
+				? { minQuantity: Number(minQuantity) }
+				: {}),
+			...(reorderPoint !== undefined
+				? { reorderPoint: Number(reorderPoint) }
+				: {}),
+			...(reorderQty !== undefined
+				? { reorderQty: Number(reorderQty) }
+				: {}),
+		},
+		create: {
+			productId,
+			locationId,
+			quantity: 0,
+			minQuantity: Number(minQuantity ?? 0),
+			reorderPoint: Number(reorderPoint ?? 0),
+			reorderQty: Number(reorderQty ?? 0),
+		},
+		include: { product: { include: { brand: true } }, location: true },
+	});
 
-  return NextResponse.json(updated);
+	return NextResponse.json(updated);
 }

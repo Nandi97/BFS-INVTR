@@ -1,15 +1,15 @@
-import { Metadata } from "next";
-import { LoginView } from "@/components/auth/login-view";
+import { Metadata } from 'next';
+import { LoginView } from '@/components/auth/login-view';
 
 export const metadata: Metadata = {
-  title: "Sign in — BFS Inventory",
+	title: 'Sign in — BFS Inventory',
 };
 
 export default async function LoginPage({
-  searchParams,
+	searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+	searchParams: Promise<{ error?: string }>;
 }) {
-  const { error } = await searchParams;
-  return <LoginView error={error} />;
+	const { error } = await searchParams;
+	return <LoginView error={error} />;
 }
