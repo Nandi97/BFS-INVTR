@@ -18,15 +18,15 @@ import {
 const C = {
 	black: '#0f172a',
 	brand: '#1e293b',
-	accent: '#6d28d9', // violet — Beauty Logix brand colour
-	accentLight: '#ede9fe',
+	accent: '#d4006e', // deep hot pink — Beauty First brand colour
+	accentLight: '#fce4ec',
 	red: '#dc2626',
 	amber: '#d97706',
 	muted: '#64748b',
-	mutedLight: '#f8fafc',
+	mutedLight: '#fdf2f8', // very light pink tint on meta cards
 	border: '#e2e8f0',
 	white: '#ffffff',
-	rowAlt: '#f8fafc',
+	rowAlt: '#fdf2f8',
 	green: '#15803d',
 	greenLight: '#dcfce7',
 	walkIn: '#7c3aed',
@@ -334,8 +334,8 @@ function PackingSlipDocument({ data }: { data: PackingSlipData }) {
 						) : (
 							<Text
 								style={{
+									fontFamily: 'Helvetica-Bold',
 									fontSize: 14,
-									fontWeight: 700,
 									color: C.accent,
 								}}
 							>
@@ -525,11 +525,12 @@ function PackingSlipDocument({ data }: { data: PackingSlipData }) {
 									<Text
 										style={[
 											s.tdText,
-											{
-												fontWeight: item.isPacked
-													? 400
-													: 600,
-											},
+											item.isPacked
+												? {}
+												: {
+														fontFamily:
+															'Helvetica-Bold',
+													},
 										]}
 									>
 										{item.productName}
@@ -631,7 +632,7 @@ function PackingSlipDocument({ data }: { data: PackingSlipData }) {
 				</View>
 
 				{/* ── Column key ── */}
-				<View style={s.legend}>
+				<View style={s.legend} wrap={false}>
 					<View style={s.legendItem}>
 						<View
 							style={[
@@ -677,7 +678,7 @@ function PackingSlipDocument({ data }: { data: PackingSlipData }) {
 				</View>
 
 				{/* ── Sign-off blocks ── */}
-				<View style={s.signoffSection}>
+				<View style={s.signoffSection} wrap={false}>
 					<View style={s.signoffBox}>
 						<Text style={s.signoffTitle}>
 							Packed by (Warehouse)
