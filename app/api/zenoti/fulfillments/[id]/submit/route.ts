@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/require-role';
 import { sendMail } from '@/lib/mailer';
 import ExcelJS from 'exceljs';
+import { generatePackingSlipPdf } from '@/lib/packing-slip-pdf';
 
 async function buildPackingListXlsx(params: {
 	orderNumber: string;
@@ -161,14 +162,27 @@ export async function POST(
 
 	const { order } = fulfillment;
 
-	const xlsx = await buildPackingListXlsx({
-		orderNumber: order.orderNumber,
-		centerName: order.centerName,
-		org: order.org,
-		raisedAt: order.raisedAt,
-		deliverBy: order.deliverBy,
-		items: fulfillment.items,
-	});
+	const [xlsx, pdf] = await Promise.all([
+		buildPackingListXlsx({
+			orderNumber: order.orderNumber,
+			centerName: order.centerName,
+			org: order.org,
+			raisedAt: order.raisedAt,
+			deliverBy: order.deliverBy,
+			items: fulfillment.items,
+		}),
+		generatePackingSlipPdf({
+			orderNumber: order.orderNumber,
+			centerName: order.centerName,
+			org: order.org,
+			supplier: order.supplier,
+			raisedAt: order.raisedAt,
+			deliverBy: order.deliverBy,
+			packedAt: new Date(),
+			packedBy: auth.user.email,
+			items: fulfillment.items,
+		}),
+	]);
 
 	const orgLabel = order.org === 'bfs' ? 'Beauty First Spa' : 'Beauty Logix';
 	const dateStr = new Date().toLocaleDateString('en-CA');
@@ -198,33 +212,26 @@ export async function POST(
     <p>— BFS Inventory</p>
   `;
 
-	await sendMail({
-		to: 'accounting@beautyfirstspa.com',
-		subject,
-		html,
-		attachments: [
-			{
-				filename: `packing-list-${order.centerName.toLowerCase().replace(/\s+/g, '-')}-${order.orderNumber}.xlsx`,
-				content: xlsx,
-				contentType:
-					'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-			},
-		],
-	});
+	const baseFilename = `packing-slip-${order.centerName.toLowerCase().replace(/\s+/g, '-')}-${order.orderNumber}`;
+	const attachments = [
+		{
+			filename: `${baseFilename}.pdf`,
+			content: pdf,
+			contentType: 'application/pdf',
+		},
+		{
+			filename: `${baseFilename}.xlsx`,
+			content: xlsx,
+			contentType:
+				'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+		},
+	];
 
-	// Also CC Alvin
 	await sendMail({
 		to: 'order@beautylogix.ca',
-		subject: `[Copy] ${subject}`,
+		subject,
 		html,
-		attachments: [
-			{
-				filename: `packing-list-${order.centerName.toLowerCase().replace(/\s+/g, '-')}-${order.orderNumber}.xlsx`,
-				content: xlsx,
-				contentType:
-					'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-			},
-		],
+		attachments,
 	});
 
 	const updated = await prisma.bfsFulfillment.update({

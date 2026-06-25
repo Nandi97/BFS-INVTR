@@ -13,6 +13,7 @@ import {
 	AlertTriangle,
 	AlertCircle,
 	Minus,
+	Download,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -285,6 +286,18 @@ export function FulfillmentView({ orderId }: { orderId: string }) {
 								</AlertDialogContent>
 							</AlertDialog>
 						</>
+					)}
+					{/* Download PDF — available once packing has started */}
+					{f && (
+						<Button variant="outline" className="gap-1.5" asChild>
+							<a
+								href={`/api/zenoti/fulfillments/${f.id}/packing-slip`}
+								download
+							>
+								<Download className="size-4" />
+								Download PDF
+							</a>
+						</Button>
 					)}
 					{isSubmitted && (
 						<Badge className="gap-1.5 bg-emerald-600 px-3 py-1.5 text-sm text-white">
