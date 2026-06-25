@@ -26,21 +26,21 @@ const TYPE_META: Record<
 	},
 	COSTCO: {
 		label: 'Costco Order',
-		to: 'accounting@beautyfirstspa.com',
+		to: 'order@beautylogix.ca',
 		actionNote:
 			'This Costco order has been imported for visibility. Accounting handles fulfillment directly.',
 		colour: '#2563eb',
 	},
 	INVERNESS: {
 		label: 'Inverness Order',
-		to: 'accounting@beautyfirstspa.com',
+		to: 'order@beautylogix.ca',
 		actionNote:
 			'This Inverness order has been imported for visibility. Accounting handles fulfillment directly.',
 		colour: '#7c3aed',
 	},
 	OTHER: {
 		label: 'External Order',
-		to: 'accounting@beautyfirstspa.com',
+		to: 'order@beautylogix.ca',
 		actionNote:
 			'This order has been imported for visibility. Please review and action accordingly.',
 		colour: '#6b7280',
