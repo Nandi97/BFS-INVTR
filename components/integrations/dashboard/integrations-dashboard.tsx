@@ -121,23 +121,6 @@ export function IntegrationsDashboard() {
 				<TabsContent value="sales" className="mt-4 space-y-4">
 					<Card>
 						<CardHeader>
-							<div className="flex items-center justify-between">
-								<div>
-									<CardTitle>Sync from QuickBooks</CardTitle>
-									<CardDescription className="mt-1">
-										Pull last 12 months of sales history
-										directly from your QuickBooks account.
-									</CardDescription>
-								</div>
-								<Suspense fallback={null}>
-									<QbApiSync mode="sales" />
-								</Suspense>
-							</div>
-						</CardHeader>
-					</Card>
-
-					<Card>
-						<CardHeader>
 							<CardTitle>
 								QB Sales by Product/Service Summary
 							</CardTitle>
