@@ -16,6 +16,7 @@ export interface MailAttachment {
 
 export interface SendMailOptions {
 	to: string | string[];
+	cc?: string | string[];
 	subject: string;
 	html: string;
 	attachments?: MailAttachment[];
@@ -23,6 +24,7 @@ export interface SendMailOptions {
 
 export async function sendMail({
 	to,
+	cc,
 	subject,
 	html,
 	attachments,
@@ -30,6 +32,7 @@ export async function sendMail({
 	return transporter.sendMail({
 		from: `"BFS Inventory" <${process.env.GMAIL_USER}>`,
 		to: Array.isArray(to) ? to.join(', ') : to,
+		...(cc ? { cc: Array.isArray(cc) ? cc.join(', ') : cc } : {}),
 		subject,
 		html,
 		attachments: attachments?.map((a) => ({

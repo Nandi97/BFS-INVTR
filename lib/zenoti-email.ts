@@ -1,4 +1,5 @@
 import { sendMail } from '@/lib/mailer';
+import { getEmailRecipients } from '@/lib/email-recipients';
 import type { UpsertResult } from '@/lib/zenoti-excel';
 
 export type SupplierType = 'WAREHOUSE' | 'COSTCO' | 'INVERNESS' | 'OTHER';
@@ -15,32 +16,32 @@ export function getSupplierType(
 
 const TYPE_META: Record<
 	SupplierType,
-	{ label: string; to: string; actionNote: string; colour: string }
+	{ label: string; settingKey: string; actionNote: string; colour: string }
 > = {
 	WAREHOUSE: {
 		label: 'Warehouse Order',
-		to: 'order@beautylogix.ca',
+		settingKey: 'zenoti_email_warehouse',
 		actionNote:
 			'This order requires warehouse packing. Open BFS Inventory to start packing:',
 		colour: '#16a34a',
 	},
 	COSTCO: {
 		label: 'Costco Order',
-		to: 'order@beautylogix.ca',
+		settingKey: 'zenoti_email_costco',
 		actionNote:
 			'This Costco order has been imported for visibility. Accounting handles fulfillment directly.',
 		colour: '#2563eb',
 	},
 	INVERNESS: {
 		label: 'Inverness Order',
-		to: 'order@beautylogix.ca',
+		settingKey: 'zenoti_email_inverness',
 		actionNote:
 			'This Inverness order has been imported for visibility. Accounting handles fulfillment directly.',
 		colour: '#7c3aed',
 	},
 	OTHER: {
 		label: 'External Order',
-		to: 'order@beautylogix.ca',
+		settingKey: 'zenoti_email_other',
 		actionNote:
 			'This order has been imported for visibility. Please review and action accordingly.',
 		colour: '#6b7280',
@@ -58,6 +59,10 @@ export async function sendZenotiImportEmail(
 ): Promise<void> {
 	const type = getSupplierType(result.supplier);
 	const meta = TYPE_META[type];
+	const recipients = await getEmailRecipients();
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const to = (recipients as any)[meta.settingKey] as string;
+
 	const orgLabel = ORG_LABELS[org] ?? org.toUpperCase();
 	const appUrl =
 		process.env.NEXT_PUBLIC_APP_URL ?? 'https://bfs.kigtech.digital';
@@ -125,5 +130,5 @@ export async function sendZenotiImportEmail(
 	</div>
 </div>`;
 
-	await sendMail({ to: meta.to, subject, html });
+	await sendMail({ to, subject, html });
 }

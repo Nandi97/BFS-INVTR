@@ -4,6 +4,7 @@ import { requireRole } from '@/lib/require-role';
 import { sendMail } from '@/lib/mailer';
 import ExcelJS from 'exceljs';
 import { generatePackingSlipPdf } from '@/lib/packing-slip-pdf';
+import { getEmailRecipients } from '@/lib/email-recipients';
 
 async function buildPackingListXlsx(params: {
 	orderNumber: string;
@@ -162,26 +163,29 @@ export async function POST(
 
 	const { order } = fulfillment;
 
-	const [xlsx, pdf] = await Promise.all([
-		buildPackingListXlsx({
-			orderNumber: order.orderNumber,
-			centerName: order.centerName,
-			org: order.org,
-			raisedAt: order.raisedAt,
-			deliverBy: order.deliverBy,
-			items: fulfillment.items,
-		}),
-		generatePackingSlipPdf({
-			orderNumber: order.orderNumber,
-			centerName: order.centerName,
-			org: order.org,
-			supplier: order.supplier,
-			raisedAt: order.raisedAt,
-			deliverBy: order.deliverBy,
-			packedAt: new Date(),
-			packedBy: auth.user.email,
-			items: fulfillment.items,
-		}),
+	const [recipients, [xlsx, pdf]] = await Promise.all([
+		getEmailRecipients(),
+		Promise.all([
+			buildPackingListXlsx({
+				orderNumber: order.orderNumber,
+				centerName: order.centerName,
+				org: order.org,
+				raisedAt: order.raisedAt,
+				deliverBy: order.deliverBy,
+				items: fulfillment.items,
+			}),
+			generatePackingSlipPdf({
+				orderNumber: order.orderNumber,
+				centerName: order.centerName,
+				org: order.org,
+				supplier: order.supplier,
+				raisedAt: order.raisedAt,
+				deliverBy: order.deliverBy,
+				packedAt: new Date(),
+				packedBy: auth.user.email,
+				items: fulfillment.items,
+			}),
+		]),
 	]);
 
 	const orgLabel = order.org === 'bfs' ? 'Beauty First Spa' : 'Beauty Logix';
@@ -228,7 +232,10 @@ export async function POST(
 	];
 
 	await sendMail({
-		to: 'order@beautylogix.ca',
+		to: recipients.zenoti_email_packing_list_to,
+		...(recipients.zenoti_email_packing_list_cc
+			? { cc: recipients.zenoti_email_packing_list_cc }
+			: {}),
 		subject,
 		html,
 		attachments,

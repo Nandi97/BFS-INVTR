@@ -2,7 +2,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { StockPolicyTable } from './stock-policy-table';
 import { BrandLeadTimesTable } from './brand-lead-times-table';
 import { UserTable } from './user-table';
-import { Package, Clock, Users } from 'lucide-react';
+import { EmailRecipientsForm } from './email-recipients-form';
+import { Package, Clock, Users, Mail } from 'lucide-react';
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from '@/components/ui/card';
 
 export function SettingsDashboard() {
 	return (
@@ -30,6 +38,10 @@ export function SettingsDashboard() {
 					<TabsTrigger value="team" className="gap-2">
 						<Users className="size-3.5" />
 						Team
+					</TabsTrigger>
+					<TabsTrigger value="emails" className="gap-2">
+						<Mail className="size-3.5" />
+						Email Recipients
 					</TabsTrigger>
 				</TabsList>
 
@@ -86,6 +98,23 @@ export function SettingsDashboard() {
 						</p>
 					</div>
 					<UserTable />
+				</TabsContent>
+
+				<TabsContent value="emails" className="mt-0">
+					<Card>
+						<CardHeader>
+							<CardTitle>Email Recipients</CardTitle>
+							<CardDescription>
+								Configure who receives import notifications and
+								packing list emails. Changes take effect
+								immediately on the next import or fulfillment
+								submission.
+							</CardDescription>
+						</CardHeader>
+						<CardContent>
+							<EmailRecipientsForm />
+						</CardContent>
+					</Card>
 				</TabsContent>
 			</Tabs>
 		</div>
