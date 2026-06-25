@@ -4,40 +4,41 @@
 
 ### Completed
 
-- **Zenoti Excel import workflow** — temporary intake workflow while waiting for Zenoti API keys.
-    - `lib/zenoti-excel.ts` — shared parse + upsert logic: `parseOrderFile(sheet)` + `upsertZenotiOrder(parsed, org)`. Handles Zenoti Order Details export format (merged header rows, dynamic row structure, supplier + center name extraction, CREATED→RAISED status mapping).
-    - `app/api/zenoti/import-excel/route.ts` — `POST` accepts multipart form upload (file + org), parses and upserts.
-    - `app/api/zenoti/scan-uploads/route.ts` — `POST` scans `uploads/zenoti/{org}/` directory directly (no sub-fetch, no auth issue); `GET ?org=bfs` debug endpoint shows cwd/dir/allFiles from server's perspective.
-    - `hooks/use-zenoti.ts` — added `useImportZenotiExcel()` and `useScanZenotiUploads()` mutations.
-    - `components/zenoti/import/zenoti-import-panel.tsx` — two org cards (BFS/BL) with drag-drop dropzone, Import Selected File, Scan Local Folder buttons, result display.
-    - `components/zenoti/dashboard/zenoti-page-tabs.tsx` — tabs wrapper (Procurement Orders / Import from Excel).
-    - `app/(dashboard)/zenoti/page.tsx` — now renders `ZenotiPageTabs` instead of `ZenotiOrdersTable` directly.
-    - `uploads/zenoti/bfs/` + `uploads/zenoti/bl/` — staging directories (`.gitkeep` tracked, xlsx files gitignored).
-    - **Excel format confirmed**: per-order detail files (not list exports). "From:" and "Billing address:" labels on same row; supplier + billing address on the next row. Line items delimited by `#` / `Code` header row and "Total quantity" footer.
+- **Zenoti Excel import working** — confirmed functional after dev server restart. Import Selected File and Scan Local Folder both parse order detail exports correctly. Orders appear in Procurement Orders tab and fulfillment flow works on them.
 
-- **ZenotiOrder ID convention**: `MANUAL-{ORG}-{orderNumber}` (e.g. `MANUAL-BFS-4072`) to distinguish manual imports from future API-synced orders.
+- **ZenotiOrder.supplier field** — migration `20260625182009_add_zenoti_order_supplier` adds `supplier String?` to `ZenotiOrder`. `lib/zenoti-excel.ts` saves it on upsert. The `notes` field fallback (`"From: Beauty Logix Inc"`) is still read by the UI for older records.
 
-### In progress / pending restart
+- **Supplier type classification** — `lib/zenoti-email.ts` exports `SupplierType` (`WAREHOUSE | COSTCO | INVERNESS | OTHER`) and `getSupplierType()`. Dashboard shows coloured type badges (emerald/blue/violet/gray). Filter chips (All / Warehouse / Costco / Inverness) replace the org filter. "Org" column replaced by "Type" column.
 
-The import workflow was still not working at end of session. Root cause traced to **ExcelJS being bundled by Turbopack** instead of running as a native Node module. Fixes applied, **require dev server restart**:
+- **Email on import** — `lib/zenoti-email.ts` → `sendZenotiImportEmail()`. Fires fire-and-forget after each new order is imported (created, not updated). Sends styled HTML email with order details, supplier type, unmatched product codes, and CTA button. **Currently all types route to `order@beautylogix.ca` for testing** — production routing (accounting@beautyfirstspa.com for non-warehouse orders) is commented in `TYPE_META`.
 
-1. `next.config.ts` — added `'exceljs'` to `serverExternalPackages` (was only `['xlsx']`). **Must restart dev server for this to take effect.**
-2. `app/api/zenoti/import-excel/route.ts` — Buffer conversion fixed: `Buffer.from(new Uint8Array(arrayBuf))` instead of `arrayBuf as any`. Single try/catch wraps the entire handler so all errors return JSON (not HTML 500).
-3. `components/zenoti/import/zenoti-import-panel.tsx` — Scan toast now shows actual server path + allFiles when 0 files found, for debugging.
+- **iPad packing UI** — `components/zenoti/view/fulfillment-view.tsx` rewritten. Old table rows → `PackingCard` cards. Each card has:
+    - `QtyStepperField` (−/+ buttons flanking number input, saves on blur)
+    - Notes textarea with 700ms debounced save via `useRef`
+    - Packed checkbox (checked = green card)
+    - ESLint override in `eslint.config.mjs` for `set-state-in-effect` (PackingCard syncs state from server in `useEffect`)
 
-**After restarting dev server**, test with the 5 Excel files already in the staging dirs:
+- **PDF packing slip** — `lib/packing-slip-pdf.tsx` using `@react-pdf/renderer` v4:
+    - Built-in Helvetica/Helvetica-Bold (no external font fetch — avoids 404)
+    - Beauty First brand pink `#d4006e` as accent throughout
+    - A4: logo header, 5-col meta cards, status pills, items table with colour-coded rows (green/amber/red/violet), totals, legend, sign-off blocks (Warehouse + Store)
+    - `wrap={false}` on legend + sign-off section prevents mid-box page breaks
+    - `GET /api/zenoti/fulfillments/[id]/packing-slip` streams PDF download
+    - Submit route now generates PDF + XLSX in `Promise.all` and attaches both to email
+    - Logo: `public/assets/images/Beauty_Logix_Logo.png` (AVIF → PNG via `sips`)
+    - `@react-pdf/renderer` added to `serverExternalPackages` in `next.config.ts`
 
-- `uploads/zenoti/bfs/`: Order Number 4064.xlsx, 4069.xlsx, 4072.xlsx, 4075.xlsx
-- `uploads/zenoti/bl/`: Order Number 345.xlsx
+- **Hydration warning fixed** — `suppressHydrationWarning` added to `<body>` in `app/layout.tsx` (browser extensions like ColorZilla inject `cz-shortcut-listen` attribute post-hydration)
 
-DB is clean (0 MANUAL-\* orders). Use Import Selected File first, then Scan Local Folder.
+- **QB Sales API sync button removed** — `SalesByProductServiceSummary` returns 403 (QB user lacks Reports permission) and is not in the cron. The card was removed from the Sales tab in `components/integrations/dashboard/integrations-dashboard.tsx`. CSV paste fallback remains.
 
 ---
 
-## Session before that (2026-06-23)
+## Session before that (2026-06-23 → 2026-06-25)
 
-- Internal use / shrinkage tracking, ProductCombobox, Prettier + Husky — complete. See CLAUDE.md features #36–38.
-- QB delta tracking, invoice attribution, cost sync, pending product staging, restocks/dispatches presets, Dispatch by Store report — complete. See CLAUDE.md features #28–35.
+- Zenoti Excel import scaffolding (lib/zenoti-excel.ts, import-excel route, scan-uploads route, import panel, page tabs) — see commits for details.
+- Internal use / shrinkage tracking, ProductCombobox, Prettier + Husky — features #36–38 in CLAUDE.md.
+- QB delta tracking, invoice attribution, cost sync, pending product staging, restocks/dispatches presets, Dispatch by Store report — features #28–35 in CLAUDE.md.
 
 ---
 
@@ -45,8 +46,12 @@ DB is clean (0 MANUAL-\* orders). Use Import Selected File first, then Scan Loca
 
 ### High priority
 
-- [ ] **Verify Zenoti Excel import works** after dev server restart (see above). Test both Import Selected File and Scan Local Folder. Confirm orders appear in Procurement Orders tab and fulfillment flow works on them.
-- [ ] **Zenoti API keys** — ticket BC-60590, ETA was 2026-06-23, may have arrived. Check `alvinkigen@outlook.com`. If yes: add `ZENOTI_BFS_API_KEY` + `ZENOTI_BL_API_KEY` to `.env` + Vercel, hit `GET /api/zenoti/centers`, test sync, verify PO endpoint path in `lib/zenoti.ts → fetchZenotiPOs()`. The Excel workflow then becomes a fallback only.
+- [ ] **Restore email routing** — when testing is done, update `TYPE_META` in `lib/zenoti-email.ts`:
+    - `WAREHOUSE` → `order@beautylogix.ca` (current, correct)
+    - `COSTCO` → `accounting@beautyfirstspa.com`
+    - `INVERNESS` → `accounting@beautyfirstspa.com`
+    - `OTHER` → decide with team
+- [ ] **Zenoti API keys** — ticket BC-60590, check `alvinkigen@outlook.com`. If keys arrived: add `ZENOTI_BFS_API_KEY` + `ZENOTI_BL_API_KEY` to `.env` + Vercel, hit `GET /api/zenoti/centers`, test sync, verify PO endpoint path in `lib/zenoti.ts → fetchZenotiPOs()`. Excel import becomes fallback only.
 - [ ] **Zenoti Phase 2** — QB Invoice posting (`POST /api/zenoti/fulfillments/[id]/post-to-qb`). Needs accounting team sign-off + QB customer names per store.
 
 ### Medium priority
@@ -60,15 +65,16 @@ DB is clean (0 MANUAL-\* orders). Use Import Selected File first, then Scan Loca
 
 ## Active blockers
 
-- Zenoti API subscription (ticket BC-60590) — check email, may be resolved
+- Zenoti API subscription (ticket BC-60590) — check email, may already be resolved
 - QB OAuth refresh token valid until ~Sep 2026 — nightly cron emails admin if ≤7 days remain
 
 ## Key gotchas for next session
 
-- `exceljs` is now in `serverExternalPackages` in `next.config.ts` — required for ExcelJS to work correctly in API routes with Turbopack. Do not remove.
-- Use `pnpm` — never npm/yarn. Pre-push runs `tsc --noEmit`, fix type errors before pushing.
+- `useImportZenotiExcel` uses native `fetch` (not `api` from `lib/axios.ts`) — the `api` instance sets `Content-Type: application/json` globally, which overwrites FormData's `multipart/form-data` boundary and causes the server to reject the file upload. Do not switch it back to `api.post`.
+- `@react-pdf/renderer` and `exceljs` are both in `serverExternalPackages` in `next.config.ts` — required for native Node modules to work under Turbopack. Do not remove either.
+- React-pdf uses `Helvetica` / `Helvetica-Bold` built-in fonts. Do not add Google Fonts CDN URLs — they 404. Bold requires `fontFamily: 'Helvetica-Bold'`, not `fontWeight: 700`.
 - Zenoti order IDs from Excel imports: `MANUAL-{ORG}-{orderNumber}`. API-synced orders (once keys arrive) will use Zenoti's native IDs — no collision.
-- `ProductCombobox` + `useProductsMinimal()` for all product pickers — not `useProducts()`
-- `INTERNAL_USE` is in `SUBTRACT_TYPES` (reduces stock) but excluded from movements summary OUT totals — not a store dispatch
-- `chart.tsx`, `product-view.tsx`, `lib/auth.ts` have intentional `@ts-nocheck`/`@ts-ignore` — ESLint config already exempts them, do not remove
-- 86 ESLint warnings remain in codebase (unused imports, any types) — warnings only, won't block commits
+- All Zenoti import emails currently go to `order@beautylogix.ca` regardless of supplier type — intentional for testing. See `TYPE_META` in `lib/zenoti-email.ts`.
+- Use `pnpm` — never npm/yarn. Pre-commit runs lint-staged (prettier + eslint --fix), pre-push runs `tsc --noEmit`.
+- `ProductCombobox` + `useProductsMinimal()` for all product pickers — not `useProducts()` (caps at 100)
+- `chart.tsx`, `product-view.tsx`, `lib/auth.ts` have intentional `@ts-nocheck`/`@ts-ignore` — ESLint config exempts them, do not remove
