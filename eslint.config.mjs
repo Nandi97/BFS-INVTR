@@ -37,6 +37,14 @@ const eslintConfig = defineConfig([
 			'react-hooks/set-state-in-effect': 'off',
 		},
 	},
+
+	// Packing card syncs local qty/notes state from server data after TanStack Query refetch
+	{
+		files: ['components/zenoti/view/fulfillment-view.tsx'],
+		rules: {
+			'react-hooks/set-state-in-effect': 'off',
+		},
+	},
 ]);
 
 export default eslintConfig;

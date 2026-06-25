@@ -286,6 +286,7 @@ model ZenotiOrder {
     zenotiStatus  ZenotiOrderStatus
     raisedAt      DateTime?
     deliverBy     DateTime?
+    supplier      String?
     notes         String?
     lastSyncedAt  DateTime
     createdAt     DateTime          @default(now())

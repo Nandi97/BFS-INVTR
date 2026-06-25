@@ -1,19 +1,19 @@
 'use client';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import axios from 'axios';
+import api from '@/lib/axios';
 
 export function useZenotiOrders() {
 	return useQuery({
 		queryKey: ['zenoti-orders'],
-		queryFn: () => axios.get('/zenoti/orders').then((r) => r.data),
+		queryFn: () => api.get('/zenoti/orders').then((r) => r.data),
 	});
 }
 
 export function useZenotiOrder(id: string) {
 	return useQuery({
 		queryKey: ['zenoti-order', id],
-		queryFn: () => axios.get(`/zenoti/orders/${id}`).then((r) => r.data),
+		queryFn: () => api.get(`/zenoti/orders/${id}`).then((r) => r.data),
 		enabled: !!id,
 	});
 }
@@ -22,7 +22,7 @@ export function useCreateFulfillment() {
 	const qc = useQueryClient();
 	return useMutation({
 		mutationFn: (orderId: string) =>
-			axios
+			api
 				.post(`/zenoti/orders/${orderId}/fulfillment`)
 				.then((r) => r.data),
 		onSuccess: (_data, orderId) => {
@@ -49,7 +49,7 @@ export function useUpdateFulfillmentItem() {
 			isPacked?: boolean;
 			notes?: string;
 		}) =>
-			axios
+			api
 				.patch(
 					`/zenoti/fulfillments/${fulfillmentId}/items/${itemId}`,
 					data
@@ -78,7 +78,7 @@ export function useAddWalkInItem() {
 			fulfilledRetailQty?: number;
 			fulfilledConsumableQty?: number;
 		}) =>
-			axios
+			api
 				.post(`/zenoti/fulfillments/${fulfillmentId}/items`, data)
 				.then((r) => r.data),
 		onSuccess: (_data, vars) => {
@@ -98,7 +98,7 @@ export function useDeleteWalkInItem() {
 			itemId: string;
 			orderId: string;
 		}) =>
-			axios
+			api
 				.delete(`/zenoti/fulfillments/${fulfillmentId}/items/${itemId}`)
 				.then((r) => r.data),
 		onSuccess: (_data, vars) => {
@@ -116,7 +116,7 @@ export function useSubmitFulfillment() {
 			fulfillmentId: string;
 			orderId: string;
 		}) =>
-			axios
+			api
 				.post(`/zenoti/fulfillments/${fulfillmentId}/submit`)
 				.then((r) => r.data),
 		onSuccess: (_data, vars) => {
@@ -129,7 +129,35 @@ export function useSubmitFulfillment() {
 export function useSyncZenoti() {
 	const qc = useQueryClient();
 	return useMutation({
-		mutationFn: () => axios.post('/zenoti/sync').then((r) => r.data),
+		mutationFn: () => api.post('/zenoti/sync').then((r) => r.data),
+		onSuccess: () => qc.invalidateQueries({ queryKey: ['zenoti-orders'] }),
+	});
+}
+
+export function useImportZenotiExcel() {
+	const qc = useQueryClient();
+	return useMutation({
+		// Use fetch so the browser sets Content-Type: multipart/form-data with the correct boundary.
+		// The api instance has Content-Type: application/json as default which would override FormData.
+		mutationFn: async (formData: FormData) => {
+			const res = await fetch('/api/zenoti/import-excel', {
+				method: 'POST',
+				body: formData,
+				credentials: 'include',
+			});
+			const data = await res.json();
+			if (!res.ok) throw new Error(data.error ?? 'Import failed');
+			return data;
+		},
+		onSuccess: () => qc.invalidateQueries({ queryKey: ['zenoti-orders'] }),
+	});
+}
+
+export function useScanZenotiUploads() {
+	const qc = useQueryClient();
+	return useMutation({
+		mutationFn: (org: 'bfs' | 'bl') =>
+			api.post(`/zenoti/scan-uploads?org=${org}`).then((r) => r.data),
 		onSuccess: () => qc.invalidateQueries({ queryKey: ['zenoti-orders'] }),
 	});
 }

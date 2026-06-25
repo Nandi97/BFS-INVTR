@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { formatDistanceToNow } from 'date-fns';
 import {
@@ -25,6 +26,36 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { useZenotiOrders, useSyncZenoti } from '@/hooks/use-zenoti';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import type { SupplierType } from '@/lib/zenoti-email';
+
+function getSupplierType(order: any): SupplierType {
+	const raw: string =
+		order.supplier ?? order.notes?.replace(/^From:\s*/i, '') ?? '';
+	const s = raw.toLowerCase();
+	if (s.includes('beauty logix')) return 'WAREHOUSE';
+	if (s.includes('costco')) return 'COSTCO';
+	if (s.includes('inverness')) return 'INVERNESS';
+	return 'OTHER';
+}
+
+const SUPPLIER_BADGE: Record<SupplierType, { label: string; cls: string }> = {
+	WAREHOUSE: {
+		label: 'Warehouse',
+		cls: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300',
+	},
+	COSTCO: {
+		label: 'Costco',
+		cls: 'bg-blue-100 text-blue-800 dark:bg-blue-950/50 dark:text-blue-300',
+	},
+	INVERNESS: {
+		label: 'Inverness',
+		cls: 'bg-violet-100 text-violet-800 dark:bg-violet-950/50 dark:text-violet-300',
+	},
+	OTHER: {
+		label: 'External',
+		cls: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
+	},
+};
 
 const STATUS_CONFIG: Record<
 	string,
@@ -63,11 +94,19 @@ function FulfillmentIcon({ status }: { status?: string }) {
 	return null;
 }
 
+const TYPE_FILTERS: Array<{ value: SupplierType | 'ALL'; label: string }> = [
+	{ value: 'ALL', label: 'All' },
+	{ value: 'WAREHOUSE', label: 'Warehouse' },
+	{ value: 'COSTCO', label: 'Costco' },
+	{ value: 'INVERNESS', label: 'Inverness' },
+];
+
 export function ZenotiOrdersTable() {
 	const router = useRouter();
 	const { data: rawOrders, isLoading, isError } = useZenotiOrders();
 	const orders: any[] = Array.isArray(rawOrders) ? rawOrders : [];
 	const sync = useSyncZenoti();
+	const [typeFilter, setTypeFilter] = useState<SupplierType | 'ALL'>('ALL');
 
 	async function handleSync() {
 		const result = await sync.mutateAsync();
@@ -75,6 +114,11 @@ export function ZenotiOrdersTable() {
 			`Sync complete — ${result.totalNew} new, ${result.totalUpdated} updated`
 		);
 	}
+
+	const filtered =
+		typeFilter === 'ALL'
+			? orders
+			: orders.filter((o) => getSupplierType(o) === typeFilter);
 
 	const pending = orders.filter(
 		(o) => !o.fulfillment || o.fulfillment.status === 'PENDING'
@@ -109,22 +153,54 @@ export function ZenotiOrdersTable() {
 
 			{/* Table */}
 			<Card>
-				<CardHeader className="flex flex-row items-center justify-between">
-					<CardTitle>Zenoti Procurement Orders</CardTitle>
-					<Button
-						variant="outline"
-						size="sm"
-						onClick={handleSync}
-						disabled={sync.isPending}
-						className="gap-1.5"
-					>
-						{sync.isPending ? (
-							<Loader2 className="size-4 animate-spin" />
-						) : (
-							<RefreshCw className="size-4" />
-						)}
-						Sync from Zenoti
-					</Button>
+				<CardHeader className="gap-3">
+					<div className="flex flex-row items-center justify-between">
+						<CardTitle>Zenoti Procurement Orders</CardTitle>
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={handleSync}
+							disabled={sync.isPending}
+							className="gap-1.5"
+						>
+							{sync.isPending ? (
+								<Loader2 className="size-4 animate-spin" />
+							) : (
+								<RefreshCw className="size-4" />
+							)}
+							Sync from Zenoti
+						</Button>
+					</div>
+					{/* Type filter chips */}
+					<div className="flex flex-wrap gap-1.5">
+						{TYPE_FILTERS.map((f) => (
+							<button
+								key={f.value}
+								onClick={() => setTypeFilter(f.value)}
+								className={cn(
+									'rounded-full px-3 py-1 text-xs font-medium transition-colors',
+									typeFilter === f.value
+										? 'bg-primary text-primary-foreground'
+										: 'bg-muted text-muted-foreground hover:bg-muted/80'
+								)}
+							>
+								{f.label}
+								{f.value !== 'ALL' && (
+									<span className="ml-1 opacity-70">
+										(
+										{
+											orders.filter(
+												(o) =>
+													getSupplierType(o) ===
+													f.value
+											).length
+										}
+										)
+									</span>
+								)}
+							</button>
+						))}
+					</div>
 				</CardHeader>
 				<CardContent className="p-0">
 					{isLoading ? (
@@ -149,7 +225,7 @@ export function ZenotiOrdersTable() {
 								<TableRow>
 									<TableHead>Order #</TableHead>
 									<TableHead>Store</TableHead>
-									<TableHead>Org</TableHead>
+									<TableHead>Type</TableHead>
 									<TableHead>Status</TableHead>
 									<TableHead>Fulfillment</TableHead>
 									<TableHead>Items</TableHead>
@@ -158,12 +234,14 @@ export function ZenotiOrdersTable() {
 								</TableRow>
 							</TableHeader>
 							<TableBody>
-								{orders.map((order: any) => {
+								{filtered.map((order: any) => {
 									const fs = order.fulfillment?.status;
 									const isSubmittedOrInvoiced = [
 										'SUBMITTED',
 										'INVOICED',
 									].includes(fs);
+									const supplierType = getSupplierType(order);
+									const sBadge = SUPPLIER_BADGE[supplierType];
 									return (
 										<TableRow
 											key={order.id}
@@ -184,10 +262,15 @@ export function ZenotiOrdersTable() {
 											<TableCell className="font-medium">
 												{order.centerName}
 											</TableCell>
-											<TableCell className="text-muted-foreground text-sm">
-												{order.org === 'bfs'
-													? 'BF Spa'
-													: 'BL'}
+											<TableCell>
+												<span
+													className={cn(
+														'rounded-full px-2 py-0.5 text-xs font-medium',
+														sBadge.cls
+													)}
+												>
+													{sBadge.label}
+												</span>
 											</TableCell>
 											<TableCell>
 												<span

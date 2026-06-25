@@ -1,4 +1,4 @@
-import { ZenotiOrdersTable } from '@/components/zenoti/dashboard/zenoti-orders-table';
+import { ZenotiPageTabs } from '@/components/zenoti/dashboard/zenoti-page-tabs';
 
 export const metadata = { title: 'Zenoti Fulfillment' };
 
@@ -12,7 +12,7 @@ export default function ZenotiPage() {
 					Spa and Beauty Logix stores.
 				</p>
 			</div>
-			<ZenotiOrdersTable />
+			<ZenotiPageTabs />
 		</div>
 	);
 }

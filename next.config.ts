@@ -1,7 +1,7 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-	serverExternalPackages: ['xlsx'],
+	serverExternalPackages: ['xlsx', 'exceljs'],
 	images: {
 		remotePatterns: [
 			{ protocol: 'https', hostname: 'avatars.githubusercontent.com' },
