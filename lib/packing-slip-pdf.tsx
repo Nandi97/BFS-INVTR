@@ -8,28 +8,10 @@ import {
 	Image,
 	StyleSheet,
 	renderToBuffer,
-	Font,
 } from '@react-pdf/renderer';
 
-// ─── Fonts ────────────────────────────────────────────────────────────────────
-
-Font.register({
-	family: 'Inter',
-	fonts: [
-		{
-			src: 'https://fonts.gstatic.com/s/inter/v13/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuLyfAZ9hiJ-Ek-_EeA.woff',
-			fontWeight: 400,
-		},
-		{
-			src: 'https://fonts.gstatic.com/s/inter/v13/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuFuYAZ9hiJ-Ek-_EeA.woff',
-			fontWeight: 600,
-		},
-		{
-			src: 'https://fonts.gstatic.com/s/inter/v13/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuI6fAZ9hiJ-Ek-_EeA.woff',
-			fontWeight: 700,
-		},
-	],
-});
+// react-pdf built-in fonts — no network fetch, no 404 risk.
+// Bold is achieved via fontFamily: 'Helvetica-Bold' rather than fontWeight.
 
 // ─── Colour palette ───────────────────────────────────────────────────────────
 
@@ -55,7 +37,7 @@ const C = {
 
 const s = StyleSheet.create({
 	page: {
-		fontFamily: 'Inter',
+		fontFamily: 'Helvetica',
 		fontSize: 9,
 		color: C.black,
 		paddingTop: 36,
@@ -77,8 +59,8 @@ const s = StyleSheet.create({
 	logo: { width: 110, height: 40, objectFit: 'contain' },
 	headerRight: { alignItems: 'flex-end' },
 	docTitle: {
+		fontFamily: 'Helvetica-Bold',
 		fontSize: 18,
-		fontWeight: 700,
 		color: C.accent,
 		letterSpacing: 1.5,
 	},
@@ -99,15 +81,19 @@ const s = StyleSheet.create({
 		backgroundColor: C.mutedLight,
 	},
 	metaLabel: {
+		fontFamily: 'Helvetica-Bold',
 		fontSize: 7,
 		color: C.muted,
-		fontWeight: 600,
 		marginBottom: 3,
 		textTransform: 'uppercase',
 		letterSpacing: 0.8,
 	},
-	metaValue: { fontSize: 10, fontWeight: 700, color: C.black },
-	metaValueSmall: { fontSize: 9, fontWeight: 600, color: C.black },
+	metaValue: { fontFamily: 'Helvetica-Bold', fontSize: 10, color: C.black },
+	metaValueSmall: {
+		fontFamily: 'Helvetica-Bold',
+		fontSize: 9,
+		color: C.black,
+	},
 
 	// Status bar
 	statusBar: {
@@ -121,7 +107,11 @@ const s = StyleSheet.create({
 		borderRadius: 20,
 		backgroundColor: C.accentLight,
 	},
-	statusPillText: { fontSize: 8, fontWeight: 600, color: C.accent },
+	statusPillText: {
+		fontFamily: 'Helvetica-Bold',
+		fontSize: 8,
+		color: C.accent,
+	},
 
 	// Table
 	tableWrapper: {
@@ -151,18 +141,18 @@ const s = StyleSheet.create({
 	tableRowPacked: { backgroundColor: C.greenLight },
 
 	thText: {
+		fontFamily: 'Helvetica-Bold',
 		fontSize: 8,
-		fontWeight: 700,
 		color: C.white,
 		textTransform: 'uppercase',
 		letterSpacing: 0.5,
 	},
 	tdText: { fontSize: 9, color: C.black },
 	tdMuted: { fontSize: 8, color: C.muted },
-	tdRed: { fontSize: 9, color: C.red, fontWeight: 700 },
-	tdAmber: { fontSize: 9, color: C.amber, fontWeight: 600 },
-	tdGreen: { fontSize: 9, color: C.green, fontWeight: 600 },
-	tdViolet: { fontSize: 9, color: C.walkIn, fontWeight: 600 },
+	tdRed: { fontFamily: 'Helvetica-Bold', fontSize: 9, color: C.red },
+	tdAmber: { fontFamily: 'Helvetica-Bold', fontSize: 9, color: C.amber },
+	tdGreen: { fontFamily: 'Helvetica-Bold', fontSize: 9, color: C.green },
+	tdViolet: { fontFamily: 'Helvetica-Bold', fontSize: 9, color: C.walkIn },
 
 	// Column widths
 	colNum: { width: 22 },
@@ -179,12 +169,17 @@ const s = StyleSheet.create({
 		paddingHorizontal: 8,
 		backgroundColor: C.brand,
 	},
-	totalsLabel: { flex: 1, fontSize: 9, fontWeight: 700, color: C.white },
+	totalsLabel: {
+		fontFamily: 'Helvetica-Bold',
+		flex: 1,
+		fontSize: 9,
+		color: C.white,
+	},
 	totalsVal: {
+		fontFamily: 'Helvetica-Bold',
 		width: 38,
 		alignItems: 'flex-end',
 		fontSize: 9,
-		fontWeight: 700,
 		color: C.white,
 	},
 
@@ -213,8 +208,8 @@ const s = StyleSheet.create({
 		padding: 10,
 	},
 	signoffTitle: {
+		fontFamily: 'Helvetica-Bold',
 		fontSize: 8,
-		fontWeight: 700,
 		color: C.muted,
 		textTransform: 'uppercase',
 		letterSpacing: 0.6,
