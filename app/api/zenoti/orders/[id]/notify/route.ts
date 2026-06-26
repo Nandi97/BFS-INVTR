@@ -69,48 +69,56 @@ export async function POST(
 
 	const subject = `[Action Required] ${meta.label} #${order.orderNumber} — ${order.centerName}`;
 
-	const html = `
-<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:580px;color:#111;">
-	<div style="background:${meta.colour};padding:20px 24px;border-radius:8px 8px 0 0;">
-		<h2 style="margin:0;color:#fff;font-size:18px;">${meta.label} — Action Required</h2>
+	const labelStyle =
+		'padding:8px 0;font-weight:600;width:130px;color:#64748b;font-size:12px;text-transform:uppercase;letter-spacing:0.4px;';
+	const valStyle = 'padding:8px 0;color:#1e293b;';
+	const rowBorder = 'border-top:1px solid #f1f5f9;';
+
+	const html = `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8" /><meta name="viewport" content="width=device-width,initial-scale=1" /></head>
+<body style="margin:0;padding:24px;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+<div style="max-width:580px;margin:0 auto;border-radius:10px;overflow:hidden;box-shadow:0 1px 6px rgba(0,0,0,.10);">
+	<div style="background:${meta.colour};padding:20px 24px;">
+		<h2 style="margin:0;color:#fff;font-size:18px;font-weight:700;">${meta.label} &mdash; Action Required</h2>
 		<p style="margin:4px 0 0;color:rgba(255,255,255,0.85);font-size:13px;">
-			Sent by ${auth.user.email} · ${new Date().toLocaleDateString('en-CA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+			Sent by ${auth.user.email} &middot; ${new Date().toLocaleDateString('en-CA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
 		</p>
 	</div>
 
-	<div style="background:#f9fafb;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 8px 8px;padding:20px 24px;">
+	<div style="background:#fff;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 10px 10px;padding:20px 24px;">
 		<table style="width:100%;border-collapse:collapse;font-size:14px;margin-bottom:16px;">
 			<tr>
-				<td style="padding:8px 0;font-weight:600;width:120px;color:#6b7280;">Order #</td>
-				<td style="padding:8px 0;font-weight:700;font-size:16px;">${order.orderNumber}</td>
+				<td style="${labelStyle}">Order #</td>
+				<td style="padding:8px 0;font-weight:700;font-size:16px;color:#0f172a;">${order.orderNumber}</td>
 			</tr>
 			<tr>
-				<td style="padding:8px 0;font-weight:600;color:#6b7280;border-top:1px solid #e5e7eb;">Store</td>
-				<td style="padding:8px 0;border-top:1px solid #e5e7eb;">${order.centerName}</td>
+				<td style="${labelStyle}${rowBorder}">Store</td>
+				<td style="${valStyle}${rowBorder}">${order.centerName}</td>
 			</tr>
 			<tr>
-				<td style="padding:8px 0;font-weight:600;color:#6b7280;border-top:1px solid #e5e7eb;">Organisation</td>
-				<td style="padding:8px 0;border-top:1px solid #e5e7eb;">${orgLabel}</td>
+				<td style="${labelStyle}${rowBorder}">Organisation</td>
+				<td style="${valStyle}${rowBorder}">${orgLabel}</td>
 			</tr>
 			${
 				order.supplier
 					? `
 			<tr>
-				<td style="padding:8px 0;font-weight:600;color:#6b7280;border-top:1px solid #e5e7eb;">Supplier</td>
-				<td style="padding:8px 0;border-top:1px solid #e5e7eb;">${order.supplier}</td>
+				<td style="${labelStyle}${rowBorder}">Supplier</td>
+				<td style="${valStyle}${rowBorder}">${order.supplier}</td>
 			</tr>`
 					: ''
 			}
 			<tr>
-				<td style="padding:8px 0;font-weight:600;color:#6b7280;border-top:1px solid #e5e7eb;">Items</td>
-				<td style="padding:8px 0;border-top:1px solid #e5e7eb;">${order.items.length} line item${order.items.length !== 1 ? 's' : ''}</td>
+				<td style="${labelStyle}${rowBorder}">Items</td>
+				<td style="${valStyle}${rowBorder}">${order.items.length} line item${order.items.length !== 1 ? 's' : ''}</td>
 			</tr>
 			${
 				order.raisedAt
 					? `
 			<tr>
-				<td style="padding:8px 0;font-weight:600;color:#6b7280;border-top:1px solid #e5e7eb;">Raised</td>
-				<td style="padding:8px 0;border-top:1px solid #e5e7eb;">${new Date(order.raisedAt).toLocaleDateString('en-CA')}</td>
+				<td style="${labelStyle}${rowBorder}">Raised</td>
+				<td style="${valStyle}${rowBorder}">${new Date(order.raisedAt).toLocaleDateString('en-CA')}</td>
 			</tr>`
 					: ''
 			}
@@ -118,41 +126,41 @@ export async function POST(
 				order.deliverBy
 					? `
 			<tr>
-				<td style="padding:8px 0;font-weight:600;color:#6b7280;border-top:1px solid #e5e7eb;">Deliver by</td>
-				<td style="padding:8px 0;border-top:1px solid #e5e7eb;${new Date(order.deliverBy) < new Date() ? 'color:#dc2626;font-weight:600;' : ''}">${new Date(order.deliverBy).toLocaleDateString('en-CA')}</td>
+				<td style="${labelStyle}${rowBorder}">Deliver by</td>
+				<td style="${valStyle}${rowBorder}${new Date(order.deliverBy) < new Date() ? 'color:#dc2626;font-weight:600;' : ''}">${new Date(order.deliverBy).toLocaleDateString('en-CA')}</td>
 			</tr>`
 					: ''
 			}
 		</table>
 
-		<p style="margin:0 0 12px;">${meta.actionNote}</p>
+		<p style="margin:0 0 12px;font-size:14px;color:#334155;">${meta.actionNote}</p>
 		<p style="margin:0 0 20px;">
-			<a href="${orderUrl}" style="background:${meta.colour};color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;font-weight:600;">
-				View Order →
+			<a href="${orderUrl}" style="background:${meta.colour};color:#fff;padding:10px 22px;border-radius:8px;text-decoration:none;display:inline-block;font-weight:600;font-size:13px;">
+				View Order &rarr;
 			</a>
 		</p>
 
 		${
 			order.items.length > 0
 				? `
-		<table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:16px;">
+		<table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:16px;border-radius:6px;overflow:hidden;">
 			<thead>
 				<tr style="background:#1e293b;">
-					<th style="padding:6px 8px;text-align:left;color:#fff;font-weight:600;">Code</th>
-					<th style="padding:6px 8px;text-align:left;color:#fff;font-weight:600;">Product</th>
-					<th style="padding:6px 8px;text-align:right;color:#fff;font-weight:600;">Retail</th>
-					<th style="padding:6px 8px;text-align:right;color:#fff;font-weight:600;">Consumable</th>
+					<th style="padding:7px 8px;text-align:left;color:#fff;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.4px;">Code</th>
+					<th style="padding:7px 8px;text-align:left;color:#fff;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.4px;">Product</th>
+					<th style="padding:7px 8px;text-align:right;color:#fff;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.4px;">Retail</th>
+					<th style="padding:7px 8px;text-align:right;color:#fff;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.4px;">Consumable</th>
 				</tr>
 			</thead>
 			<tbody>
 				${order.items
 					.map(
 						(item, i) => `
-				<tr style="background:${i % 2 === 0 ? '#ffffff' : '#f9fafb'};">
-					<td style="padding:5px 8px;font-family:monospace;color:#64748b;">${item.productCode ?? ''}</td>
-					<td style="padding:5px 8px;">${item.productName}</td>
-					<td style="padding:5px 8px;text-align:right;">${item.retailRaised || '—'}</td>
-					<td style="padding:5px 8px;text-align:right;">${item.consumableRaised || '—'}</td>
+				<tr style="background:${i % 2 === 0 ? '#ffffff' : '#f8fafc'};">
+					<td style="padding:6px 8px;font-family:'Courier New',monospace;color:#64748b;font-size:11px;">${item.productCode ?? ''}</td>
+					<td style="padding:6px 8px;color:#1e293b;">${item.productName}</td>
+					<td style="padding:6px 8px;text-align:right;color:#1e293b;">${item.retailRaised || '&mdash;'}</td>
+					<td style="padding:6px 8px;text-align:right;color:#1e293b;">${item.consumableRaised || '&mdash;'}</td>
 				</tr>`
 					)
 					.join('')}
@@ -161,12 +169,14 @@ export async function POST(
 				: ''
 		}
 
-		<hr style="border:none;border-top:1px solid #e5e7eb;margin:16px 0;" />
-		<p style="color:#9ca3af;font-size:12px;margin:0;">
-			BFS Inventory · <a href="${appUrl}" style="color:#9ca3af;">${appUrl}</a>
+		<hr style="border:none;border-top:1px solid #f1f5f9;margin:16px 0;" />
+		<p style="color:#94a3b8;font-size:12px;margin:0;">
+			BFS Inventory &middot; <a href="${appUrl}" style="color:#94a3b8;">${appUrl}</a>
 		</p>
 	</div>
-</div>`;
+</div>
+</body>
+</html>`;
 
 	await sendMail({ to, subject, html });
 

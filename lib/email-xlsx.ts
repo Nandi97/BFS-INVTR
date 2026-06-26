@@ -77,6 +77,7 @@ export async function generateStockAlertXlsx(params: {
 		{ header: 'Count', key: 'count', width: 12 },
 	];
 	applyHeaderStyle(summary.getRow(1));
+	summary.views = [{ state: 'frozen', xSplit: 0, ySplit: 1 }];
 
 	const overallRows = [
 		{ metric: 'Out of Stock', count: params.outOfStock.length },

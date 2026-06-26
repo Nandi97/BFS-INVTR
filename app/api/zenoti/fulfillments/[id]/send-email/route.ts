@@ -71,6 +71,7 @@ async function buildPackingListXlsx(params: {
 		cell.alignment = { vertical: 'middle', horizontal: 'left' };
 	});
 	headerRow.height = 20;
+	ws.views = [{ state: 'frozen', xSplit: 0, ySplit: 5 }];
 
 	params.items.forEach((item, i) => {
 		const shortfallRetail =
@@ -183,19 +184,76 @@ export async function POST(
 	const dateStr = new Date().toLocaleDateString('en-CA');
 
 	const subject = `Packing List — ${order.centerName} — Order #${order.orderNumber}`;
-	const html = `
-<p>Hi Accounting,</p>
-<p>Attached is the packing list for the following fulfillment:</p>
-<ul>
-  <li><strong>Store:</strong> ${order.centerName} (${orgLabel})</li>
-  <li><strong>Order #:</strong> ${order.orderNumber}</li>
-  <li><strong>Packed on:</strong> ${dateStr}</li>
-  <li><strong>Total retail units:</strong> ${totalRetail}</li>
-  <li><strong>Total consumable units:</strong> ${totalConsumable}</li>
-  ${walkInCount > 0 ? `<li><strong>Walk-in additions:</strong> ${walkInCount} items</li>` : ''}
-</ul>
-<p>Please create the corresponding invoice in QuickBooks.</p>
-<p>— BFS Inventory</p>`;
+
+	const labelStyle =
+		'padding:8px 0;font-weight:600;width:150px;color:#64748b;font-size:12px;text-transform:uppercase;letter-spacing:0.4px;';
+	const valStyle = 'padding:8px 0;color:#1e293b;';
+	const rowBorder = 'border-top:1px solid #f1f5f9;';
+	const appUrl =
+		process.env.NEXT_PUBLIC_APP_URL ?? 'https://bfs.kigtech.digital';
+
+	const html = `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8" /><meta name="viewport" content="width=device-width,initial-scale=1" /></head>
+<body style="margin:0;padding:24px;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+<div style="max-width:580px;margin:0 auto;border-radius:10px;overflow:hidden;box-shadow:0 1px 6px rgba(0,0,0,.10);">
+	<div style="background:#d4006e;padding:20px 24px;">
+		<h2 style="margin:0;color:#fff;font-size:18px;font-weight:700;">Packing List</h2>
+		<p style="margin:4px 0 0;color:rgba(255,255,255,0.85);font-size:13px;">
+			Packed ${dateStr} &middot; ${orgLabel}
+		</p>
+	</div>
+
+	<div style="background:#fff;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 10px 10px;padding:20px 24px;">
+		<table style="width:100%;border-collapse:collapse;font-size:14px;margin-bottom:16px;">
+			<tr>
+				<td style="${labelStyle}">Order #</td>
+				<td style="padding:8px 0;font-weight:700;font-size:16px;color:#0f172a;">${order.orderNumber}</td>
+			</tr>
+			<tr>
+				<td style="${labelStyle}${rowBorder}">Store</td>
+				<td style="${valStyle}${rowBorder}">${order.centerName}</td>
+			</tr>
+			<tr>
+				<td style="${labelStyle}${rowBorder}">Packed on</td>
+				<td style="${valStyle}${rowBorder}">${dateStr}</td>
+			</tr>
+			<tr>
+				<td style="${labelStyle}${rowBorder}">Retail units</td>
+				<td style="${valStyle}${rowBorder}">${totalRetail}</td>
+			</tr>
+			<tr>
+				<td style="${labelStyle}${rowBorder}">Consumable units</td>
+				<td style="${valStyle}${rowBorder}">${totalConsumable}</td>
+			</tr>
+			${
+				walkInCount > 0
+					? `<tr>
+				<td style="${labelStyle}${rowBorder}">Walk-in additions</td>
+				<td style="${valStyle}${rowBorder}">${walkInCount} item${walkInCount !== 1 ? 's' : ''}</td>
+			</tr>`
+					: ''
+			}
+		</table>
+
+		<p style="font-size:14px;color:#334155;margin:0 0 16px;">
+			The PDF packing slip and Excel packing list are attached. Please create the corresponding invoice in QuickBooks.
+		</p>
+
+		<p style="margin:0 0 20px;">
+			<a href="${appUrl}/zenoti/${order.id}" style="background:#d4006e;color:#fff;padding:10px 22px;border-radius:8px;text-decoration:none;display:inline-block;font-weight:600;font-size:13px;">
+				View in BFS Inventory &rarr;
+			</a>
+		</p>
+
+		<hr style="border:none;border-top:1px solid #f1f5f9;margin:16px 0;" />
+		<p style="color:#94a3b8;font-size:12px;margin:0;">
+			BFS Inventory &middot; <a href="${appUrl}" style="color:#94a3b8;">${appUrl}</a>
+		</p>
+	</div>
+</div>
+</body>
+</html>`;
 
 	const baseFilename = `packing-slip-${order.centerName.toLowerCase().replace(/\s+/g, '-')}-${order.orderNumber}`;
 
