@@ -18,6 +18,8 @@ type Recipients = {
 	zenoti_email_packing_list_to: string;
 	zenoti_email_packing_list_cc: string;
 	internal_use_cc: string;
+	shopify_order_notify_to: string;
+	shopify_order_notify_cc: string;
 };
 
 const FIELDS: {
@@ -227,6 +229,61 @@ export function EmailRecipientsForm() {
 						onChange={(e) => set('internal_use_cc', e.target.value)}
 						placeholder="inventory@example.com, accounts@example.com"
 					/>
+				</div>
+			</div>
+
+			<Separator />
+
+			{/* Shopify order notifications */}
+			<div className="space-y-4">
+				<div>
+					<h3 className="text-sm font-medium">
+						Shopify order notifications
+					</h3>
+					<p className="text-muted-foreground mt-0.5 text-xs">
+						When new Shopify orders are detected on sync, an email
+						summary is sent to these addresses.
+					</p>
+				</div>
+				<div className="grid gap-4 sm:grid-cols-2">
+					<div className="space-y-1.5">
+						<Label
+							htmlFor="shopify_order_notify_to"
+							className="text-sm"
+						>
+							To
+							<span className="text-destructive ml-0.5">*</span>
+						</Label>
+						<Input
+							id="shopify_order_notify_to"
+							type="email"
+							value={values.shopify_order_notify_to}
+							onChange={(e) =>
+								set('shopify_order_notify_to', e.target.value)
+							}
+							placeholder="orders@example.com"
+						/>
+					</div>
+					<div className="space-y-1.5">
+						<Label
+							htmlFor="shopify_order_notify_cc"
+							className="text-sm"
+						>
+							CC{' '}
+							<span className="text-muted-foreground font-normal">
+								(optional, comma-separated)
+							</span>
+						</Label>
+						<Input
+							id="shopify_order_notify_cc"
+							type="text"
+							value={values.shopify_order_notify_cc}
+							onChange={(e) =>
+								set('shopify_order_notify_cc', e.target.value)
+							}
+							placeholder="accounts@example.com, warehouse@example.com"
+						/>
+					</div>
 				</div>
 			</div>
 

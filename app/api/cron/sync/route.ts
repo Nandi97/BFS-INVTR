@@ -58,7 +58,44 @@ export async function GET(req: NextRequest) {
 		console.error('[cron/sync] step 1 failed:', results.stock);
 	}
 
-	// 2 — Check QB refresh token expiry (emails admin if ≤7 days)
+	// 2 — Shopify: pull new orders + push inventory levels
+	try {
+		console.log('[cron/sync] step 2a: shopify order sync');
+		const resOrders = await fetch(`${base}/api/integrations/shopify/sync`, {
+			method: 'POST',
+			headers,
+		});
+		results.shopifyOrders = await resOrders.json();
+		console.log(
+			'[cron/sync] step 2a done:',
+			JSON.stringify(results.shopifyOrders).slice(0, 200)
+		);
+	} catch (err) {
+		results.shopifyOrders = {
+			error: err instanceof Error ? err.message : String(err),
+		};
+		console.error('[cron/sync] step 2a failed:', results.shopifyOrders);
+	}
+
+	try {
+		console.log('[cron/sync] step 2b: shopify inventory sync');
+		const resInv = await fetch(
+			`${base}/api/integrations/shopify/sync-inventory`,
+			{ method: 'POST', headers }
+		);
+		results.shopifyInventory = await resInv.json();
+		console.log(
+			'[cron/sync] step 2b done:',
+			JSON.stringify(results.shopifyInventory).slice(0, 200)
+		);
+	} catch (err) {
+		results.shopifyInventory = {
+			error: err instanceof Error ? err.message : String(err),
+		};
+		console.error('[cron/sync] step 2b failed:', results.shopifyInventory);
+	}
+
+	// 3 — Check QB refresh token expiry (emails admin if ≤7 days)
 	try {
 		console.log('[cron/sync] step 2: token check');
 		results.tokenCheck = await checkQbRefreshToken();

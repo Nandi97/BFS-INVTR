@@ -20,6 +20,7 @@ import {
 	MapPin,
 	ClipboardList,
 	Store,
+	ShoppingBag,
 } from 'lucide-react';
 import {
 	Collapsible,
@@ -87,6 +88,7 @@ const navInventory: NavItem[] = [
 
 const navOperations: NavItem[] = [
 	{ title: 'Zenoti Fulfillment', href: '/zenoti', icon: Store },
+	{ title: 'Shopify Orders', href: '/shopify', icon: ShoppingBag },
 	{ title: 'Suppliers', href: '/suppliers', icon: Truck },
 	{ title: 'Purchase Orders', href: '/purchase-orders', icon: ShoppingCart },
 	{ title: 'Notifications', href: '/notifications', icon: Bell },
