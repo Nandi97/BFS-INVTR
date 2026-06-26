@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { Providers } from '@/components/providers';
 import { fontVariables } from '@/lib/font';
@@ -9,6 +9,11 @@ import { cn } from '@/lib/utils';
 export const metadata: Metadata = {
 	title: 'BFS Inventory',
 	description: 'Beauty First / Beauty Logix inventory management',
+};
+
+export const viewport: Viewport = {
+	width: 'device-width',
+	initialScale: 1,
 };
 
 export default function RootLayout({

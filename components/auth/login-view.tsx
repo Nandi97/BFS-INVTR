@@ -4,7 +4,7 @@ import { Package2 } from 'lucide-react';
 
 export function LoginView({ error }: { error?: string }) {
 	return (
-		<div className="relative flex h-screen flex-col items-center justify-center md:grid lg:max-w-none lg:grid-cols-2 lg:px-0">
+		<div className="relative flex min-h-dvh flex-col items-center justify-center md:grid lg:max-w-none lg:grid-cols-2 lg:px-0">
 			{/* Left panel — hidden below lg */}
 			<div className="relative hidden h-full flex-col bg-zinc-900 p-10 text-white lg:flex">
 				<div className="absolute inset-0 bg-zinc-900" />

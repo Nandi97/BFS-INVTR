@@ -18,18 +18,18 @@ export function DashboardView() {
 			<h1 className="text-2xl font-semibold">Dashboard</h1>
 
 			{/* KPI row */}
-			<div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+			<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
 				<Suspense fallback={<Skeleton className="h-24" />}>
 					<KpiCards />
 				</Suspense>
 			</div>
 
 			{/* Status breakdown + urgent table */}
-			<div className="grid gap-4 lg:grid-cols-3">
-				<div className="lg:col-span-1">
+			<div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+				<div className="md:col-span-1">
 					<StockHealthChart />
 				</div>
-				<div className="lg:col-span-2">
+				<div className="md:col-span-1 lg:col-span-2">
 					<Suspense fallback={<Skeleton className="h-72" />}>
 						<UrgentReorderTable />
 					</Suspense>

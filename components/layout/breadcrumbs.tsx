@@ -26,6 +26,8 @@ const ROUTE_LABELS: Record<string, string> = {
 	'import-export': 'Import / Export',
 	integrations: 'Integrations',
 	settings: 'Settings',
+	zenoti: 'Zenoti',
+	pending: 'Pending from QB',
 };
 
 export function Breadcrumbs() {
@@ -44,14 +46,23 @@ export function Breadcrumbs() {
 	if (crumbs.length <= 1) return null;
 
 	return (
-		<Breadcrumb>
-			<BreadcrumbList>
+		<Breadcrumb className="min-w-0">
+			<BreadcrumbList className="flex-nowrap">
 				{crumbs.map((crumb, i) => (
 					<Fragment key={crumb.href}>
-						{i > 0 && <BreadcrumbSeparator />}
-						<BreadcrumbItem>
+						{/* Separator — hidden on mobile */}
+						{i > 0 && (
+							<BreadcrumbSeparator className="hidden sm:block" />
+						)}
+						<BreadcrumbItem
+							className={
+								!crumb.isLast ? 'hidden sm:flex' : 'min-w-0'
+							}
+						>
 							{crumb.isLast ? (
-								<BreadcrumbPage>{crumb.label}</BreadcrumbPage>
+								<BreadcrumbPage className="max-w-[14rem] truncate sm:max-w-none">
+									{crumb.label}
+								</BreadcrumbPage>
 							) : (
 								<BreadcrumbLink asChild>
 									<Link href={crumb.href}>{crumb.label}</Link>
