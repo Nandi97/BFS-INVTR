@@ -126,6 +126,32 @@ export function useSubmitFulfillment() {
 	});
 }
 
+export function useSendPackingListEmail() {
+	const qc = useQueryClient();
+	return useMutation({
+		mutationFn: ({
+			fulfillmentId,
+			orderId,
+		}: {
+			fulfillmentId: string;
+			orderId: string;
+		}) =>
+			api
+				.post(`/zenoti/fulfillments/${fulfillmentId}/send-email`)
+				.then((r) => r.data),
+		onSuccess: (_data, vars) => {
+			qc.invalidateQueries({ queryKey: ['zenoti-order', vars.orderId] });
+		},
+	});
+}
+
+export function useSendOrderNotification() {
+	return useMutation({
+		mutationFn: (orderId: string) =>
+			api.post(`/zenoti/orders/${orderId}/notify`).then((r) => r.data),
+	});
+}
+
 export function useSyncZenoti() {
 	const qc = useQueryClient();
 	return useMutation({

@@ -10,7 +10,9 @@ export async function GET() {
 		where: { zenotiStatus: { in: ['RAISED', 'UPDATED'] } },
 		include: {
 			items: { orderBy: { productName: 'asc' } },
-			fulfillment: { select: { status: true, submittedAt: true } },
+			fulfillment: {
+				select: { id: true, status: true, submittedAt: true },
+			},
 		},
 		orderBy: [{ raisedAt: 'desc' }, { createdAt: 'desc' }],
 	});

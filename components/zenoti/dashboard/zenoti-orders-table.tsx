@@ -10,6 +10,10 @@ import {
 	Clock,
 	AlertCircle,
 	Loader2,
+	MoreHorizontal,
+	Download,
+	Mail,
+	Bell,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -22,8 +26,20 @@ import {
 	TableHeader,
 	TableRow,
 } from '@/components/ui/table';
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { EmptyState } from '@/components/ui/empty-state';
-import { useZenotiOrders, useSyncZenoti } from '@/hooks/use-zenoti';
+import {
+	useZenotiOrders,
+	useSyncZenoti,
+	useSendPackingListEmail,
+	useSendOrderNotification,
+} from '@/hooks/use-zenoti';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import type { SupplierType } from '@/lib/zenoti-email';
@@ -106,6 +122,8 @@ export function ZenotiOrdersTable() {
 	const { data: rawOrders, isLoading, isError } = useZenotiOrders();
 	const orders: any[] = Array.isArray(rawOrders) ? rawOrders : [];
 	const sync = useSyncZenoti();
+	const sendPackingList = useSendPackingListEmail();
+	const sendNotification = useSendOrderNotification();
 	const [typeFilter, setTypeFilter] = useState<SupplierType | 'ALL'>('ALL');
 
 	async function handleSync() {
@@ -231,6 +249,7 @@ export function ZenotiOrdersTable() {
 									<TableHead>Items</TableHead>
 									<TableHead>Raised</TableHead>
 									<TableHead>Deliver by</TableHead>
+									<TableHead className="w-10" />
 								</TableRow>
 							</TableHeader>
 							<TableBody>
@@ -344,6 +363,93 @@ export function ZenotiOrdersTable() {
 															'en-CA'
 														)
 													: '—'}
+											</TableCell>
+											<TableCell
+												onClick={(e) =>
+													e.stopPropagation()
+												}
+											>
+												<DropdownMenu>
+													<DropdownMenuTrigger
+														asChild
+													>
+														<Button
+															variant="ghost"
+															size="icon"
+															className="size-8"
+														>
+															<MoreHorizontal className="size-4" />
+															<span className="sr-only">
+																Order actions
+															</span>
+														</Button>
+													</DropdownMenuTrigger>
+													<DropdownMenuContent align="end">
+														<DropdownMenuItem
+															className="gap-2"
+															onClick={() =>
+																sendNotification
+																	.mutateAsync(
+																		order.id
+																	)
+																	.then(() =>
+																		toast.success(
+																			'Notification sent'
+																		)
+																	)
+															}
+														>
+															<Bell className="size-4" />
+															Send Notification
+														</DropdownMenuItem>
+														{order.fulfillment
+															?.id && (
+															<>
+																<DropdownMenuSeparator />
+																<DropdownMenuItem
+																	asChild
+																>
+																	<a
+																		href={`/api/zenoti/fulfillments/${order.fulfillment.id}/packing-slip`}
+																		download
+																		className="flex cursor-pointer items-center gap-2"
+																	>
+																		<Download className="size-4" />
+																		Download
+																		Packing
+																		Slip
+																	</a>
+																</DropdownMenuItem>
+																<DropdownMenuItem
+																	className="gap-2"
+																	onClick={() =>
+																		sendPackingList
+																			.mutateAsync(
+																				{
+																					fulfillmentId:
+																						order
+																							.fulfillment
+																							.id,
+																					orderId:
+																						order.id,
+																				}
+																			)
+																			.then(
+																				() =>
+																					toast.success(
+																						'Packing list emailed'
+																					)
+																			)
+																	}
+																>
+																	<Mail className="size-4" />
+																	Send Packing
+																	List Email
+																</DropdownMenuItem>
+															</>
+														)}
+													</DropdownMenuContent>
+												</DropdownMenu>
 											</TableCell>
 										</TableRow>
 									);

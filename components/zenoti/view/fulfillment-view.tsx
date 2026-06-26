@@ -8,12 +8,15 @@ import {
 	CheckCircle2,
 	Plus,
 	Trash2,
-	Send,
 	Loader2,
 	AlertTriangle,
 	AlertCircle,
 	Minus,
 	Download,
+	Mail,
+	Bell,
+	ChevronDown,
+	CheckCheck,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -43,12 +46,21 @@ import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
 	useZenotiOrder,
 	useCreateFulfillment,
 	useUpdateFulfillmentItem,
 	useAddWalkInItem,
 	useDeleteWalkInItem,
 	useSubmitFulfillment,
+	useSendPackingListEmail,
+	useSendOrderNotification,
 } from '@/hooks/use-zenoti';
 
 const ORG_LABEL: Record<string, string> = {
@@ -63,6 +75,8 @@ export function FulfillmentView({ orderId }: { orderId: string }) {
 	const addWalkIn = useAddWalkInItem();
 	const deleteWalkIn = useDeleteWalkInItem();
 	const submitFulfillment = useSubmitFulfillment();
+	const sendPackingList = useSendPackingListEmail();
+	const sendNotification = useSendOrderNotification();
 
 	const [walkInOpen, setWalkInOpen] = useState(false);
 	const [walkIn, setWalkIn] = useState({
@@ -149,11 +163,11 @@ export function FulfillmentView({ orderId }: { orderId: string }) {
 		});
 	}
 
-	async function handleSubmit() {
+	async function handleMarkComplete() {
 		const unpacked = f.items.filter((i: any) => !i.isPacked);
 		if (unpacked.length > 0) {
 			const ok = confirm(
-				`${unpacked.length} item(s) not checked. Submit anyway?`
+				`${unpacked.length} item(s) not checked. Mark complete anyway?`
 			);
 			if (!ok) return;
 		}
@@ -162,8 +176,21 @@ export function FulfillmentView({ orderId }: { orderId: string }) {
 			orderId,
 		});
 		if (result.ok) {
-			toast.success('Packing list emailed to accounting!');
+			toast.success('Order marked complete');
 		}
+	}
+
+	async function handleSendPackingList() {
+		await sendPackingList.mutateAsync({
+			fulfillmentId: f.id,
+			orderId,
+		});
+		toast.success('Packing list emailed to accounting');
+	}
+
+	async function handleSendNotification() {
+		await sendNotification.mutateAsync(orderId);
+		toast.success('Notification sent');
 	}
 
 	return (
@@ -219,7 +246,7 @@ export function FulfillmentView({ orderId }: { orderId: string }) {
 					</div>
 				</div>
 
-				<div className="flex flex-wrap gap-2">
+				<div className="flex flex-wrap items-center gap-2">
 					{!f && (
 						<Button
 							onClick={startPacking}
@@ -253,24 +280,21 @@ export function FulfillmentView({ orderId }: { orderId: string }) {
 										{submitFulfillment.isPending ? (
 											<Loader2 className="size-4 animate-spin" />
 										) : (
-											<Send className="size-4" />
+											<CheckCheck className="size-4" />
 										)}
-										Submit & Email
+										Mark Complete
 									</Button>
 								</AlertDialogTrigger>
 								<AlertDialogContent>
 									<AlertDialogHeader>
 										<AlertDialogTitle>
-											Submit packing list?
+											Mark order complete?
 										</AlertDialogTitle>
 										<AlertDialogDescription>
-											This will email the packing list to{' '}
-											<strong>
-												accounting@beautyfirstspa.com
-											</strong>{' '}
-											(CC: order@beautylogix.ca). The
-											fulfillment will be locked — no
-											further edits.
+											This will lock the fulfillment — no
+											further edits. Use the Actions menu
+											to download or email the packing
+											list.
 										</AlertDialogDescription>
 									</AlertDialogHeader>
 									<AlertDialogFooter>
@@ -278,31 +302,66 @@ export function FulfillmentView({ orderId }: { orderId: string }) {
 											Cancel
 										</AlertDialogCancel>
 										<AlertDialogAction
-											onClick={handleSubmit}
+											onClick={handleMarkComplete}
 										>
-											Send email
+											Mark complete
 										</AlertDialogAction>
 									</AlertDialogFooter>
 								</AlertDialogContent>
 							</AlertDialog>
 						</>
 					)}
-					{/* Download PDF — available once packing has started */}
-					{f && (
-						<Button variant="outline" className="gap-1.5" asChild>
-							<a
-								href={`/api/zenoti/fulfillments/${f.id}/packing-slip`}
-								download
-							>
-								<Download className="size-4" />
-								Download PDF
-							</a>
-						</Button>
-					)}
 					{isSubmitted && (
 						<Badge className="gap-1.5 bg-emerald-600 px-3 py-1.5 text-sm text-white">
-							<CheckCircle2 className="size-4" /> Submitted
+							<CheckCircle2 className="size-4" /> Completed
 						</Badge>
+					)}
+					{/* Actions dropdown — always available once packing started */}
+					{f && (
+						<DropdownMenu>
+							<DropdownMenuTrigger asChild>
+								<Button variant="outline" className="gap-1.5">
+									Actions <ChevronDown className="size-3.5" />
+								</Button>
+							</DropdownMenuTrigger>
+							<DropdownMenuContent align="end">
+								<DropdownMenuItem asChild>
+									<a
+										href={`/api/zenoti/fulfillments/${f.id}/packing-slip`}
+										download
+										className="flex cursor-pointer items-center gap-2"
+									>
+										<Download className="size-4" />
+										Download Packing Slip
+									</a>
+								</DropdownMenuItem>
+								<DropdownMenuItem
+									className="gap-2"
+									disabled={sendPackingList.isPending}
+									onClick={handleSendPackingList}
+								>
+									{sendPackingList.isPending ? (
+										<Loader2 className="size-4 animate-spin" />
+									) : (
+										<Mail className="size-4" />
+									)}
+									Send Packing List Email
+								</DropdownMenuItem>
+								<DropdownMenuSeparator />
+								<DropdownMenuItem
+									className="gap-2"
+									disabled={sendNotification.isPending}
+									onClick={handleSendNotification}
+								>
+									{sendNotification.isPending ? (
+										<Loader2 className="size-4 animate-spin" />
+									) : (
+										<Bell className="size-4" />
+									)}
+									Send Order Notification
+								</DropdownMenuItem>
+							</DropdownMenuContent>
+						</DropdownMenu>
 					)}
 				</div>
 			</div>
