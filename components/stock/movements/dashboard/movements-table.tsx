@@ -972,7 +972,7 @@ export function MovementsTable({
 
 			{/* Period summary cards — only when a date range is active */}
 			{showSummary && !isShrinkage && (
-				<div className="grid grid-cols-3 gap-3">
+				<div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
 					<div className="flex items-center gap-3 rounded-lg border bg-emerald-50 p-4 dark:bg-emerald-950/20">
 						<TrendingUp className="size-5 shrink-0 text-emerald-600 dark:text-emerald-400" />
 						<div>
