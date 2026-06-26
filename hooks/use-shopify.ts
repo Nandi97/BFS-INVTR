@@ -50,6 +50,7 @@ export interface ShopifyOrderFilters {
 	store?: string;
 	acknowledged?: boolean;
 	financialStatus?: string;
+	fulfillmentStatus?: string;
 	page?: number;
 	limit?: number;
 }
@@ -64,6 +65,8 @@ export function useShopifyOrders(filters: ShopifyOrderFilters = {}) {
 				p.set('acknowledged', String(filters.acknowledged));
 			if (filters.financialStatus)
 				p.set('financialStatus', filters.financialStatus);
+			if (filters.fulfillmentStatus)
+				p.set('fulfillmentStatus', filters.fulfillmentStatus);
 			if (filters.page) p.set('page', String(filters.page));
 			if (filters.limit) p.set('limit', String(filters.limit));
 			const { data } = await api.get<{

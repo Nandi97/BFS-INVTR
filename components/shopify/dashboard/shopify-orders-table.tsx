@@ -49,6 +49,14 @@ const FINANCIAL_COLORS: Record<string, string> = {
 		'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
 };
 
+const FULFILLMENT_COLORS: Record<string, string> = {
+	fulfilled:
+		'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
+	partial: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+	unfulfilled:
+		'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+};
+
 function storeName(domain: string) {
 	return domain.replace('.myshopify.com', '');
 }
@@ -102,6 +110,21 @@ function ShopifyRow({ order }: { order: ShopifyOrder }) {
 					</Badge>
 				)}
 			</TableCell>
+			<TableCell>
+				<Badge
+					variant="secondary"
+					className={cn(
+						'text-xs capitalize',
+						order.fulfillmentStatus
+							? (FULFILLMENT_COLORS[order.fulfillmentStatus] ??
+									'')
+							: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+					)}
+				>
+					{order.fulfillmentStatus?.replace(/_/g, ' ') ??
+						'unfulfilled'}
+				</Badge>
+			</TableCell>
 			<TableCell className="text-muted-foreground text-sm whitespace-nowrap">
 				{format(new Date(order.createdAtShopify), 'MMM d, yyyy')}
 			</TableCell>
@@ -114,6 +137,7 @@ export function ShopifyOrdersTable() {
 	const [acknowledged, setAcknowledged] = useState<'all' | 'false' | 'true'>(
 		'all'
 	);
+	const [fulfillment, setFulfillment] = useState('all');
 	const [page, setPage] = useState(1);
 	const limit = 30;
 
@@ -124,6 +148,7 @@ export function ShopifyOrdersTable() {
 		store: store === 'all' ? undefined : store,
 		acknowledged:
 			acknowledged === 'all' ? undefined : acknowledged === 'true',
+		fulfillmentStatus: fulfillment === 'all' ? undefined : fulfillment,
 		page,
 		limit,
 	});
@@ -275,6 +300,24 @@ export function ShopifyOrdersTable() {
 					</SelectContent>
 				</Select>
 
+				<Select
+					value={fulfillment}
+					onValueChange={(v) => {
+						setFulfillment(v);
+						setPage(1);
+					}}
+				>
+					<SelectTrigger className="w-44">
+						<SelectValue />
+					</SelectTrigger>
+					<SelectContent>
+						<SelectItem value="all">All fulfillments</SelectItem>
+						<SelectItem value="unfulfilled">Unfulfilled</SelectItem>
+						<SelectItem value="partial">Partial</SelectItem>
+						<SelectItem value="fulfilled">Fulfilled</SelectItem>
+					</SelectContent>
+				</Select>
+
 				{total > 0 && (
 					<p className="text-muted-foreground ml-auto text-xs">
 						{total} order{total !== 1 ? 's' : ''}
@@ -293,6 +336,7 @@ export function ShopifyOrdersTable() {
 							<TableHead>Items</TableHead>
 							<TableHead>Total</TableHead>
 							<TableHead>Payment</TableHead>
+							<TableHead>Fulfillment</TableHead>
 							<TableHead>Date</TableHead>
 						</TableRow>
 					</TableHeader>
@@ -300,7 +344,7 @@ export function ShopifyOrdersTable() {
 						{isLoading ? (
 							Array.from({ length: 8 }).map((_, i) => (
 								<TableRow key={i}>
-									{Array.from({ length: 8 }).map((_, j) => (
+									{Array.from({ length: 9 }).map((_, j) => (
 										<TableCell key={j}>
 											<Skeleton className="h-4 w-full" />
 										</TableCell>
@@ -309,7 +353,7 @@ export function ShopifyOrdersTable() {
 							))
 						) : rows.length === 0 ? (
 							<TableRow>
-								<TableCell colSpan={8} className="h-48">
+								<TableCell colSpan={9} className="h-48">
 									<EmptyState
 										icon={CheckCircle2}
 										title="No open orders"

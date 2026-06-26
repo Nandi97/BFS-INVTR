@@ -16,13 +16,18 @@ export async function GET(req: NextRequest) {
 		Math.max(1, parseInt(searchParams.get('limit') ?? '30', 10))
 	);
 
+	const fulfillment = searchParams.get('fulfillmentStatus') ?? undefined;
+
 	const where = {
-		shopifyStatus: 'open',
-		fulfillmentStatus: null, // exclude fulfilled orders (still open in Shopify but already packed)
 		...(store ? { storeDomain: store } : {}),
 		...(acknowledged === 'true' ? { isAcknowledged: true } : {}),
 		...(acknowledged === 'false' ? { isAcknowledged: false } : {}),
 		...(financialStatus ? { financialStatus } : {}),
+		...(fulfillment === 'unfulfilled'
+			? { fulfillmentStatus: null }
+			: fulfillment
+				? { fulfillmentStatus: fulfillment }
+				: {}),
 	};
 
 	const [data, total] = await Promise.all([
