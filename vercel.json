@@ -15,6 +15,10 @@
 		{
 			"path": "/api/cron/sync-shopify-inventory",
 			"schedule": "0 7 * * 1"
+		},
+		{
+			"path": "/api/cron/sync-shopify-orders",
+			"schedule": "30 7 * * 1-5"
 		}
 	],
 
@@ -38,6 +42,7 @@
 		},
 		"app/api/cron/sync/route.ts": { "maxDuration": 60 },
 		"app/api/cron/sync-shopify-inventory/route.ts": { "maxDuration": 300 },
+		"app/api/cron/sync-shopify-orders/route.ts": { "maxDuration": 60 },
 		"app/api/inventory/calculate-minimums/route.ts": { "maxDuration": 60 },
 		"app/api/import/products/route.ts": { "maxDuration": 60 },
 		"app/api/import/stock/route.ts": { "maxDuration": 60 },
