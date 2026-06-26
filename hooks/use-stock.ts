@@ -233,6 +233,31 @@ export function useLogInternalUse() {
 	});
 }
 
+export interface InternalUseBatchItem {
+	productId: string;
+	locationId: string;
+	quantity: number;
+	reason: string;
+	notes?: string;
+}
+
+export interface InternalUseBatchInput {
+	items: InternalUseBatchItem[];
+	recipientEmail?: string;
+}
+
+export function useLogInternalUseBatch() {
+	const qc = useQueryClient();
+	return useMutation({
+		mutationFn: (input: InternalUseBatchInput) =>
+			api.post('/stock/internal-use', input).then((r) => r.data),
+		onSuccess: () => {
+			qc.invalidateQueries({ queryKey: STOCK_KEY });
+			qc.invalidateQueries({ queryKey: MOVEMENTS_KEY });
+		},
+	});
+}
+
 export function useReviewMovement() {
 	const qc = useQueryClient();
 	return useMutation({

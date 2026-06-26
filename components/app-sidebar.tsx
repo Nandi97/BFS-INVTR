@@ -78,6 +78,7 @@ const navInventory: NavItem[] = [
 		items: [
 			{ title: 'Stock Overview', href: '/stock' },
 			{ title: 'Movements Log', href: '/stock/movements' },
+			{ title: 'Internal Use', href: '/stock/internal-use' },
 			{ title: 'Locations', href: '/stock/locations' },
 		],
 	},

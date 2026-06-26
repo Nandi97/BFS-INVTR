@@ -28,17 +28,6 @@ import {
 	SheetDescription,
 } from '@/components/ui/sheet';
 import {
-	AlertDialog,
-	AlertDialogAction,
-	AlertDialogCancel,
-	AlertDialogContent,
-	AlertDialogDescription,
-	AlertDialogFooter,
-	AlertDialogHeader,
-	AlertDialogTitle,
-	AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
-import {
 	Form,
 	FormControl,
 	FormField,
@@ -50,6 +39,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
+import Link from 'next/link';
 import {
 	ChevronLeft,
 	ChevronRight,
@@ -67,7 +57,6 @@ import {
 import {
 	useStockMovements,
 	useStockMovementsSummary,
-	useLogInternalUse,
 	useReviewMovement,
 	type StockMovementType,
 	type ProductMovementSummary,
@@ -75,8 +64,6 @@ import {
 } from '@/hooks/use-stock';
 import { useLocations } from '@/hooks/use-locations';
 import { useBrands } from '@/hooks/use-brands';
-import { useProductsMinimal } from '@/hooks/use-products';
-import { ProductCombobox } from '@/components/ui/product-combobox';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import { cn } from '@/lib/utils';
@@ -135,216 +122,6 @@ const INTERNAL_USE_REASONS = [
 type InternalUseReason = (typeof INTERNAL_USE_REASONS)[number];
 
 type Preset = 'all' | 'restocks' | 'dispatches' | 'shrinkage';
-
-// ─── Internal Use form ────────────────────────────────────────────────────────
-
-const internalUseSchema = z.object({
-	productId: z.string().min(1, 'Select a product'),
-	locationId: z.string().min(1, 'Select a location'),
-	quantity: z.number({ error: 'Required' }).positive('Must be positive'),
-	reason: z.enum(INTERNAL_USE_REASONS),
-	notes: z.string().optional(),
-});
-type InternalUseForm = z.infer<typeof internalUseSchema>;
-
-function LogInternalUseSheet({
-	open,
-	onOpenChange,
-	defaultLocationId,
-}: {
-	open: boolean;
-	onOpenChange: (v: boolean) => void;
-	defaultLocationId?: string;
-}) {
-	const logUse = useLogInternalUse();
-	const { data: locations } = useLocations({ active: true });
-	const { data: products } = useProductsMinimal();
-
-	const form = useForm<InternalUseForm>({
-		resolver: zodResolver(internalUseSchema),
-		defaultValues: {
-			productId: '',
-			locationId: defaultLocationId ?? '',
-			quantity: 1,
-			reason: 'Staff Training',
-			notes: '',
-		},
-	});
-
-	async function onSubmit(values: InternalUseForm) {
-		try {
-			await logUse.mutateAsync(values);
-			toast.success('Internal use logged — stock updated');
-			form.reset();
-			onOpenChange(false);
-		} catch {
-			toast.error('Failed to log internal use');
-		}
-	}
-
-	const productList = products ?? [];
-
-	return (
-		<Sheet open={open} onOpenChange={onOpenChange}>
-			<SheetContent className="w-full overflow-y-auto sm:max-w-xl">
-				<SheetHeader className="px-6 pt-6 pb-2">
-					<SheetTitle>Log Internal Use</SheetTitle>
-					<SheetDescription>
-						Record stock taken for training, management use, demos,
-						or write-offs. Stock is reduced immediately and excluded
-						from store dispatch reports.
-					</SheetDescription>
-				</SheetHeader>
-
-				<Form {...form}>
-					<form
-						onSubmit={form.handleSubmit(onSubmit)}
-						className="space-y-5 px-6 pb-6"
-					>
-						<FormField
-							control={form.control}
-							name="productId"
-							render={({ field }) => (
-								<FormItem>
-									<FormLabel>Product</FormLabel>
-									<FormControl>
-										<ProductCombobox
-											products={productList}
-											value={field.value}
-											onChange={field.onChange}
-										/>
-									</FormControl>
-									<FormMessage />
-								</FormItem>
-							)}
-						/>
-
-						<FormField
-							control={form.control}
-							name="locationId"
-							render={({ field }) => (
-								<FormItem>
-									<FormLabel>From Location</FormLabel>
-									<Select
-										onValueChange={field.onChange}
-										value={field.value}
-									>
-										<FormControl>
-											<SelectTrigger>
-												<SelectValue placeholder="Select location…" />
-											</SelectTrigger>
-										</FormControl>
-										<SelectContent>
-											{locations?.map((l) => (
-												<SelectItem
-													key={l.id}
-													value={l.id}
-												>
-													{l.name}
-												</SelectItem>
-											))}
-										</SelectContent>
-									</Select>
-									<FormMessage />
-								</FormItem>
-							)}
-						/>
-
-						<FormField
-							control={form.control}
-							name="quantity"
-							render={({ field }) => (
-								<FormItem>
-									<FormLabel>Quantity</FormLabel>
-									<FormControl>
-										<Input
-											type="number"
-											min={0.01}
-											step={0.01}
-											value={field.value ?? ''}
-											onChange={(e) =>
-												field.onChange(
-													e.target.valueAsNumber
-												)
-											}
-										/>
-									</FormControl>
-									<FormMessage />
-								</FormItem>
-							)}
-						/>
-
-						<FormField
-							control={form.control}
-							name="reason"
-							render={({ field }) => (
-								<FormItem>
-									<FormLabel>Reason</FormLabel>
-									<Select
-										onValueChange={field.onChange}
-										value={field.value}
-									>
-										<FormControl>
-											<SelectTrigger>
-												<SelectValue />
-											</SelectTrigger>
-										</FormControl>
-										<SelectContent>
-											{INTERNAL_USE_REASONS.map((r) => (
-												<SelectItem key={r} value={r}>
-													{r}
-												</SelectItem>
-											))}
-										</SelectContent>
-									</Select>
-									<FormMessage />
-								</FormItem>
-							)}
-						/>
-
-						<FormField
-							control={form.control}
-							name="notes"
-							render={({ field }) => (
-								<FormItem>
-									<FormLabel>
-										Notes{' '}
-										<span className="text-muted-foreground">
-											(optional)
-										</span>
-									</FormLabel>
-									<FormControl>
-										<Textarea
-											placeholder="Who took it, what training, etc."
-											rows={3}
-											{...field}
-										/>
-									</FormControl>
-									<FormMessage />
-								</FormItem>
-							)}
-						/>
-
-						<div className="flex justify-end gap-3 border-t pt-5">
-							<Button
-								type="button"
-								variant="outline"
-								onClick={() => onOpenChange(false)}
-							>
-								Cancel
-							</Button>
-							<Button type="submit" disabled={logUse.isPending}>
-								{logUse.isPending
-									? 'Saving…'
-									: 'Log Internal Use'}
-							</Button>
-						</div>
-					</form>
-				</Form>
-			</SheetContent>
-		</Sheet>
-	);
-}
 
 // ─── Explain shrinkage sheet ──────────────────────────────────────────────────
 
@@ -735,7 +512,6 @@ export function MovementsTable({
 	const [page, setPage] = useState(1);
 	const [view, setView] = useState<'movements' | 'by-product'>('movements');
 	const [preset, setPreset] = useState<Preset>('all');
-	const [logOpen, setLogOpen] = useState(false);
 	const [explainTarget, setExplainTarget] = useState<StockMovement | null>(
 		null
 	);
@@ -833,13 +609,11 @@ export function MovementsTable({
 				))}
 
 				<div className="ml-auto">
-					<Button
-						size="sm"
-						variant="outline"
-						onClick={() => setLogOpen(true)}
-					>
-						<PackageOpen className="mr-1.5 size-3.5" />
-						Log Internal Use
+					<Button size="sm" variant="outline" asChild>
+						<Link href="/stock/internal-use">
+							<PackageOpen className="mr-1.5 size-3.5" />
+							Log Internal Use
+						</Link>
 					</Button>
 				</div>
 			</div>
@@ -1236,14 +1010,6 @@ export function MovementsTable({
 					)}
 				</>
 			)}
-
-			<LogInternalUseSheet
-				open={logOpen}
-				onOpenChange={setLogOpen}
-				defaultLocationId={
-					locationId !== 'all' ? locationId : undefined
-				}
-			/>
 
 			<ExplainSheet
 				movement={explainTarget}
