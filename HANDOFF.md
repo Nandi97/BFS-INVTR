@@ -1,6 +1,30 @@
 # Handoff
 
-## Last session (2026-06-25)
+## Last session (2026-06-26)
+
+### Completed
+
+- **Responsive design polish** (feature #46) — 8 tasks across the full app:
+    1. `min-w-0` on `SidebarInset` (`app/(dashboard)/layout.tsx`) — activates built-in `overflow-x-auto` on all 15 tables at once (root cause was flex ancestor, not tables)
+    2. Movements summary cards `grid-cols-1 sm:grid-cols-3` — stack to 1-col on mobile
+       3+4. All 5 sheet forms updated: `grid-cols-2` → `grid-cols-1 sm:grid-cols-2` across `product-form`, `supplier-form`, `po-form` header, `pending-products-dashboard`, walk-in dialog in `fulfillment-view`
+    3. `export const viewport: Viewport` added to `app/layout.tsx` (Next.js App Router requirement)
+    4. Breadcrumbs: parent crumbs hidden on mobile (`hidden sm:flex`), page label truncates at `max-w-[14rem]`; header left-side gets `min-w-0 flex-1`
+    5. Dashboard grid: KPI row `lg:grid-cols-4`; chart section gets `md:grid-cols-2` step before `lg:grid-cols-3`
+    6. Login page `h-screen` → `min-h-dvh` (fixes iOS Safari address bar clipping)
+
+- **Email / document design standards** (feature #47) — reviewed with `/ui-ux-pro-max`, then fixed:
+    - All 4 HTML email sources now have `<!DOCTYPE html><html lang="en">` wrapper (bare `<div>` breaks Outlook)
+    - `lib/email-templates.ts` rewritten: `base()` takes `headerBg` param; colour-coded headers (red / amber / purple / green / dark navy) per alert type; emoji icons (⚠️📦🚨✅) removed; table `<th>` gets uppercase + letter-spacing
+    - `lib/zenoti-email.ts` — DOCTYPE wrapper, ⚠ emoji → `<strong>` text, label style aligned
+    - `app/api/zenoti/orders/[id]/notify/route.ts` — DOCTYPE wrapper, label style aligned
+    - `app/api/zenoti/fulfillments/[id]/send-email/route.ts` — packing list email body upgraded from plain `<p>/<ul>` list to full branded card (`#d4006e` header, summary table, CTA button); XLSX packing list gets freeze row (`ySplit: 5`)
+    - `lib/email-xlsx.ts` — Summary sheet now has freeze row
+    - PDF packing slip (`lib/packing-slip-pdf.tsx`) — already production quality, no changes needed
+
+---
+
+## Session before that (2026-06-25)
 
 ### Completed
 
@@ -51,7 +75,6 @@
 - [ ] Reorder bulk actions — multi-select → "Create PO for selected" or "Export selected"
 - [ ] Dashboard KPI deltas — ±N trend vs prior week on each KPI card
 - [ ] Analytics date range picker
-- [ ] Mobile table responsiveness — `overflow-x-auto` on wide tables
 
 ---
 
@@ -72,3 +95,6 @@
 - Use `pnpm` — never npm/yarn. Pre-commit runs lint-staged (prettier + eslint --fix), pre-push runs `tsc --noEmit`.
 - `ProductCombobox` + `useProductsMinimal()` for all product pickers — not `useProducts()` (caps at 100).
 - `chart.tsx`, `product-view.tsx`, `lib/auth.ts` have intentional `@ts-nocheck`/`@ts-ignore` — do not remove.
+- Responsive: `SidebarInset` has `min-w-0` in `app/(dashboard)/layout.tsx` — do not remove, it's what activates table scroll on all 15 tables.
+- Email HTML: all templates use `<!DOCTYPE html>` wrapper — do not revert to bare `<div>`.
+- Email HTML: no emoji icons — use coloured text labels or `<strong>` tags instead.
