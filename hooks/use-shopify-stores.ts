@@ -34,3 +34,38 @@ export function useDisconnectShopifyStore() {
 		onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
 	});
 }
+
+export function useSyncShopifyOrdersForStore() {
+	return useMutation({
+		mutationFn: (shop: string) =>
+			api
+				.post<{
+					ok: boolean;
+					stores: Record<
+						string,
+						{ created: number; updated: number; error?: string }
+					>;
+				}>('/integrations/shopify/sync', { shop })
+				.then((r) => r.data),
+	});
+}
+
+export function useSyncShopifyInventoryForStore() {
+	return useMutation({
+		mutationFn: (shop: string) =>
+			api
+				.post<{
+					ok: boolean;
+					stores: Record<
+						string,
+						{
+							synced: number;
+							skipped: number;
+							errors: string[];
+							error?: string;
+						}
+					>;
+				}>('/integrations/shopify/sync-inventory', { shop })
+				.then((r) => r.data),
+	});
+}

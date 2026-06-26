@@ -26,11 +26,17 @@ export async function POST(req: NextRequest) {
 		if (auth instanceof NextResponse) return auth;
 	}
 
-	const stores = (await getConnectedStores()).concat(getShopifyStores());
+	const body = await req.json().catch(() => ({}));
+	const shopFilter: string | undefined = body?.shop;
+
+	let stores = (await getConnectedStores()).concat(getShopifyStores());
+	if (shopFilter) stores = stores.filter((s) => s.domain === shopFilter);
 	if (stores.length === 0) {
 		return NextResponse.json(
 			{
-				error: 'No Shopify stores connected. Go to Integrations to connect a store.',
+				error: shopFilter
+					? `Store ${shopFilter} not found. Check it is connected in Integrations.`
+					: 'No Shopify stores connected. Go to Integrations to connect a store.',
 			},
 			{ status: 503 }
 		);
