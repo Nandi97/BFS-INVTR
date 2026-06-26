@@ -227,7 +227,7 @@ export function ShopifyOrdersTable() {
 						Shopify Orders
 					</h1>
 					<p className="text-muted-foreground mt-0.5 text-sm">
-						Unfulfilled orders across all connected Shopify stores.
+						Orders across all connected Shopify stores.
 					</p>
 				</div>
 				<div className="flex gap-2">
