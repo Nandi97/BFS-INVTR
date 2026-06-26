@@ -36,15 +36,6 @@ export async function GET(req: NextRequest) {
 		path: '/',
 	});
 
-	// Also store the shop so callback knows which shop to associate
-	jar.set('shopify_oauth_shop', shop, {
-		httpOnly: true,
-		secure: process.env.NODE_ENV === 'production',
-		sameSite: 'lax',
-		maxAge: 600,
-		path: '/',
-	});
-
 	const redirectUri = `${APP_URL}/api/integrations/shopify/callback`;
 
 	const params = new URLSearchParams({

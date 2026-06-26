@@ -22,13 +22,11 @@ export async function GET(req: NextRequest) {
 	// Verify CSRF state
 	const jar = await cookies();
 	const expectedState = jar.get('shopify_oauth_state')?.value;
-	const cookieShop = jar.get('shopify_oauth_shop')?.value;
 	jar.delete('shopify_oauth_state');
 	jar.delete('shopify_oauth_shop');
 
 	if (!expectedState || state !== expectedState)
 		return fail('state_mismatch');
-	if (cookieShop && cookieShop !== shop) return fail('shop_mismatch');
 
 	// Verify HMAC
 	const clientSecret = process.env.SHOPIFY_CLIENT_SECRET;
