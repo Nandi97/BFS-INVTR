@@ -132,6 +132,17 @@ export async function fetchShopifyOrders(
 	return data.orders;
 }
 
+export async function fetchShopifyOrder(
+	store: ShopifyStoreConfig,
+	shopifyOrderId: string
+): Promise<ShopifyApiOrder> {
+	const data = await shopifyFetch<{ order: ShopifyApiOrder }>(
+		store,
+		`/orders/${shopifyOrderId}.json`
+	);
+	return data.order;
+}
+
 export async function fetchShopifyProducts(
 	store: ShopifyStoreConfig
 ): Promise<ShopifyProduct[]> {

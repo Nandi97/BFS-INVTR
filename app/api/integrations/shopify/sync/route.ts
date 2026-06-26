@@ -5,6 +5,7 @@ import {
 	getConnectedStores,
 	getShopifyStores,
 	fetchShopifyOrders,
+	fetchShopifyOrder,
 	customerName,
 	type ShopifyApiOrder,
 } from '@/lib/shopify';
@@ -112,6 +113,37 @@ export async function POST(req: NextRequest) {
 					});
 					allNewOrders.push({ storeDomain: store.domain, order });
 					created++;
+				}
+			}
+
+			// Second pass: update status of orders that dropped out of the unfulfilled feed
+			const seenIds = new Set(orders.map((o) => String(o.id)));
+			const stale = await prisma.shopifyOrder.findMany({
+				where: {
+					storeDomain: store.domain,
+					fulfillmentStatus: null,
+					shopifyOrderId: { notIn: [...seenIds] },
+				},
+				select: { id: true, shopifyOrderId: true },
+			});
+			for (const bfsOrder of stale) {
+				try {
+					const latest = await fetchShopifyOrder(
+						store,
+						bfsOrder.shopifyOrderId
+					);
+					await prisma.shopifyOrder.update({
+						where: { id: bfsOrder.id },
+						data: {
+							fulfillmentStatus: latest.fulfillment_status,
+							shopifyStatus: latest.status,
+							financialStatus: latest.financial_status,
+							lastSyncedAt: new Date(),
+						},
+					});
+					updated++;
+				} catch {
+					// non-fatal — order may have been deleted in Shopify
 				}
 			}
 
