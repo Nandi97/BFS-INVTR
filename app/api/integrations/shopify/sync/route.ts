@@ -40,7 +40,12 @@ export async function POST(req: NextRequest) {
 
 	const results: Record<
 		string,
-		{ created: number; updated: number; error?: string }
+		{
+			created: number;
+			updated: number;
+			error?: string;
+			staleErrors?: string[];
+		}
 	> = {};
 	const allNewOrders: { storeDomain: string; order: ShopifyApiOrder }[] = [];
 
@@ -118,14 +123,18 @@ export async function POST(req: NextRequest) {
 
 			// Second pass: update status of orders that dropped out of the unfulfilled feed
 			const seenIds = new Set(orders.map((o) => String(o.id)));
+			const staleWhere = {
+				storeDomain: store.domain,
+				fulfillmentStatus: null,
+				...(seenIds.size > 0
+					? { shopifyOrderId: { notIn: [...seenIds] } }
+					: {}),
+			};
 			const stale = await prisma.shopifyOrder.findMany({
-				where: {
-					storeDomain: store.domain,
-					fulfillmentStatus: null,
-					shopifyOrderId: { notIn: [...seenIds] },
-				},
+				where: staleWhere,
 				select: { id: true, shopifyOrderId: true },
 			});
+			const staleErrors: string[] = [];
 			for (const bfsOrder of stale) {
 				try {
 					const latest = await fetchShopifyOrder(
@@ -142,12 +151,18 @@ export async function POST(req: NextRequest) {
 						},
 					});
 					updated++;
-				} catch {
-					// non-fatal — order may have been deleted in Shopify
+				} catch (e) {
+					staleErrors.push(
+						`${bfsOrder.shopifyOrderId}: ${e instanceof Error ? e.message : String(e)}`
+					);
 				}
 			}
 
-			results[store.domain] = { created, updated };
+			results[store.domain] = {
+				created,
+				updated,
+				...(staleErrors.length ? { staleErrors } : {}),
+			};
 		} catch (err) {
 			results[store.domain] = {
 				created: 0,

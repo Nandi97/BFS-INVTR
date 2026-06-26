@@ -135,15 +135,29 @@ export function ShopifyOrdersTable() {
 	async function handleSyncOrders() {
 		try {
 			const result = await syncOrders.mutateAsync();
-			const storeResults = Object.entries(
-				result.stores as Record<
-					string,
-					{ created: number; updated: number }
-				>
-			)
-				.map(([d, r]) => `${storeName(d)}: ${r.created} new`)
-				.join(', ');
-			toast.success(`Orders synced — ${storeResults}`);
+			const stores = result.stores as Record<
+				string,
+				{
+					created: number;
+					updated: number;
+					error?: string;
+					staleErrors?: string[];
+				}
+			>;
+			for (const [domain, r] of Object.entries(stores)) {
+				const label = storeName(domain);
+				if (r.error) {
+					toast.error(`${label}: ${r.error}`);
+				} else if (r.staleErrors?.length) {
+					toast.warning(
+						`${label}: ${r.created} new, ${r.updated} updated — status update error: ${r.staleErrors[0]}`
+					);
+				} else {
+					toast.success(
+						`${label}: ${r.created} new, ${r.updated} updated`
+					);
+				}
+			}
 		} catch {
 			toast.error('Order sync failed');
 		}
