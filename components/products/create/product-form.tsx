@@ -228,7 +228,7 @@ export function ProductForm({ open, onClose, product }: ProductFormProps) {
 					</div>
 
 					{/* SKU / Barcode */}
-					<div className="grid grid-cols-2 gap-3">
+					<div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
 						<div className="space-y-1">
 							<Label htmlFor="sku">SKU</Label>
 							<Input
@@ -356,7 +356,7 @@ export function ProductForm({ open, onClose, product }: ProductFormProps) {
 					<Separator />
 
 					{/* Type & Unit */}
-					<div className="grid grid-cols-2 gap-3">
+					<div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
 						<div className="space-y-1">
 							<Label>Type</Label>
 							<Select

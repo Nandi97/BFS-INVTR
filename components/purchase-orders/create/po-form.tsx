@@ -128,7 +128,7 @@ export function POForm({ open, onOpenChange }: POFormProps) {
 						className="space-y-5 px-6 pb-6"
 					>
 						{/* Header */}
-						<div className="grid grid-cols-2 gap-3">
+						<div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
 							<FormField
 								control={form.control}
 								name="supplierId"

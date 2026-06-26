@@ -148,7 +148,7 @@ function ApproveSheet({
 						)}
 					</div>
 
-					<div className="grid grid-cols-2 gap-4">
+					<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
 						<div className="space-y-1.5">
 							<Label htmlFor="sku">SKU</Label>
 							<Input
@@ -215,7 +215,7 @@ function ApproveSheet({
 						</Select>
 					</div>
 
-					<div className="grid grid-cols-2 gap-4">
+					<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
 						<div className="space-y-1.5">
 							<Label htmlFor="unit">Unit</Label>
 							<Input
