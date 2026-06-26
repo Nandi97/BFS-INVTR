@@ -17,6 +17,7 @@ type Recipients = {
 	zenoti_email_other: string;
 	zenoti_email_packing_list_to: string;
 	zenoti_email_packing_list_cc: string;
+	internal_use_cc: string;
 };
 
 const FIELDS: {
@@ -197,6 +198,35 @@ export function EmailRecipientsForm() {
 							placeholder="orders@example.com"
 						/>
 					</div>
+				</div>
+			</div>
+
+			<Separator />
+
+			{/* Internal Use slip CC */}
+			<div className="space-y-4">
+				<div>
+					<h3 className="text-sm font-medium">Internal use slips</h3>
+					<p className="text-muted-foreground mt-0.5 text-xs">
+						When internal use is logged, a slip is emailed to the
+						requester. Add CC addresses (comma-separated) to keep
+						inventory and accounts in the loop.
+					</p>
+				</div>
+				<div className="space-y-1.5">
+					<Label htmlFor="internal_use_cc" className="text-sm">
+						CC{' '}
+						<span className="text-muted-foreground font-normal">
+							(optional, comma-separated)
+						</span>
+					</Label>
+					<Input
+						id="internal_use_cc"
+						type="text"
+						value={values.internal_use_cc}
+						onChange={(e) => set('internal_use_cc', e.target.value)}
+						placeholder="inventory@example.com, accounts@example.com"
+					/>
 				</div>
 			</div>
 

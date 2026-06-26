@@ -9,6 +9,7 @@ export const RECIPIENT_KEYS = [
 	'zenoti_email_other',
 	'zenoti_email_packing_list_to',
 	'zenoti_email_packing_list_cc',
+	'internal_use_cc',
 ] as const;
 
 export type RecipientKey = (typeof RECIPIENT_KEYS)[number];
@@ -20,6 +21,7 @@ export const RECIPIENT_DEFAULTS: Record<RecipientKey, string> = {
 	zenoti_email_other: 'order@beautylogix.ca',
 	zenoti_email_packing_list_to: 'order@beautylogix.ca',
 	zenoti_email_packing_list_cc: '',
+	internal_use_cc: '',
 };
 
 export async function GET(_req: Request) {
