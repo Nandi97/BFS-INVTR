@@ -345,6 +345,51 @@ model BfsFulfillmentItem {
     product     Product?       @relation(fields: [productId], references: [id])
 }
 
+// ─── Shopify Orders ───────────────────────────────────────────────────────────
+
+model ShopifyOrder {
+    id                String   @id @default(cuid())
+    shopifyOrderId    String   @unique
+    storeDomain       String
+    orderNumber       String
+    customerName      String?
+    customerEmail     String?
+    shippingName      String?
+    shippingAddress1  String?
+    shippingCity      String?
+    shippingProvince  String?
+    shippingZip       String?
+    shippingCountry   String?
+    totalPrice        Float?
+    currency          String   @default("CAD")
+    financialStatus   String?
+    fulfillmentStatus String?
+    shopifyStatus     String   @default("open")
+    note              String?
+    tags              String?
+    isAcknowledged    Boolean  @default(false)
+    createdAtShopify  DateTime
+    lastSyncedAt      DateTime @default(now())
+    createdAt         DateTime @default(now())
+    updatedAt         DateTime @updatedAt
+
+    items ShopifyOrderItem[]
+}
+
+model ShopifyOrderItem {
+    id                String  @id @default(cuid())
+    orderId           String
+    shopifyLineItemId String
+    shopifyVariantId  String?
+    sku               String?
+    title             String
+    variantTitle      String?
+    quantity          Int
+    price             Float
+
+    order ShopifyOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}
+
 // ─── Pending Products (unmatched QB items awaiting admin review) ──────────────
 
 model PendingProduct {
