@@ -18,6 +18,7 @@ export async function GET(req: NextRequest) {
 
 	const where = {
 		shopifyStatus: 'open',
+		fulfillmentStatus: null, // exclude fulfilled orders (still open in Shopify but already packed)
 		...(store ? { storeDomain: store } : {}),
 		...(acknowledged === 'true' ? { isAcknowledged: true } : {}),
 		...(acknowledged === 'false' ? { isAcknowledged: false } : {}),
