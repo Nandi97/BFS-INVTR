@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
 		);
 	}
 
-	// Pre-fetch all BFS inventory (qty > 0 products with a SKU)
+	// Pre-fetch all BFS inventory (active products with a SKU)
 	const bfsInventory = await prisma.inventory.findMany({
 		where: { product: { isActive: true, sku: { not: null } } },
 		select: {
@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
 
 	const results: Record<
 		string,
-		{ synced: number; skipped: number; error?: string }
+		{ synced: number; skipped: number; errors: string[]; error?: string }
 	> = {};
 
 	for (const store of stores) {
@@ -64,15 +64,17 @@ export async function POST(req: NextRequest) {
 				results[store.domain] = {
 					synced: 0,
 					skipped: 0,
+					errors: [],
 					error: 'No active locations found in Shopify',
 				};
 				continue;
 			}
-			const locationId = locations[0].id; // warehouse is always first/only
+			const locationId = locations[0].id;
 
 			const products = await fetchShopifyProducts(store);
 			let synced = 0;
 			let skipped = 0;
+			const errors: string[] = [];
 
 			for (const product of products) {
 				for (const variant of product.variants) {
@@ -87,22 +89,29 @@ export async function POST(req: NextRequest) {
 						skipped++;
 						continue;
 					}
-					await setInventoryLevel(
-						store,
-						variant.inventory_item_id,
-						locationId,
-						bfsQty
-					);
+					try {
+						await setInventoryLevel(
+							store,
+							variant.inventory_item_id,
+							locationId,
+							bfsQty
+						);
+						synced++;
+					} catch (variantErr) {
+						errors.push(
+							`SKU ${variant.sku}: ${variantErr instanceof Error ? variantErr.message : String(variantErr)}`
+						);
+					}
 					await delay(DELAY_MS);
-					synced++;
 				}
 			}
 
-			results[store.domain] = { synced, skipped };
+			results[store.domain] = { synced, skipped, errors };
 		} catch (err) {
 			results[store.domain] = {
 				synced: 0,
 				skipped: 0,
+				errors: [],
 				error: err instanceof Error ? err.message : String(err),
 			};
 		}

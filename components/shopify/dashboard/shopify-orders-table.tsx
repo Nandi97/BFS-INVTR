@@ -152,12 +152,29 @@ export function ShopifyOrdersTable() {
 	async function handleSyncInventory() {
 		try {
 			const result = await syncInventory.mutateAsync();
-			const storeResults = Object.entries(
-				result.stores as Record<string, { synced: number }>
-			)
-				.map(([d, r]) => `${storeName(d)}: ${r.synced} updated`)
-				.join(', ');
-			toast.success(`Inventory pushed — ${storeResults}`);
+			const stores = result.stores as Record<
+				string,
+				{
+					synced: number;
+					skipped: number;
+					errors: string[];
+					error?: string;
+				}
+			>;
+			for (const [domain, r] of Object.entries(stores)) {
+				const label = storeName(domain);
+				if (r.error) {
+					toast.error(`${label}: ${r.error}`);
+				} else if (r.errors?.length) {
+					toast.error(
+						`${label}: ${r.synced} updated, ${r.errors.length} failed — ${r.errors[0]}`
+					);
+				} else {
+					toast.success(
+						`${label}: ${r.synced} updated, ${r.skipped} skipped`
+					);
+				}
+			}
 		} catch {
 			toast.error('Inventory sync failed');
 		}
