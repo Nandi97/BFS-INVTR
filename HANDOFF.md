@@ -1,6 +1,23 @@
 # Handoff
 
-## Last session (2026-06-26)
+## Last session (2026-06-26 — afternoon/evening)
+
+### Completed
+
+- **Shopify integration Phase 1** (feature #48):
+    - **OAuth connect flow** — `GET /api/integrations/shopify/connect?shop=` → Shopify consent → `GET /api/integrations/shopify/callback` (HMAC verified; no shop cookie match — Shopify returns canonical internal domain in callback which differs from what user types). Tokens stored in `IntegrationConfig.config.stores[]` (provider `SHOPIFY`, `@unique`).
+    - **Multi-store**: DB OAuth tokens + env var fallback (`SHOPIFY_STORE_N_DOMAIN`/`SHOPIFY_STORE_N_TOKEN` up to 5). Both stores connected via OAuth: `ctyvhx-0k.myshopify.com` (beauty-first-spa-wholesale) and `7f7b80-5d.myshopify.com` (beautylogix — different Shopify org, same Partners app).
+    - **Order sync** (`POST /api/integrations/shopify/sync`) — fetches open orders + second pass fetches individual orders that dropped out of the unfulfilled feed to update `fulfillmentStatus`/`shopifyStatus`. Guards empty `notIn: []` array (Prisma quirk). Stale errors surfaced in toast.
+    - **Inventory push** (`POST /api/integrations/shopify/sync-inventory`) — maps BFS SKU/barcode → Shopify variant SKU, 600ms rate-limit throttle, per-variant error catching. Required adding `read_locations` scope (was missing, caused 403).
+    - **Per-store sync** — both sync routes accept optional `{ shop }` body. Integrations → Shopify tab has per-store Sync Orders + Push Stock buttons. Global buttons on `/shopify` page sync all stores.
+    - **Store management** — `GET/DELETE /api/integrations/shopify/stores`. `components/integrations/dashboard/shopify-connect.tsx` with connect form + `StoreRow` (green check, disconnect AlertDialog, per-store action buttons).
+    - **Orders table** (`/shopify`) — shows all orders (not just unfulfilled). Payment badge + Fulfillment badge (green/amber/blue). Fulfillment filter dropdown. Description updated.
+    - **Crons**: weekly inventory push Mon 07:00 UTC (`/api/cron/sync-shopify-inventory`, maxDuration 300s); nightly order sync Mon–Fri 07:30 UTC (`/api/cron/sync-shopify-orders`). Now 4 crons total.
+    - **`lib/shopify.ts`** — `fetchShopifyOrder()` added for individual order status fetch.
+
+---
+
+## Session before that (2026-06-26 — morning)
 
 ### Completed
 
@@ -69,12 +86,14 @@
 - [ ] **Zenoti API keys** — ticket BC-60590, check `alvinkigen@outlook.com`. If keys arrived: add `ZENOTI_BFS_API_KEY` + `ZENOTI_BL_API_KEY` to `.env` + Vercel, hit `GET /api/zenoti/centers`, test sync, verify PO endpoint path in `lib/zenoti.ts → fetchZenotiPOs()`. Excel import becomes fallback only.
 - [ ] **QB Invoice posting** (`POST /api/zenoti/fulfillments/[id]/post-to-qb`) — QB OAuth already wired in. Needs QB customer names per store + accounting team sign-off. Next logical step after fulfillment.
 - [ ] **Restore email routing** — use Email Recipients tab in Settings to update COSTCO + INVERNESS recipients to `accounting@beautyfirstspa.com` when testing is done.
+- [ ] **Rotate Shopify Client Secret** — `SHOPIFY_CLIENT_SECRET` was shared in chat; rotate in Dev Dashboard → BFS Inventory → Settings → Rotate, then update `.env` + Vercel.
 
 ### Medium priority
 
 - [ ] Reorder bulk actions — multi-select → "Create PO for selected" or "Export selected"
 - [ ] Dashboard KPI deltas — ±N trend vs prior week on each KPI card
 - [ ] Analytics date range picker
+- [ ] Shopify Phase 2 — order detail page (`/shopify/[id]`) view, acknowledge workflow
 
 ---
 
@@ -82,6 +101,7 @@
 
 - Zenoti API subscription (ticket BC-60590) — check email, may already be resolved
 - QB OAuth refresh token valid until ~Sep 2026 — nightly cron emails admin if ≤7 days remain
+- Shopify Client Secret needs rotation (exposed in chat session)
 
 ## Key gotchas for next session
 
@@ -98,3 +118,7 @@
 - Responsive: `SidebarInset` has `min-w-0` in `app/(dashboard)/layout.tsx` — do not remove, it's what activates table scroll on all 15 tables.
 - Email HTML: all templates use `<!DOCTYPE html>` wrapper — do not revert to bare `<div>`.
 - Email HTML: no emoji icons — use coloured text labels or `<strong>` tags instead.
+- Shopify OAuth callback: do not add shop cookie verification — Shopify returns its canonical internal domain (`ctyvhx-0k.myshopify.com`) in the callback regardless of what domain the user typed. HMAC is the correct security check.
+- Shopify sync routes: both accept optional `{ shop }` body to target one store — used by per-store buttons. Global buttons send no body (syncs all stores).
+- Shopify `read_locations` scope: required for inventory push. Must be in Dev Dashboard app version scopes AND in the connect route `SCOPES` constant. Missing it causes 403 on `/locations.json`.
+- Shopify stale-order pass: guards `seenIds.size > 0` before adding Prisma `notIn` filter — empty array causes zero results in Prisma. If no unfulfilled orders returned from Shopify, all BFS unfulfilled orders for that store are re-fetched individually to check status.
