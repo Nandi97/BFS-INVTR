@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/require-role';
 import {
+	getConnectedStores,
 	getShopifyStores,
 	fetchShopifyProducts,
 	fetchShopifyLocations,
@@ -25,10 +26,12 @@ export async function POST(req: NextRequest) {
 		if (auth instanceof NextResponse) return auth;
 	}
 
-	const stores = getShopifyStores();
+	const stores = (await getConnectedStores()).concat(getShopifyStores());
 	if (stores.length === 0) {
 		return NextResponse.json(
-			{ error: 'No Shopify stores configured' },
+			{
+				error: 'No Shopify stores connected. Go to Integrations to connect a store.',
+			},
 			{ status: 503 }
 		);
 	}

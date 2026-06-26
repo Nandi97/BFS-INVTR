@@ -59,7 +59,29 @@ export interface ShopifyLocation {
 	active: boolean;
 }
 
-function getStores(): ShopifyStoreConfig[] {
+type DbStoreEntry = {
+	shop: string;
+	accessToken: string;
+	scope: string;
+	connectedAt: string;
+};
+
+export async function getConnectedStores(): Promise<ShopifyStoreConfig[]> {
+	// Import here to avoid circular dep — lib/shopify has no direct prisma dep otherwise
+	const { prisma } = await import('@/lib/prisma');
+	const row = await prisma.integrationConfig.findUnique({
+		where: { provider: 'SHOPIFY' },
+	});
+	if (!row) return [];
+	const cfg = row.config as { stores?: DbStoreEntry[] };
+	return (cfg.stores ?? []).map((s) => ({
+		domain: s.shop,
+		token: s.accessToken,
+	}));
+}
+
+// Kept for backward compat / local testing via env vars
+export function getShopifyStores(): ShopifyStoreConfig[] {
 	const stores: ShopifyStoreConfig[] = [];
 	for (let i = 1; i <= 5; i++) {
 		const domain = process.env[`SHOPIFY_STORE_${i}_DOMAIN`];
@@ -67,10 +89,6 @@ function getStores(): ShopifyStoreConfig[] {
 		if (domain && token) stores.push({ domain, token });
 	}
 	return stores;
-}
-
-export function getShopifyStores(): ShopifyStoreConfig[] {
-	return getStores();
 }
 
 const API_VERSION = '2024-01';

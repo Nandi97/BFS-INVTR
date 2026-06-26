@@ -20,6 +20,7 @@ import { SyncLogTable } from './sync-log-table';
 import { QbApiSync } from './qb-api-sync';
 import { QbVendorSync } from './qb-vendor-sync';
 import { QbNameSync } from './qb-name-sync';
+import { ShopifyConnect } from './shopify-connect';
 
 export function IntegrationsDashboard() {
 	return (
@@ -38,6 +39,7 @@ export function IntegrationsDashboard() {
 					<TabsTrigger value="vendors">Vendors</TabsTrigger>
 					<TabsTrigger value="config">Settings</TabsTrigger>
 					<TabsTrigger value="history">History</TabsTrigger>
+					<TabsTrigger value="shopify">Shopify</TabsTrigger>
 				</TabsList>
 
 				<TabsContent value="stock" className="mt-4 space-y-4">
@@ -201,6 +203,36 @@ export function IntegrationsDashboard() {
 						</CardHeader>
 						<CardContent>
 							<SyncLogTable provider="QUICKBOOKS" />
+						</CardContent>
+					</Card>
+				</TabsContent>
+
+				<TabsContent value="shopify" className="mt-4 space-y-4">
+					<Card>
+						<CardHeader>
+							<CardTitle>Shopify stores</CardTitle>
+							<CardDescription>
+								Connect your Shopify stores to enable order
+								visibility and inventory sync. Tokens are stored
+								securely in the database — no env vars needed.
+							</CardDescription>
+						</CardHeader>
+						<CardContent>
+							<Suspense fallback={null}>
+								<ShopifyConnect />
+							</Suspense>
+						</CardContent>
+					</Card>
+
+					<Card>
+						<CardHeader>
+							<CardTitle>Sync history</CardTitle>
+							<CardDescription>
+								Shopify order and inventory sync operations.
+							</CardDescription>
+						</CardHeader>
+						<CardContent>
+							<SyncLogTable provider="SHOPIFY" />
 						</CardContent>
 					</Card>
 				</TabsContent>
