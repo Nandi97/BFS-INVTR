@@ -70,7 +70,6 @@ export async function POST(req: NextRequest) {
 				results[store.domain] = {
 					synced: 0,
 					skipped: 0,
-					pricesSynced: 0,
 					errors: [],
 					error: 'No active locations found in Shopify',
 				};
