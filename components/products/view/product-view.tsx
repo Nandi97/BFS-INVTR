@@ -195,6 +195,15 @@ export function ProductView({ productId }: { productId: string }) {
 						<Row label="Unit" value={product.unit} />
 						<Separator />
 						<Row
+							label="Sale price (QB)"
+							value={
+								product.salePrice != null
+									? `$${product.salePrice.toFixed(2)}`
+									: '—'
+							}
+						/>
+						<Separator />
+						<Row
 							label="Stock target"
 							value={`${product.targetStockMonths} month${product.targetStockMonths !== 1 ? 's' : ''}`}
 						/>
