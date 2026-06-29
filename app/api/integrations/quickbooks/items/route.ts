@@ -177,7 +177,8 @@ export async function POST(req: NextRequest) {
 		dispatched = 0,
 		restocked = 0,
 		unchanged = 0,
-		costUpdated = 0;
+		costUpdated = 0,
+		priceUpdated = 0;
 	const errors: string[] = [];
 	const startedAt = new Date();
 
@@ -300,6 +301,15 @@ export async function POST(req: NextRequest) {
 						data: { cost: item.PurchaseCost },
 					});
 					if (updated.count > 0) costUpdated++;
+				}
+
+				// Sync sale price from QB → Product.salePrice
+				if (item.UnitPrice != null && item.UnitPrice > 0) {
+					await tx.product.update({
+						where: { id: hit.id },
+						data: { salePrice: item.UnitPrice },
+					});
+					priceUpdated++;
 				}
 
 				if (existing === null) {
@@ -426,7 +436,7 @@ export async function POST(req: NextRequest) {
 					: errors.length > 0
 						? 'PARTIAL'
 						: 'SUCCESS',
-			message: `QBO API sync: ${synced} synced (${dispatched} dispatched, ${restocked} restocked, ${unchanged} unchanged), ${costUpdated} costs updated, ${skipped} skipped, ${deactivated} deactivated`,
+			message: `QBO API sync: ${synced} synced (${dispatched} dispatched, ${restocked} restocked, ${unchanged} unchanged), ${costUpdated} costs updated, ${priceUpdated} prices updated, ${skipped} skipped, ${deactivated} deactivated`,
 			recordsIn: qboItems.length,
 			recordsOut: synced,
 		},
@@ -444,6 +454,7 @@ export async function POST(req: NextRequest) {
 		deactivated,
 		movements: { dispatched, restocked, unchanged },
 		costUpdated,
+		priceUpdated,
 		errors: errors.slice(0, 30),
 	});
 }

@@ -99,6 +99,7 @@ model Product {
     imageUrl          String?
     isActive          Boolean     @default(true)
     targetStockMonths Int         @default(6)
+    salePrice         Float?
     createdAt         DateTime    @default(now())
     updatedAt         DateTime    @updatedAt
 

@@ -51,6 +51,7 @@ export interface ShopifyVariant {
 	sku: string | null;
 	inventory_item_id: number;
 	inventory_quantity: number;
+	price: string; // Shopify returns price as a decimal string e.g. "29.99"
 }
 
 export interface ShopifyLocation {
@@ -201,6 +202,19 @@ export async function setInventoryLevel(
 			inventory_item_id: inventoryItemId,
 			location_id: locationId,
 			available: Math.max(0, Math.round(available)),
+		}),
+	});
+}
+
+export async function setVariantPrice(
+	store: ShopifyStoreConfig,
+	variantId: number,
+	price: number
+): Promise<void> {
+	await shopifyFetch(store, `/variants/${variantId}.json`, {
+		method: 'PUT',
+		body: JSON.stringify({
+			variant: { id: variantId, price: price.toFixed(2) },
 		}),
 	});
 }
