@@ -11,6 +11,7 @@ import {
 	AlertCircle,
 	RefreshCw,
 	UploadCloud,
+	Tag,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -32,6 +33,7 @@ import {
 	useDisconnectShopifyStore,
 	useSyncShopifyOrdersForStore,
 	useSyncShopifyInventoryForStore,
+	usePushShopifyPricesForStore,
 } from '@/hooks/use-shopify-stores';
 
 function ConnectForm() {
@@ -77,13 +79,68 @@ function ConnectForm() {
 	);
 }
 
-type PushResult = {
+type StockResult = {
 	synced: number;
 	skipped: number;
-	pricesSynced: number;
 	errors: string[];
 	error?: string;
 };
+
+type PriceResult = {
+	pricesSynced: number;
+	skipped: number;
+	errors: string[];
+	error?: string;
+};
+
+function ResultPanel({
+	result,
+	label,
+	countKey,
+}: {
+	result: {
+		synced?: number;
+		pricesSynced?: number;
+		skipped: number;
+		errors: string[];
+		error?: string;
+	};
+	label: string;
+	countKey: 'synced' | 'pricesSynced';
+}) {
+	const count = result[countKey] ?? 0;
+	return (
+		<div className="space-y-1.5 text-xs">
+			{result.error ? (
+				<p className="text-destructive">{result.error}</p>
+			) : (
+				<p className="text-muted-foreground">
+					<span className="text-foreground font-medium">{count}</span>{' '}
+					{label} ·{' '}
+					<span className="text-foreground font-medium">
+						{result.skipped}
+					</span>{' '}
+					skipped
+				</p>
+			)}
+			{result.errors.length > 0 && (
+				<div className="bg-destructive/10 space-y-1 rounded-md p-2">
+					<p className="text-destructive font-medium">
+						{result.errors.length} error
+						{result.errors.length === 1 ? '' : 's'}:
+					</p>
+					<ul className="max-h-28 space-y-0.5 overflow-y-auto">
+						{result.errors.map((e, i) => (
+							<li key={i} className="text-destructive break-all">
+								· {e}
+							</li>
+						))}
+					</ul>
+				</div>
+			)}
+		</div>
+	);
+}
 
 function StoreRow({
 	shop,
@@ -95,7 +152,9 @@ function StoreRow({
 	const disconnect = useDisconnectShopifyStore();
 	const syncOrders = useSyncShopifyOrdersForStore();
 	const syncInventory = useSyncShopifyInventoryForStore();
-	const [pushResult, setPushResult] = useState<PushResult | null>(null);
+	const pushPrices = usePushShopifyPricesForStore();
+	const [stockResult, setStockResult] = useState<StockResult | null>(null);
+	const [priceResult, setPriceResult] = useState<PriceResult | null>(null);
 
 	async function handleDisconnect() {
 		try {
@@ -118,24 +177,41 @@ function StoreRow({
 	}
 
 	async function handlePushStock() {
-		setPushResult(null);
+		setStockResult(null);
 		try {
 			const result = await syncInventory.mutateAsync(shop);
-			const r = result.stores?.[shop] as PushResult | undefined;
-			if (r) setPushResult(r);
-			if (r?.error) toast.error(`Push failed: ${r.error}`);
+			const r = result.stores?.[shop] as StockResult | undefined;
+			if (r) setStockResult(r);
+			if (r?.error) toast.error(`Stock push failed: ${r.error}`);
 			else if (r?.errors?.length)
 				toast.warning(
 					`${r.errors.length} SKU error(s) — see details below`
 				);
-			else
-				toast.success(
-					`${r?.synced ?? 0} quantities, ${r?.pricesSynced ?? 0} prices pushed`
-				);
+			else toast.success(`${r?.synced ?? 0} quantities pushed`);
 		} catch {
 			toast.error('Inventory push failed');
 		}
 	}
+
+	async function handlePushPrices() {
+		setPriceResult(null);
+		try {
+			const result = await pushPrices.mutateAsync(shop);
+			const r = result.stores?.[shop] as PriceResult | undefined;
+			if (r) setPriceResult(r);
+			if (r?.error) toast.error(`Price push failed: ${r.error}`);
+			else if (r?.errors?.length)
+				toast.warning(
+					`${r.errors.length} price error(s) — see details below`
+				);
+			else toast.success(`${r?.pricesSynced ?? 0} prices pushed`);
+		} catch {
+			toast.error('Price push failed');
+		}
+	}
+
+	const anyPending =
+		syncInventory.isPending || pushPrices.isPending || syncOrders.isPending;
 
 	return (
 		<div className="rounded-lg border px-4 py-3">
@@ -190,12 +266,12 @@ function StoreRow({
 				</div>
 			</div>
 
-			<div className="mt-3 flex gap-2 border-t pt-3">
+			<div className="mt-3 flex flex-wrap gap-2 border-t pt-3">
 				<Button
 					variant="outline"
 					size="sm"
 					onClick={handleSyncOrders}
-					disabled={syncOrders.isPending}
+					disabled={anyPending}
 				>
 					<RefreshCw
 						className={`mr-1.5 size-3.5 ${syncOrders.isPending ? 'animate-spin' : ''}`}
@@ -206,56 +282,45 @@ function StoreRow({
 					variant="outline"
 					size="sm"
 					onClick={handlePushStock}
-					disabled={syncInventory.isPending}
+					disabled={anyPending}
 				>
 					<UploadCloud
 						className={`mr-1.5 size-3.5 ${syncInventory.isPending ? 'animate-pulse' : ''}`}
 					/>
 					{syncInventory.isPending ? 'Pushing…' : 'Push Stock'}
 				</Button>
+				<Button
+					variant="outline"
+					size="sm"
+					onClick={handlePushPrices}
+					disabled={anyPending}
+				>
+					<Tag
+						className={`mr-1.5 size-3.5 ${pushPrices.isPending ? 'animate-pulse' : ''}`}
+					/>
+					{pushPrices.isPending ? 'Pushing…' : 'Push Prices'}
+				</Button>
 			</div>
 
-			{/* Persistent push result — stays until next push */}
-			{pushResult && !syncInventory.isPending && (
-				<div className="mt-3 space-y-2 border-t pt-3 text-xs">
-					{pushResult.error ? (
-						<p className="text-destructive">{pushResult.error}</p>
-					) : (
-						<p className="text-muted-foreground">
-							<span className="text-foreground font-medium">
-								{pushResult.synced}
-							</span>{' '}
-							quantities ·{' '}
-							<span className="text-foreground font-medium">
-								{pushResult.pricesSynced}
-							</span>{' '}
-							prices pushed ·{' '}
-							<span className="text-foreground font-medium">
-								{pushResult.skipped}
-							</span>{' '}
-							skipped
-						</p>
+			{(stockResult && !syncInventory.isPending) ||
+			(priceResult && !pushPrices.isPending) ? (
+				<div className="mt-3 space-y-2 border-t pt-3">
+					{stockResult && !syncInventory.isPending && (
+						<ResultPanel
+							result={stockResult}
+							label="quantities pushed"
+							countKey="synced"
+						/>
 					)}
-					{pushResult.errors.length > 0 && (
-						<div className="bg-destructive/10 space-y-1 rounded-md p-2">
-							<p className="text-destructive font-medium">
-								{pushResult.errors.length} error
-								{pushResult.errors.length === 1 ? '' : 's'}:
-							</p>
-							<ul className="max-h-32 space-y-0.5 overflow-y-auto">
-								{pushResult.errors.map((e, i) => (
-									<li
-										key={i}
-										className="text-destructive break-all"
-									>
-										· {e}
-									</li>
-								))}
-							</ul>
-						</div>
+					{priceResult && !pushPrices.isPending && (
+						<ResultPanel
+							result={priceResult}
+							label="prices pushed"
+							countKey="pricesSynced"
+						/>
 					)}
 				</div>
-			)}
+			) : null}
 		</div>
 	);
 }

@@ -69,3 +69,24 @@ export function useSyncShopifyInventoryForStore() {
 				.then((r) => r.data),
 	});
 }
+
+export function usePushShopifyPricesForStore() {
+	return useMutation({
+		mutationFn: (shop: string) =>
+			api
+				.post<{
+					ok: boolean;
+					stores: Record<
+						string,
+						{
+							synced: number;
+							skipped: number;
+							pricesSynced: number;
+							errors: string[];
+							error?: string;
+						}
+					>;
+				}>('/integrations/shopify/sync-prices', { shop })
+				.then((r) => r.data),
+	});
+}

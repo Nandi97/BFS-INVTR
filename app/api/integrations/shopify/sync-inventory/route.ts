@@ -7,7 +7,6 @@ import {
 	fetchShopifyProducts,
 	fetchShopifyLocations,
 	setInventoryLevel,
-	setVariantPrice,
 } from '@/lib/shopify';
 
 const DELAY_MS = 600; // stay comfortably under Shopify's 2 req/s rate limit
@@ -48,34 +47,20 @@ export async function POST(req: NextRequest) {
 		where: { product: { isActive: true, sku: { not: null } } },
 		select: {
 			quantity: true,
-			product: { select: { sku: true, barcode: true, salePrice: true } },
+			product: { select: { sku: true, barcode: true } },
 		},
 	});
 
 	const qtyBySku = new Map<string, number>();
-	const priceBySku = new Map<string, number>();
 	for (const inv of bfsInventory) {
-		if (inv.product.sku) {
-			qtyBySku.set(inv.product.sku, inv.quantity);
-			if (inv.product.salePrice != null)
-				priceBySku.set(inv.product.sku, inv.product.salePrice);
-		}
-		if (inv.product.barcode) {
+		if (inv.product.sku) qtyBySku.set(inv.product.sku, inv.quantity);
+		if (inv.product.barcode)
 			qtyBySku.set(inv.product.barcode, inv.quantity);
-			if (inv.product.salePrice != null)
-				priceBySku.set(inv.product.barcode, inv.product.salePrice);
-		}
 	}
 
 	const results: Record<
 		string,
-		{
-			synced: number;
-			skipped: number;
-			pricesSynced: number;
-			errors: string[];
-			error?: string;
-		}
+		{ synced: number; skipped: number; errors: string[]; error?: string }
 	> = {};
 
 	for (const store of stores) {
@@ -96,7 +81,6 @@ export async function POST(req: NextRequest) {
 			const products = await fetchShopifyProducts(store);
 			let synced = 0;
 			let skipped = 0;
-			let pricesSynced = 0;
 			const errors: string[] = [];
 
 			for (const product of products) {
@@ -126,34 +110,14 @@ export async function POST(req: NextRequest) {
 						);
 					}
 					await delay(DELAY_MS);
-
-					// Push sale price if BFS has one and it differs from Shopify
-					const bfsPrice =
-						priceBySku.get(variant.sku) ??
-						priceBySku.get(variant.sku.toLowerCase());
-					if (
-						bfsPrice != null &&
-						Math.abs(bfsPrice - parseFloat(variant.price)) > 0.001
-					) {
-						try {
-							await setVariantPrice(store, variant.id, bfsPrice);
-							pricesSynced++;
-						} catch (priceErr) {
-							errors.push(
-								`SKU ${variant.sku} price: ${priceErr instanceof Error ? priceErr.message : String(priceErr)}`
-							);
-						}
-						await delay(DELAY_MS);
-					}
 				}
 			}
 
-			results[store.domain] = { synced, skipped, pricesSynced, errors };
+			results[store.domain] = { synced, skipped, errors };
 		} catch (err) {
 			results[store.domain] = {
 				synced: 0,
 				skipped: 0,
-				pricesSynced: 0,
 				errors: [],
 				error: err instanceof Error ? err.message : String(err),
 			};
@@ -164,17 +128,13 @@ export async function POST(req: NextRequest) {
 		(s, r) => s + r.synced,
 		0
 	);
-	const totalPrices = Object.values(results).reduce(
-		(s, r) => s + r.pricesSynced,
-		0
-	);
 
 	await prisma.syncLog.create({
 		data: {
 			provider: 'SHOPIFY',
 			type: 'INVENTORY_SYNC',
 			status: 'SUCCESS',
-			message: `Pushed ${totalSynced} inventory levels and ${totalPrices} prices across ${stores.length} store(s)`,
+			message: `Pushed ${totalSynced} inventory levels across ${stores.length} store(s)`,
 			recordsIn: totalSynced,
 			recordsOut: totalSynced,
 		},
