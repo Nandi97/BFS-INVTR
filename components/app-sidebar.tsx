@@ -83,7 +83,15 @@ const navInventory: NavItem[] = [
 			{ title: 'Locations', href: '/stock/locations' },
 		],
 	},
-	{ title: 'Reorder', href: '/reorder', icon: RefreshCcw },
+	{
+		title: 'Reorder',
+		href: '/reorder',
+		icon: RefreshCcw,
+		items: [
+			{ title: 'Reorder List', href: '/reorder' },
+			{ title: 'Formula Reference', href: '/reorder/formula' },
+		],
+	},
 ];
 
 const navOperations: NavItem[] = [

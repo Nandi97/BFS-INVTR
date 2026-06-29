@@ -95,6 +95,7 @@ export interface PendingProduct {
 	firstSeenAt: string;
 	lastSeenAt: string;
 	seenCount: number;
+	ignored: boolean;
 }
 
 export interface ApproveInput {
@@ -107,15 +108,18 @@ export interface ApproveInput {
 	locationId: string;
 }
 
-export function usePendingProducts() {
+export function usePendingProducts(showIgnored = false) {
 	return useQuery({
-		queryKey: ['products', 'pending'],
+		queryKey: ['products', 'pending', { showIgnored }],
 		queryFn: () =>
 			api
 				.get<{
 					data: PendingProduct[];
 					total: number;
-				}>('/products/pending')
+					ignoredCount: number;
+				}>('/products/pending', {
+					params: showIgnored ? { showIgnored: 'true' } : {},
+				})
 				.then((r) => r.data),
 	});
 }
@@ -143,6 +147,94 @@ export function useDismissPendingProduct() {
 		onSuccess: () => {
 			qc.invalidateQueries({ queryKey: ['products', 'pending'] });
 			toast.success('Item dismissed');
+		},
+		onError: (err: Error) => toast.error(err.message),
+	});
+}
+
+export function useIgnorePendingProduct() {
+	const qc = useQueryClient();
+	return useMutation({
+		mutationFn: ({ id, ignored }: { id: string; ignored: boolean }) =>
+			api
+				.patch(`/products/pending/${id}`, { ignored })
+				.then((r) => r.data),
+		onSuccess: (_data, { ignored }) => {
+			qc.invalidateQueries({ queryKey: ['products', 'pending'] });
+			toast.success(
+				ignored ? 'Item permanently ignored' : 'Item restored'
+			);
+		},
+		onError: (err: Error) => toast.error(err.message),
+	});
+}
+
+export function useBatchIgnorePendingProducts() {
+	const qc = useQueryClient();
+	return useMutation({
+		mutationFn: ({ ids, ignored }: { ids: string[]; ignored: boolean }) =>
+			api
+				.patch('/products/pending/batch', { ids, ignored })
+				.then((r) => r.data as { updated: number }),
+		onSuccess: (data, { ignored }) => {
+			qc.invalidateQueries({ queryKey: ['products', 'pending'] });
+			toast.success(
+				ignored
+					? `${data.updated} item${data.updated === 1 ? '' : 's'} permanently ignored`
+					: `${data.updated} item${data.updated === 1 ? '' : 's'} restored`
+			);
+		},
+		onError: (err: Error) => toast.error(err.message),
+	});
+}
+
+export interface BatchApproveInput {
+	ids: string[];
+	locationId: string;
+	brandId?: string;
+	categoryId?: string;
+	unit?: string;
+}
+
+export function useBatchDismissPendingProducts() {
+	const qc = useQueryClient();
+	return useMutation({
+		mutationFn: (ids: string[]) =>
+			api
+				.delete('/products/pending/batch', { data: { ids } })
+				.then((r) => r.data as { dismissed: number }),
+		onSuccess: (data) => {
+			qc.invalidateQueries({ queryKey: ['products', 'pending'] });
+			toast.success(
+				`${data.dismissed} item${data.dismissed === 1 ? '' : 's'} dismissed`
+			);
+		},
+		onError: (err: Error) => toast.error(err.message),
+	});
+}
+
+export function useBatchApprovePendingProducts() {
+	const qc = useQueryClient();
+	return useMutation({
+		mutationFn: (data: BatchApproveInput) =>
+			api.post('/products/pending/batch', data).then(
+				(r) =>
+					r.data as {
+						approved: number;
+						errors: { id: string; name: string; reason: string }[];
+					}
+			),
+		onSuccess: (data) => {
+			qc.invalidateQueries({ queryKey: ['products'] });
+			if (data.errors.length > 0) {
+				toast.warning(
+					`${data.approved} added, ${data.errors.length} skipped (SKU conflicts)`
+				);
+			} else {
+				toast.success(
+					`${data.approved} product${data.approved === 1 ? '' : 's'} added to inventory`
+				);
+			}
 		},
 		onError: (err: Error) => toast.error(err.message),
 	});

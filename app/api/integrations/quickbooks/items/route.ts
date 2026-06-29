@@ -219,6 +219,16 @@ export async function POST(req: NextRequest) {
 	for (const item of qboItems) {
 		const hit = await resolveProduct(item.FullyQualifiedName, item.Sku);
 		if (!hit) {
+			// Skip permanently ignored items — they will never resurface
+			const existing = await prisma.pendingProduct.findUnique({
+				where: { qboItemId: item.Id },
+				select: { ignored: true },
+			});
+			if (existing?.ignored) {
+				skipped++;
+				continue;
+			}
+
 			// Stage for admin review instead of silently dropping
 			const suggestedBrand = item.FullyQualifiedName.includes(':')
 				? item.FullyQualifiedName.split(':')[0].trim()

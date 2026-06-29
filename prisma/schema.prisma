@@ -404,6 +404,7 @@ model PendingProduct {
     firstSeenAt        DateTime @default(now())
     lastSeenAt         DateTime @updatedAt
     seenCount          Int      @default(1)
+    ignored            Boolean  @default(false)
 }
 
 // ─── Integrations ─────────────────────────────────────────────────────────────
