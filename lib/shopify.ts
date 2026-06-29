@@ -167,8 +167,17 @@ export async function fetchShopifyProducts(
 			}
 		);
 
+		if (!res.ok) {
+			const text = await res.text().catch(() => res.statusText);
+			throw new Error(`Shopify products API ${res.status}: ${text}`);
+		}
 		const linkHeader = res.headers.get('Link');
-		const data = (await res.json()) as { products: ShopifyProduct[] };
+		const data = (await res.json()) as { products?: ShopifyProduct[] };
+		if (!Array.isArray(data.products)) {
+			throw new Error(
+				`Shopify products response missing products array: ${JSON.stringify(data).slice(0, 200)}`
+			);
+		}
 		all.push(...data.products);
 
 		const nextMatch = linkHeader?.match(
