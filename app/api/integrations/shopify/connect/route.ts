@@ -3,7 +3,7 @@ import { cookies } from 'next/headers';
 import { requireRole } from '@/lib/require-role';
 
 const SCOPES =
-	'read_orders,write_orders,read_inventory,write_inventory,read_products,read_locations';
+	'read_orders,write_orders,read_inventory,write_inventory,read_products,write_products,read_locations';
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
 
 export async function GET(req: NextRequest) {

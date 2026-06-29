@@ -77,6 +77,14 @@ function ConnectForm() {
 	);
 }
 
+type PushResult = {
+	synced: number;
+	skipped: number;
+	pricesSynced: number;
+	errors: string[];
+	error?: string;
+};
+
 function StoreRow({
 	shop,
 	connectedAt,
@@ -87,6 +95,7 @@ function StoreRow({
 	const disconnect = useDisconnectShopifyStore();
 	const syncOrders = useSyncShopifyOrdersForStore();
 	const syncInventory = useSyncShopifyInventoryForStore();
+	const [pushResult, setPushResult] = useState<PushResult | null>(null);
 
 	async function handleDisconnect() {
 		try {
@@ -109,17 +118,19 @@ function StoreRow({
 	}
 
 	async function handlePushStock() {
+		setPushResult(null);
 		try {
 			const result = await syncInventory.mutateAsync(shop);
-			const r = result.stores[shop];
-			if (r?.error) toast.error(`${shop}: ${r.error}`);
+			const r = result.stores?.[shop] as PushResult | undefined;
+			if (r) setPushResult(r);
+			if (r?.error) toast.error(`Push failed: ${r.error}`);
 			else if (r?.errors?.length)
-				toast.error(
-					`${shop}: ${r.synced} updated, ${r.errors.length} failed — ${r.errors[0]}`
+				toast.warning(
+					`${r.errors.length} SKU error(s) — see details below`
 				);
 			else
 				toast.success(
-					`${shop}: ${r?.synced ?? 0} updated, ${r?.skipped ?? 0} skipped`
+					`${r?.synced ?? 0} quantities, ${r?.pricesSynced ?? 0} prices pushed`
 				);
 		} catch {
 			toast.error('Inventory push failed');
@@ -178,6 +189,7 @@ function StoreRow({
 					</AlertDialog>
 				</div>
 			</div>
+
 			<div className="mt-3 flex gap-2 border-t pt-3">
 				<Button
 					variant="outline"
@@ -196,10 +208,54 @@ function StoreRow({
 					onClick={handlePushStock}
 					disabled={syncInventory.isPending}
 				>
-					<UploadCloud className="mr-1.5 size-3.5" />
+					<UploadCloud
+						className={`mr-1.5 size-3.5 ${syncInventory.isPending ? 'animate-pulse' : ''}`}
+					/>
 					{syncInventory.isPending ? 'Pushing…' : 'Push Stock'}
 				</Button>
 			</div>
+
+			{/* Persistent push result — stays until next push */}
+			{pushResult && !syncInventory.isPending && (
+				<div className="mt-3 space-y-2 border-t pt-3 text-xs">
+					{pushResult.error ? (
+						<p className="text-destructive">{pushResult.error}</p>
+					) : (
+						<p className="text-muted-foreground">
+							<span className="text-foreground font-medium">
+								{pushResult.synced}
+							</span>{' '}
+							quantities ·{' '}
+							<span className="text-foreground font-medium">
+								{pushResult.pricesSynced}
+							</span>{' '}
+							prices pushed ·{' '}
+							<span className="text-foreground font-medium">
+								{pushResult.skipped}
+							</span>{' '}
+							skipped
+						</p>
+					)}
+					{pushResult.errors.length > 0 && (
+						<div className="bg-destructive/10 space-y-1 rounded-md p-2">
+							<p className="text-destructive font-medium">
+								{pushResult.errors.length} error
+								{pushResult.errors.length === 1 ? '' : 's'}:
+							</p>
+							<ul className="max-h-32 space-y-0.5 overflow-y-auto">
+								{pushResult.errors.map((e, i) => (
+									<li
+										key={i}
+										className="text-destructive break-all"
+									>
+										· {e}
+									</li>
+								))}
+							</ul>
+						</div>
+					)}
+				</div>
+			)}
 		</div>
 	);
 }
