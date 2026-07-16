@@ -64,9 +64,11 @@ async function resolveProduct(fqn: string, sku?: string) {
 	] as { field: string; where: object }[];
 
 	for (const { field, where } of candidates) {
+		// No isActive filter — QBO is the source of truth for active status, so a
+		// currently-inactive BFS product must still be matchable to be reactivated.
 		const hit = await prisma.product.findFirst({
-			where: { isActive: true, ...where },
-			select: { id: true, name: true },
+			where,
+			select: { id: true, name: true, isActive: true },
 		});
 		if (hit)
 			return {
@@ -174,6 +176,7 @@ export async function POST(req: NextRequest) {
 	let synced = 0,
 		skipped = 0,
 		deactivated = 0,
+		reactivated = 0,
 		dispatched = 0,
 		restocked = 0,
 		unchanged = 0,
@@ -261,6 +264,16 @@ export async function POST(req: NextRequest) {
 		const qty = Math.max(0, item.QtyOnHand ?? 0);
 		try {
 			await prisma.$transaction(async (tx) => {
+				// QBO shows this item as Active — reactivate the BFS product if it
+				// was previously flagged inactive (QBO is the source of truth).
+				if (!hit.isActive) {
+					await tx.product.update({
+						where: { id: hit.id },
+						data: { isActive: true },
+					});
+					reactivated++;
+				}
+
 				const existing = await tx.inventory.findUnique({
 					where: {
 						productId_locationId: {
@@ -394,25 +407,14 @@ export async function POST(req: NextRequest) {
 	}
 
 	// ── Deactivate BFS products whose QB item is now inactive ──────────────────
-	// Only match by SKU/barcode (strict) to avoid false positives from name matches.
-	// Products manually deactivated in BFS for other reasons (e.g. Inverness direct-supply)
-	// are already isActive=false and therefore skipped by the findFirst below.
+	// QBO is fully authoritative on active status. Matches by SKU/barcode first,
+	// then falls back to exact name match for items with no QB SKU (product
+	// names are treated as unique for this purpose).
 	try {
 		const inactiveQboItems = await fetchQboItems(false);
 		for (const item of inactiveQboItems) {
-			if (!item.Sku) continue;
-			const sku = item.Sku.trim();
-			const hit = await prisma.product.findFirst({
-				where: {
-					isActive: true,
-					OR: [
-						{ sku: { equals: sku, mode: 'insensitive' } },
-						{ barcode: { equals: sku, mode: 'insensitive' } },
-					],
-				},
-				select: { id: true },
-			});
-			if (hit) {
+			const hit = await resolveProduct(item.FullyQualifiedName, item.Sku);
+			if (hit && hit.isActive) {
 				await prisma.product.update({
 					where: { id: hit.id },
 					data: { isActive: false },
@@ -436,7 +438,7 @@ export async function POST(req: NextRequest) {
 					: errors.length > 0
 						? 'PARTIAL'
 						: 'SUCCESS',
-			message: `QBO API sync: ${synced} synced (${dispatched} dispatched, ${restocked} restocked, ${unchanged} unchanged), ${costUpdated} costs updated, ${priceUpdated} prices updated, ${skipped} skipped, ${deactivated} deactivated`,
+			message: `QBO API sync: ${synced} synced (${dispatched} dispatched, ${restocked} restocked, ${unchanged} unchanged), ${costUpdated} costs updated, ${priceUpdated} prices updated, ${skipped} skipped, ${deactivated} deactivated, ${reactivated} reactivated`,
 			recordsIn: qboItems.length,
 			recordsOut: synced,
 		},
@@ -452,6 +454,7 @@ export async function POST(req: NextRequest) {
 		synced,
 		skipped,
 		deactivated,
+		reactivated,
 		movements: { dispatched, restocked, unchanged },
 		costUpdated,
 		priceUpdated,
