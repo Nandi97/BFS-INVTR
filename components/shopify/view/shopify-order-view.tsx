@@ -60,7 +60,7 @@ import {
 	useUpdateShopifyFulfillmentItem,
 	useSubmitShopifyFulfillment,
 	useSendShopifyPackingListEmail,
-	useNotifyShopifyInverness,
+	useNotifyShopifyNonWarehoused,
 	type ShopifyFulfillmentItem,
 } from '@/hooks/use-shopify';
 
@@ -86,7 +86,7 @@ export function ShopifyOrderView({ id }: { id: string }) {
 	const updateItem = useUpdateShopifyFulfillmentItem();
 	const submitFulfillment = useSubmitShopifyFulfillment();
 	const sendPackingList = useSendShopifyPackingListEmail();
-	const notifyInverness = useNotifyShopifyInverness();
+	const notifyNonWarehoused = useNotifyShopifyNonWarehoused();
 	const backfillTriggered = useRef(false);
 
 	// Order was fulfilled directly in Shopify without ever going through BFS
@@ -144,7 +144,8 @@ export function ShopifyOrderView({ id }: { id: string }) {
 	const f = order.fulfillment;
 	const isSubmitted = f?.status === 'SUBMITTED' || f?.status === 'INVOICED';
 	const shopifyFulfilled = order.fulfillmentStatus === 'fulfilled';
-	const invernessCount = f?.items.filter((i) => i.isInverness).length ?? 0;
+	const nonWarehousedCount =
+		f?.items.filter((i) => i.isNonWarehoused).length ?? 0;
 
 	const packedCount = f?.items.filter((i) => i.isPacked).length ?? 0;
 	const totalItems = f?.items.length ?? order.items.length;
@@ -202,11 +203,11 @@ export function ShopifyOrderView({ id }: { id: string }) {
 		toast.success('Packing list emailed');
 	}
 
-	async function handleNotifyInverness() {
+	async function handleNotifyNonWarehoused() {
 		if (!f) return;
 		try {
-			await notifyInverness.mutateAsync(f.id);
-			toast.success('Inverness notification sent');
+			await notifyNonWarehoused.mutateAsync(f.id);
+			toast.success('Notification sent');
 		} catch {
 			toast.error('Failed to send notification');
 		}
@@ -358,20 +359,22 @@ export function ShopifyOrderView({ id }: { id: string }) {
 									)}
 									Send Packing List Email
 								</DropdownMenuItem>
-								{invernessCount > 0 && (
+								{nonWarehousedCount > 0 && (
 									<>
 										<DropdownMenuSeparator />
 										<DropdownMenuItem
 											className="gap-2"
-											disabled={notifyInverness.isPending}
-											onClick={handleNotifyInverness}
+											disabled={
+												notifyNonWarehoused.isPending
+											}
+											onClick={handleNotifyNonWarehoused}
 										>
-											{notifyInverness.isPending ? (
+											{notifyNonWarehoused.isPending ? (
 												<Loader2 className="size-4 animate-spin" />
 											) : (
 												<Bell className="size-4" />
 											)}
-											Send Inverness Notification
+											Send Non-Warehoused Notification
 										</DropdownMenuItem>
 									</>
 								)}
@@ -567,8 +570,8 @@ export function ShopifyOrderView({ id }: { id: string }) {
 				<div className="space-y-3">
 					<p className="text-muted-foreground px-1 text-sm">
 						{f.items.length} item{f.items.length !== 1 ? 's' : ''}
-						{invernessCount > 0 &&
-							` · ${invernessCount} not stocked in-house`}
+						{nonWarehousedCount > 0 &&
+							` · ${nonWarehousedCount} not stocked in-house`}
 					</p>
 					{f.items.map((item) => (
 						<PackingCard
@@ -659,7 +662,7 @@ function PackingCard({
 				'rounded-xl border-2 transition-all duration-200',
 				item.isPacked
 					? 'border-emerald-400 bg-emerald-50/60 dark:border-emerald-700 dark:bg-emerald-950/20'
-					: item.isInverness
+					: item.isNonWarehoused
 						? 'border-violet-300 bg-violet-50/40 dark:border-violet-700 dark:bg-violet-950/10'
 						: short
 							? 'border-amber-300 bg-amber-50/40 dark:border-amber-700 dark:bg-amber-950/10'
@@ -683,9 +686,9 @@ function PackingCard({
 								{item.variantTitle}
 							</span>
 						)}
-						{item.isInverness && (
+						{item.isNonWarehoused && (
 							<span className="rounded-full bg-violet-100 px-2 py-0.5 text-xs font-medium text-violet-700 dark:bg-violet-950/40 dark:text-violet-300">
-								Inverness — not in-house
+								Not in-house
 							</span>
 						)}
 					</div>

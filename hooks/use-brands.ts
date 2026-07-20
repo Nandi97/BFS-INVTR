@@ -8,6 +8,7 @@ export interface Brand {
 	id: string;
 	name: string;
 	leadTimeDays: number;
+	isWarehoused: boolean;
 	createdAt: string;
 	updatedAt: string;
 	_count: { products: number };
@@ -30,6 +31,7 @@ export function useUpdateBrand() {
 			id: string;
 			name?: string;
 			leadTimeDays?: number;
+			isWarehoused?: boolean;
 		}) => api.put<Brand>(`/brands/${id}`, data).then((r) => r.data),
 		onSuccess: () => {
 			qc.invalidateQueries({ queryKey: ['brands'] });

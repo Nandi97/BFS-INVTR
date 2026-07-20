@@ -35,7 +35,7 @@ export interface ShopifyFulfillmentItem {
 	notes: string | null;
 	sortOrder: number;
 	stockOnHand: number | null;
-	isInverness: boolean;
+	isNonWarehoused: boolean;
 }
 
 export interface ShopifyFulfillment {
@@ -205,11 +205,13 @@ export function useSendShopifyPackingListEmail() {
 	});
 }
 
-export function useNotifyShopifyInverness() {
+export function useNotifyShopifyNonWarehoused() {
 	return useMutation({
 		mutationFn: (fulfillmentId: string) =>
 			api
-				.post(`/shopify/fulfillments/${fulfillmentId}/notify-inverness`)
+				.post(
+					`/shopify/fulfillments/${fulfillmentId}/notify-non-warehoused`
+				)
 				.then((r) => r.data),
 	});
 }

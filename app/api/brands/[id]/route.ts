@@ -11,7 +11,7 @@ export async function PUT(
 
 	try {
 		const { id } = await params;
-		const { name, leadTimeDays } = await req.json();
+		const { name, leadTimeDays, isWarehoused } = await req.json();
 		if (!name?.trim())
 			return NextResponse.json(
 				{ error: 'Name is required' },
@@ -30,6 +30,7 @@ export async function PUT(
 							),
 						}
 					: {}),
+				...(typeof isWarehoused === 'boolean' ? { isWarehoused } : {}),
 			},
 		});
 		return NextResponse.json(brand);

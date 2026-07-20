@@ -18,7 +18,13 @@ export async function POST(
 		include: {
 			items: {
 				include: {
-					product: { select: { brand: { select: { name: true } } } },
+					product: {
+						select: {
+							brand: {
+								select: { name: true, isWarehoused: true },
+							},
+						},
+					},
 				},
 				orderBy: { sortOrder: 'asc' },
 			},
@@ -29,12 +35,12 @@ export async function POST(
 	if (!fulfillment)
 		return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-	const invernessItems = fulfillment.items.filter(
-		(i) => i.product?.brand?.name?.toLowerCase() === 'inverness'
+	const nonWarehousedItems = fulfillment.items.filter(
+		(i) => i.product?.brand?.isWarehoused === false
 	);
-	if (invernessItems.length === 0) {
+	if (nonWarehousedItems.length === 0) {
 		return NextResponse.json(
-			{ error: 'No Inverness items on this order' },
+			{ error: 'No non-warehoused items on this order' },
 			{ status: 400 }
 		);
 	}
@@ -45,8 +51,15 @@ export async function POST(
 	const appUrl =
 		process.env.NEXT_PUBLIC_APP_URL ?? 'https://bfs.kigtech.digital';
 	const orderUrl = `${appUrl}/shopify/${order.id}`;
+	const brandNames = [
+		...new Set(
+			nonWarehousedItems
+				.map((i) => i.product?.brand?.name)
+				.filter(Boolean)
+		),
+	].join(', ');
 
-	const subject = `[Action Required] Inverness items — Order ${order.orderNumber} — ${storeName}`;
+	const subject = `[Action Required] Not stocked in-house — Order ${order.orderNumber} — ${storeName}`;
 
 	const labelStyle =
 		'padding:8px 0;font-weight:600;width:130px;color:#64748b;font-size:12px;text-transform:uppercase;letter-spacing:0.4px;';
@@ -59,7 +72,7 @@ export async function POST(
 <body style="margin:0;padding:24px;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
 <div style="max-width:580px;margin:0 auto;border-radius:10px;overflow:hidden;box-shadow:0 1px 6px rgba(0,0,0,.10);">
 	<div style="background:#7c3aed;padding:20px 24px;">
-		<h2 style="margin:0;color:#fff;font-size:18px;font-weight:700;">Inverness Items — Action Required</h2>
+		<h2 style="margin:0;color:#fff;font-size:18px;font-weight:700;">Not Stocked In-House — Action Required</h2>
 		<p style="margin:4px 0 0;color:rgba(255,255,255,0.85);font-size:13px;">
 			Flagged by ${auth.user.email} &middot; ${new Date().toLocaleDateString('en-CA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
 		</p>
@@ -80,13 +93,17 @@ export async function POST(
 				<td style="${valStyle}${rowBorder}">${order.customerName ?? '—'}</td>
 			</tr>
 			<tr>
-				<td style="${labelStyle}${rowBorder}">Inverness items</td>
-				<td style="${valStyle}${rowBorder}">${invernessItems.length} line item${invernessItems.length !== 1 ? 's' : ''}</td>
+				<td style="${labelStyle}${rowBorder}">Brand${brandNames.includes(',') ? 's' : ''}</td>
+				<td style="${valStyle}${rowBorder}">${brandNames}</td>
+			</tr>
+			<tr>
+				<td style="${labelStyle}${rowBorder}">Items</td>
+				<td style="${valStyle}${rowBorder}">${nonWarehousedItems.length} line item${nonWarehousedItems.length !== 1 ? 's' : ''}</td>
 			</tr>
 		</table>
 
 		<p style="margin:0 0 12px;font-size:14px;color:#334155;">
-			This order contains items not stocked in our warehouse (Inverness brand). These need to be sourced/invoiced separately rather than packed from stock.
+			This order contains items not stocked in our warehouse. These need to be sourced/invoiced separately rather than packed from stock.
 		</p>
 		<p style="margin:0 0 20px;">
 			<a href="${orderUrl}" style="background:#7c3aed;color:#fff;padding:10px 22px;border-radius:8px;text-decoration:none;display:inline-block;font-weight:600;font-size:13px;">
@@ -103,7 +120,7 @@ export async function POST(
 				</tr>
 			</thead>
 			<tbody>
-				${invernessItems
+				${nonWarehousedItems
 					.map(
 						(item, i) => `
 				<tr style="background:${i % 2 === 0 ? '#ffffff' : '#f8fafc'};">
@@ -126,10 +143,13 @@ export async function POST(
 </html>`;
 
 	await sendMail({
-		to: recipients.shopify_inverness_notify_to,
+		to: recipients.shopify_non_warehoused_notify_to,
 		subject,
 		html,
 	});
 
-	return NextResponse.json({ ok: true, itemCount: invernessItems.length });
+	return NextResponse.json({
+		ok: true,
+		itemCount: nonWarehousedItems.length,
+	});
 }

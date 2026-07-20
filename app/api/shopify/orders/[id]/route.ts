@@ -25,7 +25,7 @@ export async function GET(
 									name: true,
 									sku: true,
 									barcode: true,
-									brand: { select: { name: true } },
+									brand: { select: { isWarehoused: true } },
 								},
 							},
 						},
@@ -62,21 +62,20 @@ export async function GET(
 		bfsMatch: item.sku ? (stockBySku.get(item.sku) ?? null) : null,
 	}));
 
-	// Enrich fulfillment items with current stock + Inverness (non-warehoused) flag
+	// Enrich fulfillment items with current stock + non-warehoused flag
 	const enrichedFulfillmentItems = await Promise.all(
 		(order.fulfillment?.items ?? []).map(async (item) => {
 			if (!item.productId)
-				return { ...item, stockOnHand: null, isInverness: false };
+				return { ...item, stockOnHand: null, isNonWarehoused: false };
 			const inv = await prisma.inventory.findFirst({
 				where: { productId: item.productId },
 				select: { quantity: true },
 			});
-			const isInverness =
-				item.product?.brand?.name?.toLowerCase() === 'inverness';
+			const isNonWarehoused = item.product?.brand?.isWarehoused === false;
 			return {
 				...item,
 				stockOnHand: inv?.quantity ?? null,
-				isInverness,
+				isNonWarehoused,
 			};
 		})
 	);

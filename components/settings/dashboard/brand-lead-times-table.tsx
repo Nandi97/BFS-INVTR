@@ -5,6 +5,7 @@ import { useBrands, useUpdateBrand, type Brand } from '@/hooks/use-brands';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 import {
 	Table,
 	TableBody,
@@ -63,11 +64,36 @@ function EditableRow({ brand }: { brand: Brand }) {
 		setEditing(false);
 	}, [brand.leadTimeDays]);
 
+	function toggleWarehoused(checked: boolean) {
+		mutate(
+			{ id: brand.id, name: brand.name, isWarehoused: checked },
+			{
+				onSuccess: () => {
+					toast.success(
+						`${brand.name} marked ${checked ? 'warehoused' : 'not stocked in-house'}`
+					);
+				},
+			}
+		);
+	}
+
 	return (
 		<TableRow className={cn(editing && 'bg-muted/30')}>
 			<TableCell className="text-sm font-medium">{brand.name}</TableCell>
 			<TableCell className="text-muted-foreground text-right text-sm tabular-nums">
 				{brand._count.products}
+			</TableCell>
+			<TableCell>
+				<div className="flex items-center gap-2">
+					<Switch
+						checked={brand.isWarehoused}
+						onCheckedChange={toggleWarehoused}
+						disabled={isPending}
+					/>
+					<span className="text-muted-foreground text-xs">
+						{brand.isWarehoused ? 'Warehoused' : 'Not in-house'}
+					</span>
+				</div>
 			</TableCell>
 			<TableCell>
 				{editing ? (
@@ -181,6 +207,7 @@ export function BrandLeadTimesTable() {
 							<TableHead className="text-right">
 								Products
 							</TableHead>
+							<TableHead>Stock Location</TableHead>
 							<TableHead>Lead Time</TableHead>
 							<TableHead>Type</TableHead>
 							<TableHead className="w-16" />
@@ -199,6 +226,12 @@ export function BrandLeadTimesTable() {
 				stock you need on hand before placing an order). Click the
 				pencil icon on any row to edit. Changes apply after
 				recalculating reorder points on the Stock Policy tab.
+				<br />
+				<strong>Stock Location</strong> — flip a brand to &quot;Not
+				in-house&quot; if it&apos;s supplied directly by the vendor
+				rather than held in the BFS warehouse (like Inverness). This
+				flags its items during Shopify order packing so they can be
+				sourced/invoiced separately.
 			</p>
 		</div>
 	);

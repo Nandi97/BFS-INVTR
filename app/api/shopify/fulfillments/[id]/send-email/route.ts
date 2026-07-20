@@ -19,7 +19,9 @@ export async function POST(
 		include: {
 			items: {
 				include: {
-					product: { select: { brand: { select: { name: true } } } },
+					product: {
+						select: { brand: { select: { isWarehoused: true } } },
+					},
 				},
 				orderBy: { sortOrder: 'asc' },
 			},
@@ -70,8 +72,7 @@ export async function POST(
 				unitPrice: item.unitPrice,
 				totalDiscount: item.totalDiscount,
 				isPacked: item.isPacked,
-				isInverness:
-					item.product?.brand?.name?.toLowerCase() === 'inverness',
+				isNonWarehoused: item.product?.brand?.isWarehoused === false,
 				notes: item.notes,
 			})),
 		}),

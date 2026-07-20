@@ -20,7 +20,7 @@ type Recipients = {
 	internal_use_cc: string;
 	shopify_order_notify_to: string;
 	shopify_order_notify_cc: string;
-	shopify_inverness_notify_to: string;
+	shopify_non_warehoused_notify_to: string;
 	shopify_packing_list_to: string;
 	shopify_packing_list_cc: string;
 };
@@ -292,32 +292,36 @@ export function EmailRecipientsForm() {
 
 			<Separator />
 
-			{/* Shopify Inverness (non-warehoused) notification */}
+			{/* Shopify not-stocked-in-house item notification */}
 			<div className="space-y-4">
 				<div>
 					<h3 className="text-sm font-medium">
-						Shopify Inverness item notification
+						Shopify non-warehoused item notification
 					</h3>
 					<p className="text-muted-foreground mt-0.5 text-xs">
 						Sent when a packer flags a Shopify order containing
-						Inverness (non-warehoused) items that need to be sourced
-						separately.
+						items from a brand marked &quot;Not in-house&quot;
+						(Stock Location toggle on the Brand Lead Times table)
+						that need to be sourced separately.
 					</p>
 				</div>
 				<div className="space-y-1.5 sm:max-w-xs">
 					<Label
-						htmlFor="shopify_inverness_notify_to"
+						htmlFor="shopify_non_warehoused_notify_to"
 						className="text-sm"
 					>
 						To
 						<span className="text-destructive ml-0.5">*</span>
 					</Label>
 					<Input
-						id="shopify_inverness_notify_to"
+						id="shopify_non_warehoused_notify_to"
 						type="email"
-						value={values.shopify_inverness_notify_to}
+						value={values.shopify_non_warehoused_notify_to}
 						onChange={(e) =>
-							set('shopify_inverness_notify_to', e.target.value)
+							set(
+								'shopify_non_warehoused_notify_to',
+								e.target.value
+							)
 						}
 						placeholder="accounting@example.com"
 					/>

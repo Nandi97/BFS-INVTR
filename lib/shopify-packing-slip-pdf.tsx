@@ -29,8 +29,8 @@ const C = {
 	rowAlt: '#fdf2f8',
 	green: '#15803d',
 	greenLight: '#dcfce7',
-	inverness: '#7c3aed',
-	invernessLight: '#f5f3ff',
+	nonWarehoused: '#7c3aed',
+	nonWarehousedLight: '#f5f3ff',
 };
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
@@ -132,7 +132,7 @@ const s = StyleSheet.create({
 		minHeight: 28,
 	},
 	tableRowAlt: { backgroundColor: C.rowAlt },
-	tableRowInverness: { backgroundColor: C.invernessLight },
+	tableRowNonWarehoused: { backgroundColor: C.nonWarehousedLight },
 	tableRowShortfall: { backgroundColor: '#fff7ed' },
 	tableRowPacked: { backgroundColor: C.greenLight },
 
@@ -151,7 +151,7 @@ const s = StyleSheet.create({
 	tdViolet: {
 		fontFamily: 'Helvetica-Bold',
 		fontSize: 9,
-		color: C.inverness,
+		color: C.nonWarehoused,
 	},
 
 	colNum: { width: 18 },
@@ -249,7 +249,7 @@ export interface ShopifyPackingSlipItem {
 	unitPrice: number | null;
 	totalDiscount: number;
 	isPacked: boolean;
-	isInverness: boolean;
+	isNonWarehoused: boolean;
 	notes: string | null;
 }
 
@@ -313,7 +313,7 @@ function ShopifyPackingSlipDocument({
 	const shortfallItems = data.items.filter(
 		(i) => i.fulfilledQty < i.requestedQty
 	);
-	const invernessItems = data.items.filter((i) => i.isInverness);
+	const nonWarehousedItems = data.items.filter((i) => i.isNonWarehoused);
 
 	return (
 		<Document
@@ -407,20 +407,20 @@ function ShopifyPackingSlipDocument({
 							</Text>
 						</View>
 					)}
-					{invernessItems.length > 0 && (
+					{nonWarehousedItems.length > 0 && (
 						<View
 							style={[
 								s.statusPill,
-								{ backgroundColor: C.invernessLight },
+								{ backgroundColor: C.nonWarehousedLight },
 							]}
 						>
 							<Text
 								style={[
 									s.statusPillText,
-									{ color: C.inverness },
+									{ color: C.nonWarehoused },
 								]}
 							>
-								{invernessItems.length} not stocked in-house
+								{nonWarehousedItems.length} not stocked in-house
 							</Text>
 						</View>
 					)}
@@ -477,8 +477,8 @@ function ShopifyPackingSlipDocument({
 							(item.unitPrice ?? 0) * item.fulfilledQty;
 						const lineNet = lineGross - item.totalDiscount;
 
-						const rowStyle = item.isInverness
-							? s.tableRowInverness
+						const rowStyle = item.isNonWarehoused
+							? s.tableRowNonWarehoused
 							: short
 								? s.tableRowShortfall
 								: item.isPacked
@@ -505,14 +505,14 @@ function ShopifyPackingSlipDocument({
 									>
 										{item.sku ?? ''}
 									</Text>
-									{item.isInverness && (
+									{item.isNonWarehoused && (
 										<Text
 											style={[
 												s.tdViolet,
 												{ fontSize: 7 },
 											]}
 										>
-											Inverness
+											Not in-house
 										</Text>
 									)}
 								</View>
@@ -656,12 +656,10 @@ function ShopifyPackingSlipDocument({
 						<View
 							style={[
 								s.legendDot,
-								{ backgroundColor: C.invernessLight },
+								{ backgroundColor: C.nonWarehousedLight },
 							]}
 						/>
-						<Text style={s.legendText}>
-							Inverness — not stocked in-house
-						</Text>
+						<Text style={s.legendText}>Not stocked in-house</Text>
 					</View>
 				</View>
 
