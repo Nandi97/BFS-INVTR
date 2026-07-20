@@ -43,6 +43,8 @@ export interface ShopifyApiOrder {
 
 export interface ShopifyProduct {
 	id: number;
+	vendor?: string;
+	product_type?: string;
 	variants: ShopifyVariant[];
 }
 
@@ -153,7 +155,7 @@ export async function fetchShopifyProducts(
 	do {
 		const params = new URLSearchParams({
 			limit: '250',
-			fields: 'id,variants',
+			fields: 'id,vendor,product_type,variants',
 		});
 		if (pageInfo) params.set('page_info', pageInfo);
 
@@ -225,6 +227,18 @@ export async function setVariantPrice(
 		body: JSON.stringify({
 			variant: { id: variantId, price: price.toFixed(2) },
 		}),
+	});
+}
+
+/** Shopify only exposes brand/category at the product level (vendor, product_type), not per variant. */
+export async function updateShopifyProductClassification(
+	store: ShopifyStoreConfig,
+	productId: number,
+	data: { vendor?: string; product_type?: string }
+): Promise<void> {
+	await shopifyFetch(store, `/products/${productId}.json`, {
+		method: 'PUT',
+		body: JSON.stringify({ product: { id: productId, ...data } }),
 	});
 }
 

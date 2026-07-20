@@ -84,6 +84,7 @@ type StockResult = {
 	skipped: number;
 	errors: string[];
 	error?: string;
+	classificationSynced?: number;
 };
 
 type PriceResult = {
@@ -104,6 +105,7 @@ function ResultPanel({
 		skipped: number;
 		errors: string[];
 		error?: string;
+		classificationSynced?: number;
 	};
 	label: string;
 	countKey: 'synced' | 'pricesSynced';
@@ -121,6 +123,15 @@ function ResultPanel({
 						{result.skipped}
 					</span>{' '}
 					skipped
+					{!!result.classificationSynced && (
+						<>
+							{' · '}
+							<span className="text-foreground font-medium">
+								{result.classificationSynced}
+							</span>{' '}
+							brand/category updated
+						</>
+					)}
 				</p>
 			)}
 			{result.errors.length > 0 && (
