@@ -19,7 +19,14 @@ export interface ShopifyApiLineItem {
 	title: string;
 	variant_title: string | null;
 	quantity: number;
-	price: string;
+	price: string; // unit list price, before this line's discount
+	total_discount: string; // dollar amount of discount applied across this line's quantity
+}
+
+export interface ShopifyDiscountCode {
+	code: string;
+	amount: string;
+	type: string;
 }
 
 export interface ShopifyApiOrder {
@@ -31,6 +38,8 @@ export interface ShopifyApiOrder {
 	shipping_address?: ShopifyAddress;
 	billing_address?: ShopifyAddress;
 	total_price: string;
+	total_discounts: string;
+	discount_codes: ShopifyDiscountCode[];
 	currency: string;
 	financial_status: string;
 	fulfillment_status: string | null;

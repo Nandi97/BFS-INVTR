@@ -73,6 +73,10 @@ export async function POST(req: NextRequest) {
 					shippingZip: order.shipping_address?.zip ?? null,
 					shippingCountry: order.shipping_address?.country ?? null,
 					totalPrice: parseFloat(order.total_price) || null,
+					totalDiscounts: parseFloat(order.total_discounts) || null,
+					discountCodes:
+						order.discount_codes?.map((d) => d.code).join(', ') ||
+						null,
 					currency: order.currency,
 					financialStatus: order.financial_status,
 					fulfillmentStatus: order.fulfillment_status,
@@ -112,6 +116,8 @@ export async function POST(req: NextRequest) {
 									variantTitle: item.variant_title,
 									quantity: item.quantity,
 									price: parseFloat(item.price) || 0,
+									totalDiscount:
+										parseFloat(item.total_discount) || 0,
 								})),
 							},
 						},

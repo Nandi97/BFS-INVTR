@@ -1,11 +1,8 @@
 import { sendMail } from '@/lib/mailer';
-import { prisma } from '@/lib/prisma';
 import { format } from 'date-fns';
 import type { ShopifyApiOrder } from '@/lib/shopify';
 import { customerName } from '@/lib/shopify';
-
-const NOTIFY_TO_KEY = 'shopify_order_notify_to';
-const NOTIFY_CC_KEY = 'shopify_order_notify_cc';
+import { getEmailRecipients } from '@/lib/email-recipients';
 
 function buildHtml(
 	orders: { storeDomain: string; order: ShopifyApiOrder }[]
@@ -47,6 +44,9 @@ function buildHtml(
       ${orders.length} new Shopify order${orders.length !== 1 ? 's' : ''} received
     </h2>
     <p style="font-size:13px;color:#64748b;margin:0 0 20px">${dateStr}</p>
+    <p style="font-size:13px;color:#334155;margin:0 0 20px">
+      These orders sync to QuickBooks automatically via the QBO Shopify app — BFS Inventory does not create the invoice. Please check QuickBooks for the corresponding invoice${orders.length !== 1 ? 's' : ''}.
+    </p>
     <table style="width:100%;border-collapse:collapse;font-size:13px">
       <thead>
         <tr>
@@ -92,14 +92,9 @@ export async function sendShopifyNewOrdersEmail(
 ): Promise<void> {
 	if (orders.length === 0) return;
 
-	const settings = await prisma.appSetting.findMany({
-		where: { key: { in: [NOTIFY_TO_KEY, NOTIFY_CC_KEY] } },
-	});
-
-	const toSetting =
-		settings.find((s) => s.key === NOTIFY_TO_KEY)?.value ?? '';
-	const ccSetting =
-		settings.find((s) => s.key === NOTIFY_CC_KEY)?.value ?? '';
+	const recipients = await getEmailRecipients();
+	const toSetting = recipients.shopify_order_notify_to;
+	const ccSetting = recipients.shopify_order_notify_cc;
 
 	if (!toSetting) return;
 

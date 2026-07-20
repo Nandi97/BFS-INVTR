@@ -12,6 +12,9 @@ export const RECIPIENT_KEYS = [
 	'internal_use_cc',
 	'shopify_order_notify_to',
 	'shopify_order_notify_cc',
+	'shopify_inverness_notify_to',
+	'shopify_packing_list_to',
+	'shopify_packing_list_cc',
 ] as const;
 
 export type RecipientKey = (typeof RECIPIENT_KEYS)[number];
@@ -26,6 +29,9 @@ export const RECIPIENT_DEFAULTS: Record<RecipientKey, string> = {
 	internal_use_cc: '',
 	shopify_order_notify_to: 'order@beautylogix.ca',
 	shopify_order_notify_cc: '',
+	shopify_inverness_notify_to: 'order@beautylogix.ca',
+	shopify_packing_list_to: 'order@beautylogix.ca',
+	shopify_packing_list_cc: '',
 };
 
 export async function GET(_req: Request) {

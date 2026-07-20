@@ -106,12 +106,13 @@ model Product {
     brand    Brand?    @relation(fields: [brandId], references: [id])
     category Category? @relation(fields: [categoryId], references: [id])
 
-    inventory          Inventory[]
-    stockMovements     StockMovement[]
-    productSuppliers   ProductSupplier[]
-    purchaseOrderItems PurchaseOrderItem[]
-    salesRecords       SalesRecord[]
-    fulfillmentItems   BfsFulfillmentItem[]
+    inventory               Inventory[]
+    stockMovements          StockMovement[]
+    productSuppliers        ProductSupplier[]
+    purchaseOrderItems      PurchaseOrderItem[]
+    salesRecords            SalesRecord[]
+    fulfillmentItems        BfsFulfillmentItem[]
+    shopifyFulfillmentItems ShopifyFulfillmentItem[]
 }
 
 model Location {
@@ -362,6 +363,8 @@ model ShopifyOrder {
     shippingZip       String?
     shippingCountry   String?
     totalPrice        Float?
+    totalDiscounts    Float?
+    discountCodes     String?
     currency          String   @default("CAD")
     financialStatus   String?
     fulfillmentStatus String?
@@ -374,7 +377,8 @@ model ShopifyOrder {
     createdAt         DateTime @default(now())
     updatedAt         DateTime @updatedAt
 
-    items ShopifyOrderItem[]
+    items       ShopifyOrderItem[]
+    fulfillment ShopifyFulfillment?
 }
 
 model ShopifyOrderItem {
@@ -387,8 +391,42 @@ model ShopifyOrderItem {
     variantTitle      String?
     quantity          Int
     price             Float
+    totalDiscount     Float   @default(0)
 
     order ShopifyOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}
+
+model ShopifyFulfillment {
+    id          String            @id @default(cuid())
+    orderId     String            @unique
+    status      FulfillmentStatus @default(PENDING)
+    submittedAt DateTime?
+    submittedBy String?
+    createdAt   DateTime          @default(now())
+    updatedAt   DateTime          @updatedAt
+
+    order ShopifyOrder             @relation(fields: [orderId], references: [id], onDelete: Cascade)
+    items ShopifyFulfillmentItem[]
+}
+
+model ShopifyFulfillmentItem {
+    id                String  @id @default(cuid())
+    fulfillmentId     String
+    shopifyLineItemId String?
+    productId         String?
+    sku               String?
+    title             String
+    variantTitle      String?
+    requestedQty      Float   @default(0)
+    fulfilledQty      Float   @default(0)
+    unitPrice         Float?
+    totalDiscount     Float   @default(0)
+    isPacked          Boolean @default(false)
+    notes             String?
+    sortOrder         Int     @default(0)
+
+    fulfillment ShopifyFulfillment @relation(fields: [fulfillmentId], references: [id], onDelete: Cascade)
+    product     Product?           @relation(fields: [productId], references: [id])
 }
 
 // ─── Pending Products (unmatched QB items awaiting admin review) ──────────────

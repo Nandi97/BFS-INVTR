@@ -13,7 +13,27 @@ export async function GET(
 
 	const order = await prisma.shopifyOrder.findUnique({
 		where: { id },
-		include: { items: true },
+		include: {
+			items: true,
+			fulfillment: {
+				include: {
+					items: {
+						include: {
+							product: {
+								select: {
+									id: true,
+									name: true,
+									sku: true,
+									barcode: true,
+									brand: { select: { name: true } },
+								},
+							},
+						},
+						orderBy: [{ sortOrder: 'asc' }],
+					},
+				},
+			},
+		},
 	});
 
 	if (!order) {
@@ -42,7 +62,32 @@ export async function GET(
 		bfsMatch: item.sku ? (stockBySku.get(item.sku) ?? null) : null,
 	}));
 
-	return NextResponse.json({ ...order, items: itemsWithStock });
+	// Enrich fulfillment items with current stock + Inverness (non-warehoused) flag
+	const enrichedFulfillmentItems = await Promise.all(
+		(order.fulfillment?.items ?? []).map(async (item) => {
+			if (!item.productId)
+				return { ...item, stockOnHand: null, isInverness: false };
+			const inv = await prisma.inventory.findFirst({
+				where: { productId: item.productId },
+				select: { quantity: true },
+			});
+			const isInverness =
+				item.product?.brand?.name?.toLowerCase() === 'inverness';
+			return {
+				...item,
+				stockOnHand: inv?.quantity ?? null,
+				isInverness,
+			};
+		})
+	);
+
+	return NextResponse.json({
+		...order,
+		items: itemsWithStock,
+		fulfillment: order.fulfillment
+			? { ...order.fulfillment, items: enrichedFulfillmentItems }
+			: null,
+	});
 }
 
 export async function PATCH(

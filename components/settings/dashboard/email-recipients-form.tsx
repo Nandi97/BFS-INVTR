@@ -20,6 +20,9 @@ type Recipients = {
 	internal_use_cc: string;
 	shopify_order_notify_to: string;
 	shopify_order_notify_cc: string;
+	shopify_inverness_notify_to: string;
+	shopify_packing_list_to: string;
+	shopify_packing_list_cc: string;
 };
 
 const FIELDS: {
@@ -282,6 +285,96 @@ export function EmailRecipientsForm() {
 								set('shopify_order_notify_cc', e.target.value)
 							}
 							placeholder="accounts@example.com, warehouse@example.com"
+						/>
+					</div>
+				</div>
+			</div>
+
+			<Separator />
+
+			{/* Shopify Inverness (non-warehoused) notification */}
+			<div className="space-y-4">
+				<div>
+					<h3 className="text-sm font-medium">
+						Shopify Inverness item notification
+					</h3>
+					<p className="text-muted-foreground mt-0.5 text-xs">
+						Sent when a packer flags a Shopify order containing
+						Inverness (non-warehoused) items that need to be sourced
+						separately.
+					</p>
+				</div>
+				<div className="space-y-1.5 sm:max-w-xs">
+					<Label
+						htmlFor="shopify_inverness_notify_to"
+						className="text-sm"
+					>
+						To
+						<span className="text-destructive ml-0.5">*</span>
+					</Label>
+					<Input
+						id="shopify_inverness_notify_to"
+						type="email"
+						value={values.shopify_inverness_notify_to}
+						onChange={(e) =>
+							set('shopify_inverness_notify_to', e.target.value)
+						}
+						placeholder="accounting@example.com"
+					/>
+				</div>
+			</div>
+
+			<Separator />
+
+			{/* Shopify packing list email */}
+			<div className="space-y-4">
+				<div>
+					<h3 className="text-sm font-medium">
+						Shopify packing list email
+					</h3>
+					<p className="text-muted-foreground mt-0.5 text-xs">
+						When a Shopify order fulfillment is submitted, the PDF
+						packing slip is emailed to these addresses.
+					</p>
+				</div>
+				<div className="grid gap-4 sm:grid-cols-2">
+					<div className="space-y-1.5">
+						<Label
+							htmlFor="shopify_packing_list_to"
+							className="text-sm"
+						>
+							To
+							<span className="text-destructive ml-0.5">*</span>
+						</Label>
+						<Input
+							id="shopify_packing_list_to"
+							type="email"
+							value={values.shopify_packing_list_to}
+							onChange={(e) =>
+								set('shopify_packing_list_to', e.target.value)
+							}
+							placeholder="accounting@example.com"
+							required
+						/>
+					</div>
+					<div className="space-y-1.5">
+						<Label
+							htmlFor="shopify_packing_list_cc"
+							className="text-sm"
+						>
+							CC{' '}
+							<span className="text-muted-foreground font-normal">
+								(optional)
+							</span>
+						</Label>
+						<Input
+							id="shopify_packing_list_cc"
+							type="email"
+							value={values.shopify_packing_list_cc}
+							onChange={(e) =>
+								set('shopify_packing_list_cc', e.target.value)
+							}
+							placeholder="orders@example.com"
 						/>
 					</div>
 				</div>
