@@ -27,6 +27,10 @@ export interface QboItem {
 	ReorderPoint?: number;
 	UnitPrice?: number;
 	PurchaseCost?: number;
+	/** Parent item in QBO's item hierarchy — accounts is using this as the brand grouping. */
+	ParentRef?: { value: string; name: string };
+	/** QBO Class — accounts is using this as the product category during the ongoing QBO cleanup. */
+	ClassRef?: { value: string; name: string };
 }
 
 // ─── QB Invoice shapes ────────────────────────────────────────────────────────
@@ -153,7 +157,7 @@ export async function clearQboTokens() {
 	const { oauth: _, ...rest } = row.config as Record<string, unknown> & {
 		oauth?: unknown;
 	};
-	 
+
 	await prisma.integrationConfig.update({
 		where: { provider: 'QUICKBOOKS' },
 		data: { config: rest as any, isActive: false },

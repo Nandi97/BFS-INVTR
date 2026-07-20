@@ -68,7 +68,13 @@ async function resolveProduct(fqn: string, sku?: string) {
 		// currently-inactive BFS product must still be matchable to be reactivated.
 		const hit = await prisma.product.findFirst({
 			where,
-			select: { id: true, name: true, isActive: true },
+			select: {
+				id: true,
+				name: true,
+				isActive: true,
+				brandId: true,
+				categoryId: true,
+			},
 		});
 		if (hit)
 			return {
@@ -77,6 +83,48 @@ async function resolveProduct(fqn: string, sku?: string) {
 			};
 	}
 	return null;
+}
+
+// ── QBO ParentRef/ClassRef → Brand/Category resolution ────────────────────────
+// Caches passed in per-request since the same brand/category name recurs across many items.
+async function resolveBrandId(
+	name: string,
+	cache: Map<string, string>
+): Promise<string> {
+	const trimmed = name.trim();
+	const key = trimmed.toLowerCase();
+	const cached = cache.get(key);
+	if (cached) return cached;
+
+	const existing = await prisma.brand.findFirst({
+		where: { name: { equals: trimmed, mode: 'insensitive' } },
+		select: { id: true },
+	});
+	const id =
+		existing?.id ??
+		(await prisma.brand.create({ data: { name: trimmed } })).id;
+	cache.set(key, id);
+	return id;
+}
+
+async function resolveCategoryId(
+	name: string,
+	cache: Map<string, string>
+): Promise<string> {
+	const trimmed = name.trim();
+	const key = trimmed.toLowerCase();
+	const cached = cache.get(key);
+	if (cached) return cached;
+
+	const existing = await prisma.category.findFirst({
+		where: { name: { equals: trimmed, mode: 'insensitive' } },
+		select: { id: true },
+	});
+	const id =
+		existing?.id ??
+		(await prisma.category.create({ data: { name: trimmed } })).id;
+	cache.set(key, id);
+	return id;
 }
 
 /**
@@ -181,9 +229,13 @@ export async function POST(req: NextRequest) {
 		restocked = 0,
 		unchanged = 0,
 		costUpdated = 0,
-		priceUpdated = 0;
+		priceUpdated = 0,
+		brandUpdated = 0,
+		categoryUpdated = 0;
 	const errors: string[] = [];
 	const startedAt = new Date();
+	const brandIdCache = new Map<string, string>();
+	const categoryIdCache = new Map<string, string>();
 
 	// Fetch QB invoices since last sync to attribute dispatch movements to stores
 	type InvoiceRef = { docNumber: string; customerName: string };
@@ -262,6 +314,17 @@ export async function POST(req: NextRequest) {
 		}
 
 		const qty = Math.max(0, item.QtyOnHand ?? 0);
+
+		// Resolve QBO's ParentRef (brand) / ClassRef (category) ahead of the
+		// transaction. Accounts' QBO cleanup is still in progress — items without
+		// these fields yet leave the product's existing brand/category untouched.
+		const brandId = item.ParentRef?.name
+			? await resolveBrandId(item.ParentRef.name, brandIdCache)
+			: undefined;
+		const categoryId = item.ClassRef?.name
+			? await resolveCategoryId(item.ClassRef.name, categoryIdCache)
+			: undefined;
+
 		try {
 			await prisma.$transaction(async (tx) => {
 				// QBO shows this item as Active — reactivate the BFS product if it
@@ -272,6 +335,22 @@ export async function POST(req: NextRequest) {
 						data: { isActive: true },
 					});
 					reactivated++;
+				}
+
+				if (brandId && brandId !== hit.brandId) {
+					await tx.product.update({
+						where: { id: hit.id },
+						data: { brandId },
+					});
+					brandUpdated++;
+				}
+
+				if (categoryId && categoryId !== hit.categoryId) {
+					await tx.product.update({
+						where: { id: hit.id },
+						data: { categoryId },
+					});
+					categoryUpdated++;
 				}
 
 				const existing = await tx.inventory.findUnique({
@@ -438,7 +517,7 @@ export async function POST(req: NextRequest) {
 					: errors.length > 0
 						? 'PARTIAL'
 						: 'SUCCESS',
-			message: `QBO API sync: ${synced} synced (${dispatched} dispatched, ${restocked} restocked, ${unchanged} unchanged), ${costUpdated} costs updated, ${priceUpdated} prices updated, ${skipped} skipped, ${deactivated} deactivated, ${reactivated} reactivated`,
+			message: `QBO API sync: ${synced} synced (${dispatched} dispatched, ${restocked} restocked, ${unchanged} unchanged), ${costUpdated} costs updated, ${priceUpdated} prices updated, ${brandUpdated} brands updated, ${categoryUpdated} categories updated, ${skipped} skipped, ${deactivated} deactivated, ${reactivated} reactivated`,
 			recordsIn: qboItems.length,
 			recordsOut: synced,
 		},
@@ -458,6 +537,8 @@ export async function POST(req: NextRequest) {
 		movements: { dispatched, restocked, unchanged },
 		costUpdated,
 		priceUpdated,
+		brandUpdated,
+		categoryUpdated,
 		errors: errors.slice(0, 30),
 	});
 }
