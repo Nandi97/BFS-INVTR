@@ -50,10 +50,13 @@ export interface ShopifyApiOrder {
 	line_items: ShopifyApiLineItem[];
 }
 
+export type ShopifyProductStatus = 'active' | 'draft' | 'archived';
+
 export interface ShopifyProduct {
 	id: number;
 	vendor?: string;
 	product_type?: string;
+	status?: ShopifyProductStatus;
 	variants: ShopifyVariant[];
 }
 
@@ -164,7 +167,7 @@ export async function fetchShopifyProducts(
 	do {
 		const params = new URLSearchParams({
 			limit: '250',
-			fields: 'id,vendor,product_type,variants',
+			fields: 'id,vendor,product_type,status,variants',
 		});
 		if (pageInfo) params.set('page_info', pageInfo);
 
@@ -239,11 +242,15 @@ export async function setVariantPrice(
 	});
 }
 
-/** Shopify only exposes brand/category at the product level (vendor, product_type), not per variant. */
-export async function updateShopifyProductClassification(
+/** Vendor/product_type/status are all product-level in Shopify, not per variant. */
+export async function updateShopifyProduct(
 	store: ShopifyStoreConfig,
 	productId: number,
-	data: { vendor?: string; product_type?: string }
+	data: {
+		vendor?: string;
+		product_type?: string;
+		status?: ShopifyProductStatus;
+	}
 ): Promise<void> {
 	await shopifyFetch(store, `/products/${productId}.json`, {
 		method: 'PUT',

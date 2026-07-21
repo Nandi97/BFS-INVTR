@@ -85,6 +85,7 @@ type StockResult = {
 	errors: string[];
 	error?: string;
 	classificationSynced?: number;
+	statusSynced?: number;
 };
 
 type PriceResult = {
@@ -106,6 +107,7 @@ function ResultPanel({
 		errors: string[];
 		error?: string;
 		classificationSynced?: number;
+		statusSynced?: number;
 	};
 	label: string;
 	countKey: 'synced' | 'pricesSynced';
@@ -130,6 +132,15 @@ function ResultPanel({
 								{result.classificationSynced}
 							</span>{' '}
 							brand/category updated
+						</>
+					)}
+					{!!result.statusSynced && (
+						<>
+							{' · '}
+							<span className="text-foreground font-medium">
+								{result.statusSynced}
+							</span>{' '}
+							status changed
 						</>
 					)}
 				</p>

@@ -64,6 +64,7 @@ export function useSyncShopifyInventoryForStore() {
 							errors: string[];
 							error?: string;
 							classificationSynced: number;
+							statusSynced: number;
 						}
 					>;
 				}>('/integrations/shopify/sync-inventory', { shop })
