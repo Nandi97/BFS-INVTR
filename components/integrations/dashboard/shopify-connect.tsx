@@ -12,11 +12,32 @@ import {
 	RefreshCw,
 	UploadCloud,
 	Tag,
+	Settings2,
+	PackagePlus,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+	Sheet,
+	SheetContent,
+	SheetHeader,
+	SheetTitle,
+	SheetDescription,
+} from '@/components/ui/sheet';
+import {
+	Table,
+	TableBody,
+	TableCell,
+	TableHead,
+	TableHeader,
+	TableRow,
+} from '@/components/ui/table';
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -35,6 +56,16 @@ import {
 	useSyncShopifyInventoryForStore,
 	usePushShopifyPricesForStore,
 } from '@/hooks/use-shopify-stores';
+import {
+	useShopifyStoreRules,
+	useSaveShopifyStoreRules,
+	type ShopifyCatalogMode,
+} from '@/hooks/use-shopify-store-rules';
+import {
+	useMissingShopifyProducts,
+	useCreateShopifyProducts,
+} from '@/hooks/use-shopify-catalog';
+import { useBrands } from '@/hooks/use-brands';
 
 function ConnectForm() {
 	const [shop, setShop] = useState('');
@@ -164,11 +195,459 @@ function ResultPanel({
 	);
 }
 
+function StoreSettingsSheet({
+	shop,
+	open,
+	onOpenChange,
+}: {
+	shop: string;
+	open: boolean;
+	onOpenChange: (v: boolean) => void;
+}) {
+	const { data, isLoading } = useShopifyStoreRules(shop, open);
+	const { data: brandsData } = useBrands();
+	const save = useSaveShopifyStoreRules();
+
+	const [form, setForm] = useState<{
+		label: string;
+		catalogMode: ShopifyCatalogMode;
+		brandIds: string[];
+	} | null>(null);
+
+	useEffect(() => {
+		if (open && data && !form) {
+			setForm({
+				label: data.label ?? '',
+				catalogMode: data.catalogMode,
+				brandIds: data.brandIds,
+			});
+		}
+		if (!open) setForm(null);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [open, data]);
+
+	const brands = brandsData ?? [];
+
+	function toggleBrand(id: string, checked: boolean) {
+		setForm((f) =>
+			f
+				? {
+						...f,
+						brandIds: checked
+							? [...f.brandIds, id]
+							: f.brandIds.filter((b) => b !== id),
+					}
+				: f
+		);
+	}
+
+	async function handleSave() {
+		if (!form) return;
+		try {
+			await save.mutateAsync({
+				shop,
+				label: form.label.trim() || null,
+				catalogMode: form.catalogMode,
+				brandIds:
+					form.catalogMode === 'BRAND_FILTERED' ? form.brandIds : [],
+			});
+			toast.success('Store settings saved');
+			onOpenChange(false);
+		} catch {
+			toast.error('Failed to save store settings');
+		}
+	}
+
+	return (
+		<Sheet open={open} onOpenChange={onOpenChange}>
+			<SheetContent className="w-full overflow-y-auto sm:max-w-lg">
+				<SheetHeader className="px-6 pt-6 pb-2">
+					<SheetTitle>Store Settings</SheetTitle>
+					<SheetDescription>{shop}</SheetDescription>
+				</SheetHeader>
+
+				{isLoading || !form ? (
+					<p className="text-muted-foreground px-6 text-sm">
+						Loading…
+					</p>
+				) : (
+					<div className="space-y-5 px-6 pb-6">
+						<div className="space-y-1.5">
+							<Label htmlFor="store-label">Display name</Label>
+							<Input
+								id="store-label"
+								placeholder={shop}
+								value={form.label}
+								onChange={(e) =>
+									setForm((f) =>
+										f ? { ...f, label: e.target.value } : f
+									)
+								}
+							/>
+							<p className="text-muted-foreground text-xs">
+								Optional nickname shown instead of the raw
+								domain.
+							</p>
+						</div>
+
+						<div className="space-y-2">
+							<Label>Catalog</Label>
+							<RadioGroup
+								value={form.catalogMode}
+								onValueChange={(v) =>
+									setForm((f) =>
+										f
+											? {
+													...f,
+													catalogMode:
+														v as ShopifyCatalogMode,
+												}
+											: f
+									)
+								}
+							>
+								<div className="flex items-center gap-2">
+									<RadioGroupItem value="ALL" id="mode-all" />
+									<Label
+										htmlFor="mode-all"
+										className="font-normal"
+									>
+										All active products
+									</Label>
+								</div>
+								<div className="flex items-center gap-2">
+									<RadioGroupItem
+										value="BRAND_FILTERED"
+										id="mode-filtered"
+									/>
+									<Label
+										htmlFor="mode-filtered"
+										className="font-normal"
+									>
+										Selected brands only
+									</Label>
+								</div>
+							</RadioGroup>
+						</div>
+
+						{form.catalogMode === 'BRAND_FILTERED' && (
+							<div className="space-y-2">
+								<Label>Brands carried by this store</Label>
+								<ScrollArea className="h-56 rounded-md border p-3">
+									<div className="space-y-2">
+										{brands.map((b) => (
+											<div
+												key={b.id}
+												className="flex items-center gap-2"
+											>
+												<Checkbox
+													id={`brand-${b.id}`}
+													checked={form.brandIds.includes(
+														b.id
+													)}
+													onCheckedChange={(c) =>
+														toggleBrand(
+															b.id,
+															c === true
+														)
+													}
+												/>
+												<Label
+													htmlFor={`brand-${b.id}`}
+													className="font-normal"
+												>
+													{b.name}
+												</Label>
+											</div>
+										))}
+									</div>
+								</ScrollArea>
+							</div>
+						)}
+
+						<div className="flex justify-end gap-3 border-t pt-5">
+							<Button
+								variant="outline"
+								onClick={() => onOpenChange(false)}
+							>
+								Cancel
+							</Button>
+							<Button
+								onClick={handleSave}
+								disabled={save.isPending}
+							>
+								{save.isPending ? 'Saving…' : 'Save'}
+							</Button>
+						</div>
+					</div>
+				)}
+			</SheetContent>
+		</Sheet>
+	);
+}
+
+function PushProductsSheet({
+	shop,
+	open,
+	onOpenChange,
+}: {
+	shop: string;
+	open: boolean;
+	onOpenChange: (v: boolean) => void;
+}) {
+	const { data, isLoading, isFetching } = useMissingShopifyProducts(
+		shop,
+		open
+	);
+	const createProducts = useCreateShopifyProducts();
+
+	const [selected, setSelected] = useState<Set<string>>(new Set());
+	const [prices, setPrices] = useState<Record<string, string>>({});
+	const [result, setResult] = useState<{
+		created: number;
+		errors: string[];
+	} | null>(null);
+
+	useEffect(() => {
+		if (!open) {
+			setSelected(new Set());
+			setPrices({});
+			setResult(null);
+		}
+	}, [open]);
+
+	const candidates = data?.candidates ?? [];
+
+	function priceFor(productId: string, salePrice: number | null) {
+		return (
+			prices[productId] ?? (salePrice != null ? String(salePrice) : '')
+		);
+	}
+
+	function toggle(productId: string, checked: boolean) {
+		setSelected((s) => {
+			const next = new Set(s);
+			if (checked) next.add(productId);
+			else next.delete(productId);
+			return next;
+		});
+	}
+
+	async function handleCreate() {
+		const items = candidates
+			.filter((c) => selected.has(c.productId))
+			.map((c) => ({
+				productId: c.productId,
+				price: Number(priceFor(c.productId, c.salePrice)),
+			}))
+			.filter((i) => i.price > 0);
+
+		if (items.length === 0) {
+			toast.error('Select at least one product with a valid price');
+			return;
+		}
+
+		try {
+			const r = await createProducts.mutateAsync({ shop, items });
+			setResult(r);
+			setSelected(new Set());
+			if (r.errors.length > 0) {
+				toast.warning(
+					`${r.created} created, ${r.errors.length} error(s)`
+				);
+			} else {
+				toast.success(`${r.created} product(s) created on ${shop}`);
+			}
+		} catch {
+			toast.error('Failed to create products');
+		}
+	}
+
+	return (
+		<Sheet open={open} onOpenChange={onOpenChange}>
+			<SheetContent className="w-full overflow-y-auto sm:max-w-2xl">
+				<SheetHeader className="px-6 pt-6 pb-2">
+					<SheetTitle>Push Products</SheetTitle>
+					<SheetDescription>
+						BFS products eligible for {shop} that aren&apos;t listed
+						there yet.
+					</SheetDescription>
+				</SheetHeader>
+
+				<div className="space-y-4 px-6 pb-6">
+					{isLoading ? (
+						<p className="text-muted-foreground text-sm">
+							Loading…
+						</p>
+					) : (
+						<>
+							{data && (
+								<p className="text-muted-foreground text-xs">
+									<span className="text-foreground font-medium">
+										{data.reconciled}
+									</span>{' '}
+									already-listed product(s) linked
+									automatically ·{' '}
+									<span className="text-foreground font-medium">
+										{candidates.length}
+									</span>{' '}
+									need review
+								</p>
+							)}
+
+							{candidates.length === 0 ? (
+								<p className="text-muted-foreground text-sm">
+									Nothing to create — every eligible product
+									is already listed on this store.
+								</p>
+							) : (
+								<div className="space-y-2 rounded-md border">
+									<ScrollArea className="max-h-[28rem]">
+										<Table>
+											<TableHeader>
+												<TableRow>
+													<TableHead className="w-8" />
+													<TableHead>
+														Product
+													</TableHead>
+													<TableHead>Brand</TableHead>
+													<TableHead className="w-28">
+														Price
+													</TableHead>
+												</TableRow>
+											</TableHeader>
+											<TableBody>
+												{candidates.map((c) => (
+													<TableRow key={c.productId}>
+														<TableCell>
+															<Checkbox
+																checked={selected.has(
+																	c.productId
+																)}
+																onCheckedChange={(
+																	v
+																) =>
+																	toggle(
+																		c.productId,
+																		v ===
+																			true
+																	)
+																}
+															/>
+														</TableCell>
+														<TableCell>
+															<p className="text-sm font-medium">
+																{c.name}
+															</p>
+															<p className="text-muted-foreground text-xs">
+																{c.sku ??
+																	c.barcode ??
+																	'—'}
+															</p>
+														</TableCell>
+														<TableCell className="text-sm">
+															{c.brand ?? '—'}
+														</TableCell>
+														<TableCell>
+															<Input
+																type="number"
+																step="0.01"
+																className="h-8 w-24"
+																value={priceFor(
+																	c.productId,
+																	c.salePrice
+																)}
+																onChange={(e) =>
+																	setPrices(
+																		(
+																			p
+																		) => ({
+																			...p,
+																			[c.productId]:
+																				e
+																					.target
+																					.value,
+																		})
+																	)
+																}
+															/>
+															{c.needsPrice && (
+																<Badge
+																	variant="outline"
+																	className="mt-1 text-[10px]"
+																>
+																	Needs price
+																</Badge>
+															)}
+														</TableCell>
+													</TableRow>
+												))}
+											</TableBody>
+										</Table>
+									</ScrollArea>
+								</div>
+							)}
+						</>
+					)}
+
+					{result && (
+						<div className="space-y-1.5 text-xs">
+							<p className="text-muted-foreground">
+								<span className="text-foreground font-medium">
+									{result.created}
+								</span>{' '}
+								created
+							</p>
+							{result.errors.length > 0 && (
+								<div className="bg-destructive/10 space-y-1 rounded-md p-2">
+									<ul className="max-h-28 space-y-0.5 overflow-y-auto">
+										{result.errors.map((e, i) => (
+											<li
+												key={i}
+												className="text-destructive break-all"
+											>
+												· {e}
+											</li>
+										))}
+									</ul>
+								</div>
+							)}
+						</div>
+					)}
+
+					<div className="flex justify-end gap-3 border-t pt-5">
+						<Button
+							variant="outline"
+							onClick={() => onOpenChange(false)}
+						>
+							Close
+						</Button>
+						<Button
+							onClick={handleCreate}
+							disabled={
+								createProducts.isPending ||
+								isFetching ||
+								selected.size === 0
+							}
+						>
+							{createProducts.isPending
+								? 'Creating…'
+								: `Create Selected (${selected.size})`}
+						</Button>
+					</div>
+				</div>
+			</SheetContent>
+		</Sheet>
+	);
+}
+
 function StoreRow({
 	shop,
+	label,
 	connectedAt,
 }: {
 	shop: string;
+	label: string | null;
 	connectedAt: string;
 }) {
 	const disconnect = useDisconnectShopifyStore();
@@ -177,6 +656,8 @@ function StoreRow({
 	const pushPrices = usePushShopifyPricesForStore();
 	const [stockResult, setStockResult] = useState<StockResult | null>(null);
 	const [priceResult, setPriceResult] = useState<PriceResult | null>(null);
+	const [settingsOpen, setSettingsOpen] = useState(false);
+	const [pushProductsOpen, setPushProductsOpen] = useState(false);
 
 	async function handleDisconnect() {
 		try {
@@ -241,7 +722,12 @@ function StoreRow({
 				<div className="flex items-center gap-3">
 					<Store className="text-muted-foreground size-4 shrink-0" />
 					<div>
-						<p className="text-sm font-medium">{shop}</p>
+						<p className="text-sm font-medium">{label || shop}</p>
+						{label && (
+							<p className="text-muted-foreground text-xs">
+								{shop}
+							</p>
+						)}
 						<p className="text-muted-foreground text-xs">
 							Connected{' '}
 							{format(
@@ -322,6 +808,22 @@ function StoreRow({
 					/>
 					{pushPrices.isPending ? 'Pushing…' : 'Push Prices'}
 				</Button>
+				<Button
+					variant="outline"
+					size="sm"
+					onClick={() => setPushProductsOpen(true)}
+				>
+					<PackagePlus className="mr-1.5 size-3.5" />
+					Push Products
+				</Button>
+				<Button
+					variant="outline"
+					size="sm"
+					onClick={() => setSettingsOpen(true)}
+				>
+					<Settings2 className="mr-1.5 size-3.5" />
+					Store Settings
+				</Button>
 			</div>
 
 			{(stockResult && !syncInventory.isPending) ||
@@ -343,6 +845,17 @@ function StoreRow({
 					)}
 				</div>
 			) : null}
+
+			<StoreSettingsSheet
+				shop={shop}
+				open={settingsOpen}
+				onOpenChange={setSettingsOpen}
+			/>
+			<PushProductsSheet
+				shop={shop}
+				open={pushProductsOpen}
+				onOpenChange={setPushProductsOpen}
+			/>
 		</div>
 	);
 }
@@ -383,6 +896,7 @@ export function ShopifyConnect() {
 						<StoreRow
 							key={s.shop}
 							shop={s.shop}
+							label={s.label}
 							connectedAt={s.connectedAt}
 						/>
 					))}

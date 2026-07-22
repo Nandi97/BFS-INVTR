@@ -14,10 +14,22 @@ export async function GET() {
 	};
 
 	const cfg = (row?.config ?? {}) as { stores?: ShopifyStore[] };
+	const domains = (cfg.stores ?? []).map((s) => s.shop);
+	const settings = domains.length
+		? await prisma.shopifyStoreSettings.findMany({
+				where: { storeDomain: { in: domains } },
+				select: { storeDomain: true, label: true },
+			})
+		: [];
+	const labelByDomain = new Map(
+		settings.map((s) => [s.storeDomain, s.label])
+	);
+
 	const stores = (cfg.stores ?? []).map(({ shop, scope, connectedAt }) => ({
 		shop,
 		scope,
 		connectedAt,
+		label: labelByDomain.get(shop) ?? null,
 	}));
 
 	return NextResponse.json({ stores, isActive: row?.isActive ?? false });

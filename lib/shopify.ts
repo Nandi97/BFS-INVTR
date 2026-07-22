@@ -54,10 +54,12 @@ export type ShopifyProductStatus = 'active' | 'draft' | 'archived';
 
 export interface ShopifyProduct {
 	id: number;
+	title?: string;
 	vendor?: string;
 	product_type?: string;
 	status?: ShopifyProductStatus;
 	variants: ShopifyVariant[];
+	images?: { src: string }[];
 }
 
 export interface ShopifyVariant {
@@ -104,6 +106,14 @@ export function getShopifyStores(): ShopifyStoreConfig[] {
 		if (domain && token) stores.push({ domain, token });
 	}
 	return stores;
+}
+
+/** Resolves a single connected store (DB OAuth or env-var) by domain, or null if not connected. */
+export async function getStoreByDomain(
+	domain: string
+): Promise<ShopifyStoreConfig | null> {
+	const stores = (await getConnectedStores()).concat(getShopifyStores());
+	return stores.find((s) => s.domain === domain) ?? null;
 }
 
 const API_VERSION = '2024-01';
@@ -167,7 +177,7 @@ export async function fetchShopifyProducts(
 	do {
 		const params = new URLSearchParams({
 			limit: '250',
-			fields: 'id,vendor,product_type,status,variants',
+			fields: 'id,title,vendor,product_type,status,variants',
 		});
 		if (pageInfo) params.set('page_info', pageInfo);
 
@@ -240,6 +250,55 @@ export async function setVariantPrice(
 			variant: { id: variantId, price: price.toFixed(2) },
 		}),
 	});
+}
+
+export interface CreateShopifyProductInput {
+	title: string;
+	vendor?: string;
+	product_type?: string;
+	status: ShopifyProductStatus;
+	sku?: string;
+	barcode?: string;
+	price: number;
+	inventory_quantity?: number;
+	imageUrl?: string;
+}
+
+export async function createShopifyProduct(
+	store: ShopifyStoreConfig,
+	data: CreateShopifyProductInput
+): Promise<ShopifyProduct> {
+	const res = await shopifyFetch<{ product: ShopifyProduct }>(
+		store,
+		'/products.json',
+		{
+			method: 'POST',
+			body: JSON.stringify({
+				product: {
+					title: data.title,
+					vendor: data.vendor,
+					product_type: data.product_type,
+					status: data.status,
+					variants: [
+						{
+							sku: data.sku,
+							barcode: data.barcode,
+							price: data.price.toFixed(2),
+							inventory_management: 'shopify',
+							inventory_quantity: Math.max(
+								0,
+								Math.round(data.inventory_quantity ?? 0)
+							),
+						},
+					],
+					images: data.imageUrl
+						? [{ src: data.imageUrl }]
+						: undefined,
+				},
+			}),
+		}
+	);
+	return res.product;
 }
 
 /** Vendor/product_type/status are all product-level in Shopify, not per variant. */

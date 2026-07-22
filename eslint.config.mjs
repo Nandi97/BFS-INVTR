@@ -43,6 +43,9 @@ const eslintConfig = defineConfig([
 		files: [
 			'components/zenoti/view/fulfillment-view.tsx',
 			'components/shopify/view/shopify-order-view.tsx',
+			// Store settings / push products Sheets seed local form state from
+			// query data on open and reset it on close
+			'components/integrations/dashboard/shopify-connect.tsx',
 		],
 		rules: {
 			'react-hooks/set-state-in-effect': 'off',

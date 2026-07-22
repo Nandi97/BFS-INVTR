@@ -75,7 +75,8 @@ model Brand {
     createdAt    DateTime @default(now())
     updatedAt    DateTime @updatedAt
 
-    products Product[]
+    products          Product[]
+    shopifyStoreRules ShopifyStoreBrandRule[]
 }
 
 model Category {
@@ -114,6 +115,7 @@ model Product {
     salesRecords            SalesRecord[]
     fulfillmentItems        BfsFulfillmentItem[]
     shopifyFulfillmentItems ShopifyFulfillmentItem[]
+    shopifyMappings         ShopifyProductMapping[]
 }
 
 model Location {
@@ -430,6 +432,43 @@ model ShopifyFulfillmentItem {
     product     Product?           @relation(fields: [productId], references: [id])
 }
 
+// ─── Shopify Store Config (per-store nickname, catalog rules, product mapping) ─
+
+model ShopifyStoreSettings {
+    storeDomain String             @id
+    label       String?
+    catalogMode ShopifyCatalogMode @default(ALL)
+    updatedAt   DateTime           @updatedAt
+
+    brandRules ShopifyStoreBrandRule[]
+}
+
+model ShopifyStoreBrandRule {
+    id          String   @id @default(cuid())
+    storeDomain String
+    brandId     String
+    createdAt   DateTime @default(now())
+
+    store ShopifyStoreSettings @relation(fields: [storeDomain], references: [storeDomain], onDelete: Cascade)
+    brand Brand                @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+    @@unique([storeDomain, brandId])
+}
+
+model ShopifyProductMapping {
+    id               String   @id @default(cuid())
+    productId        String
+    storeDomain      String
+    shopifyProductId String
+    shopifyVariantId String
+    createdAt        DateTime @default(now())
+    updatedAt        DateTime @updatedAt
+
+    product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+    @@unique([productId, storeDomain])
+}
+
 // ─── Pending Products (unmatched QB items awaiting admin review) ──────────────
 
 model PendingProduct {
@@ -537,6 +576,11 @@ enum IntegrationProvider {
     QUICKBOOKS
     SHOPIFY
     ZENOTI
+}
+
+enum ShopifyCatalogMode {
+    ALL
+    BRAND_FILTERED
 }
 
 enum ZenotiOrderStatus {

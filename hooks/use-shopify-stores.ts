@@ -7,6 +7,7 @@ export interface ConnectedShopifyStore {
 	shop: string;
 	scope: string;
 	connectedAt: string;
+	label: string | null;
 }
 
 const KEY = ['shopify-stores'];
