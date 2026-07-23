@@ -465,8 +465,8 @@ function PushProductsSheet({
 
 	return (
 		<Sheet open={open} onOpenChange={onOpenChange}>
-			<SheetContent className="w-full overflow-y-auto sm:max-w-2xl">
-				<SheetHeader className="px-6 pt-6 pb-2">
+			<SheetContent className="flex w-full flex-col sm:max-w-2xl">
+				<SheetHeader className="shrink-0 px-6 pt-6 pb-2">
 					<SheetTitle>Push Products</SheetTitle>
 					<SheetDescription>
 						BFS products eligible for {shop} that aren&apos;t listed
@@ -474,7 +474,7 @@ function PushProductsSheet({
 					</SheetDescription>
 				</SheetHeader>
 
-				<div className="space-y-4 px-6 pb-6">
+				<div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6">
 					{isLoading ? (
 						<p className="text-muted-foreground text-sm">
 							Loading…
@@ -501,90 +501,82 @@ function PushProductsSheet({
 									is already listed on this store.
 								</p>
 							) : (
-								<div className="space-y-2 rounded-md border">
-									<ScrollArea className="max-h-[28rem]">
-										<Table>
-											<TableHeader>
-												<TableRow>
-													<TableHead className="w-8" />
-													<TableHead>
-														Product
-													</TableHead>
-													<TableHead>Brand</TableHead>
-													<TableHead className="w-28">
-														Price
-													</TableHead>
-												</TableRow>
-											</TableHeader>
-											<TableBody>
-												{candidates.map((c) => (
-													<TableRow key={c.productId}>
-														<TableCell>
-															<Checkbox
-																checked={selected.has(
-																	c.productId
-																)}
-																onCheckedChange={(
-																	v
-																) =>
-																	toggle(
-																		c.productId,
-																		v ===
-																			true
-																	)
-																}
-															/>
-														</TableCell>
-														<TableCell>
-															<p className="text-sm font-medium">
-																{c.name}
-															</p>
-															<p className="text-muted-foreground text-xs">
-																{c.sku ??
-																	c.barcode ??
-																	'—'}
-															</p>
-														</TableCell>
-														<TableCell className="text-sm">
-															{c.brand ?? '—'}
-														</TableCell>
-														<TableCell>
-															<Input
-																type="number"
-																step="0.01"
-																className="h-8 w-24"
-																value={priceFor(
-																	c.productId,
-																	c.salePrice
-																)}
-																onChange={(e) =>
-																	setPrices(
-																		(
-																			p
-																		) => ({
-																			...p,
-																			[c.productId]:
-																				e
-																					.target
-																					.value,
-																		})
-																	)
-																}
-															/>
-															{c.needsPrice && (
-																<Badge
-																	variant="outline"
-																	className="mt-1 text-[10px]"
-																>
-																	Needs price
-																</Badge>
+								<div className="rounded-md border">
+									<Table>
+										<TableHeader>
+											<TableRow>
+												<TableHead className="w-8" />
+												<TableHead>Product</TableHead>
+												<TableHead className="w-28">
+													Price
+												</TableHead>
+											</TableRow>
+										</TableHeader>
+										<TableBody>
+											{candidates.map((c) => (
+												<TableRow key={c.productId}>
+													<TableCell>
+														<Checkbox
+															checked={selected.has(
+																c.productId
 															)}
-														</TableCell>
-													</TableRow>
-												))}
-											</TableBody>
-										</Table>
-									</ScrollArea>
+															onCheckedChange={(
+																v
+															) =>
+																toggle(
+																	c.productId,
+																	v === true
+																)
+															}
+														/>
+													</TableCell>
+													<TableCell className="max-w-0 whitespace-normal">
+														<p className="text-sm font-medium break-words">
+															{c.name}
+														</p>
+														<p className="text-muted-foreground text-xs break-words">
+															{c.brand ?? '—'}
+														</p>
+														<p className="text-muted-foreground text-xs break-words">
+															{c.sku ??
+																c.barcode ??
+																'—'}
+														</p>
+													</TableCell>
+													<TableCell>
+														<Input
+															type="number"
+															step="0.01"
+															className="h-8 w-24"
+															value={priceFor(
+																c.productId,
+																c.salePrice
+															)}
+															onChange={(e) =>
+																setPrices(
+																	(p) => ({
+																		...p,
+																		[c.productId]:
+																			e
+																				.target
+																				.value,
+																	})
+																)
+															}
+														/>
+														{c.needsPrice && (
+															<Badge
+																variant="outline"
+																className="mt-1 text-[10px]"
+															>
+																Needs price
+															</Badge>
+														)}
+													</TableCell>
+												</TableRow>
+											))}
+										</TableBody>
+									</Table>
 								</div>
 							)}
 						</>
@@ -614,27 +606,27 @@ function PushProductsSheet({
 							)}
 						</div>
 					)}
+				</div>
 
-					<div className="flex justify-end gap-3 border-t pt-5">
-						<Button
-							variant="outline"
-							onClick={() => onOpenChange(false)}
-						>
-							Close
-						</Button>
-						<Button
-							onClick={handleCreate}
-							disabled={
-								createProducts.isPending ||
-								isFetching ||
-								selected.size === 0
-							}
-						>
-							{createProducts.isPending
-								? 'Creating…'
-								: `Create Selected (${selected.size})`}
-						</Button>
-					</div>
+				<div className="flex shrink-0 justify-end gap-3 border-t px-6 py-4">
+					<Button
+						variant="outline"
+						onClick={() => onOpenChange(false)}
+					>
+						Close
+					</Button>
+					<Button
+						onClick={handleCreate}
+						disabled={
+							createProducts.isPending ||
+							isFetching ||
+							selected.size === 0
+						}
+					>
+						{createProducts.isPending
+							? 'Creating…'
+							: `Create Selected (${selected.size})`}
+					</Button>
 				</div>
 			</SheetContent>
 		</Sheet>
